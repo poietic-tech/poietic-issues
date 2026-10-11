@@ -1,4 +1,4 @@
-import { type Tx, withWriteTx } from '@poietic-tech/issues-db';
+import { type Database, type Kysely, type Tx, withWriteTx } from '@poietic-tech/issues-db';
 import {
   type CreateUserInput,
   CreateUserInputSchema,
@@ -18,6 +18,20 @@ export function toActor(user: Pick<User, 'id' | 'handle' | 'name' | 'kind' | 'ro
   return { id: user.id, handle: user.handle, name: user.name, kind: user.kind, role: user.role };
 }
 
+/** The handle of a user's owner, for `toUser`; null when the user has none. */
+export async function ownerHandle(
+  db: Kysely<Database>,
+  ownerId: string | null,
+): Promise<string | null> {
+  if (!ownerId) return null;
+  const owner = await db
+    .selectFrom('users')
+    .select('handle')
+    .where('id', '=', ownerId)
+    .executeTakeFirst();
+  return owner?.handle ?? null;
+}
+
 /** Emails are private: only admins and the user themselves see them. */
 function redact(ctx: ServiceContext, u: User): User {
   return isAdmin(ctx) || u.id === ctx.actor.id ? u : { ...u, email: null };
@@ -30,18 +44,21 @@ export async function listUsers(
 ): Promise<User[]> {
   requireSignedIn(ctx, 'see users');
   let q = ctx.db.kysely
-    .selectFrom('users')
-    .selectAll()
-    .where('kind', '!=', 'system')
-    .orderBy('handle');
-  if (!opts.includeDeactivated) q = q.where('deactivated_at', 'is', null);
-  return (await q.execute()).map((r) => redact(ctx, toUser(r)));
+    .selectFrom('users as u')
+    .leftJoin('users as o', 'o.id', 'u.owner_id')
+    .selectAll('u')
+    .select('o.handle as owner_handle')
+    .where('u.kind', '!=', 'system')
+    .orderBy('u.handle');
+  if (!opts.includeDeactivated) q = q.where('u.deactivated_at', 'is', null);
+  return (await q.execute()).map(({ owner_handle, ...r }) => redact(ctx, toUser(r, owner_handle)));
 }
 
 /** Gets a user by id, handle, `@handle` or `me`. */
 export async function getUser(ctx: ServiceContext, ref: string): Promise<User> {
   requireSignedIn(ctx, 'see users');
-  return redact(ctx, toUser(await getUserRow(ctx, ctx.db.kysely, ref)));
+  const row = await getUserRow(ctx, ctx.db.kysely, ref);
+  return redact(ctx, toUser(row, await ownerHandle(ctx.db.kysely, row.owner_id)));
 }
 
 /** Creates a human or agent user. Admin only. */
@@ -91,7 +108,7 @@ export async function insertUser(
     })
     .returningAll()
     .executeTakeFirstOrThrow();
-  const user = toUser(row);
+  const user = toUser(row, await ownerHandle(tx, row.owner_id));
   await recordEvent(tx, ctx, 'user.created', { data: { user } });
   return user;
 }
@@ -109,7 +126,8 @@ export async function updateUser(
     const adminOnly = patch.role !== undefined || patch.deactivated !== undefined;
     if (!isAdmin(ctx) && (!self || adminOnly))
       throw forbidden('You can only edit your own profile');
-    const before = toUser(row);
+    const owner = await ownerHandle(tx, row.owner_id);
+    const before = toUser(row, owner);
     const now = nowIso(ctx);
     const updated = await tx
       .updateTable('users')
@@ -124,7 +142,7 @@ export async function updateUser(
       .where('id', '=', row.id)
       .returningAll()
       .executeTakeFirstOrThrow();
-    const user = toUser(updated);
+    const user = toUser(updated, owner);
     const changes = diff(before, user, ['name', 'email', 'role', 'avatarUrl', 'deactivatedAt']);
     if (Object.keys(changes).length > 0)
       await recordEvent(tx, ctx, 'user.updated', { data: { user, changes } });

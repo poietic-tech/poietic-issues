@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatActor } from '@poietic-tech/issues-schema';
   import { useQueryClient } from '@tanstack/svelte-query';
   import type { Issue, User } from '../api.ts';
   import { updateIssue } from '../issues.ts';
@@ -36,6 +37,7 @@
               name: user.name,
               kind: user.kind,
               avatarUrl: user.avatarUrl,
+              owner: user.owner ?? null,
             }
           : null,
       },
@@ -54,12 +56,14 @@
   {#snippet trigger()}
     <Avatar user={issue.assignee} />
     {#if showLabel}<span class="truncate {issue.assignee ? '' : 'text-fg-subtle'}"
-        >{issue.assignee?.name ?? 'Unassigned'}</span
+        >{issue.assignee ? formatActor(issue.assignee) : 'Unassigned'}</span
       >{/if}
   {/snippet}
   {#snippet item(it)}
     <Avatar user={it.user} />
     <span class="truncate">{it.label}</span>
-    {#if it.user}<span class="truncate text-xs text-fg-subtle">@{it.user.handle}</span>{/if}
+    {#if it.user}<span class="truncate text-xs text-fg-subtle"
+        >{formatActor(it.user, { label: 'handle' })}</span
+      >{/if}
   {/snippet}
 </Picker>

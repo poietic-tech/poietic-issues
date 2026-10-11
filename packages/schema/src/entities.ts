@@ -16,6 +16,14 @@ export const UserKindSchema = z
   .meta({ description: 'Humans and AI agents are both first-class actors; `system` is internal.' });
 export const UserRoleSchema = z.enum(['admin', 'member']);
 
+export const UserOwnerSchema = z
+  .object({
+    id: z.string().meta({ example: 'usr_01h455vb4pex5vsknk084sn02q' }),
+    handle: z.string().meta({ example: 'ada' }),
+  })
+  .meta({ id: 'UserOwner' });
+export type UserOwner = z.infer<typeof UserOwnerSchema>;
+
 export const UserSummarySchema = z
   .object({
     id: z.string().meta({ example: 'usr_01h455vb4pex5vsknk084sn02q' }),
@@ -23,6 +31,10 @@ export const UserSummarySchema = z
     name: z.string().meta({ example: 'Ada Lovelace' }),
     kind: UserKindSchema,
     avatarUrl: z.string().nullable(),
+    owner: nullableRef(UserOwnerSchema).optional().meta({
+      description:
+        'For an agent signed in through SSO, the user it acts for; null otherwise. Absent from issue snapshots recorded before owners existed.',
+    }),
   })
   .meta({ id: 'UserSummary' });
 export type UserSummary = z.infer<typeof UserSummarySchema>;

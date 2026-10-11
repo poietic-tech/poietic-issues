@@ -1,12 +1,19 @@
 <script lang="ts">
   import Bot from '@lucide/svelte/icons/bot';
   import CircleDashed from '@lucide/svelte/icons/circle-dashed';
+  import { formatActor } from '@poietic-tech/issues-schema';
 
   let {
     user,
     size = 18,
   }: {
-    user: { name: string; handle: string; kind: string; avatarUrl?: string | null } | null;
+    user: {
+      name: string;
+      handle: string;
+      kind: string;
+      avatarUrl?: string | null;
+      owner?: { handle: string } | null;
+    } | null;
     size?: number;
   } = $props();
 
@@ -27,6 +34,10 @@
         ]
       : '',
   );
+  /** `Opal bot (@opal-bot) · agent · owned by @opal`. */
+  const title = $derived(
+    user ? formatActor({ ...user, name: `${user.name} (@${user.handle})` }) : 'Unassigned',
+  );
   const initials = $derived(
     user
       ? user.name
@@ -46,7 +57,7 @@
   <img
     src={user.avatarUrl}
     alt={user.name}
-    title={`${user.name} (@${user.handle})`}
+    {title}
     class="shrink-0 rounded-full object-cover"
     style:width="{size}px"
     style:height="{size}px"
@@ -58,7 +69,7 @@
     style:height="{size}px"
     style:background={color}
     style:font-size="{Math.round(size * 0.45)}px"
-    title={`${user.name} (@${user.handle})${user.kind === 'agent' ? ' · agent' : ''}`}
+    {title}
   >
     {#if user.kind === 'agent'}<Bot size={Math.round(size * 0.65)} />{:else}{initials}{/if}
   </span>

@@ -208,13 +208,19 @@ export async function testWebhook(
   requireAdmin(ctx, 'manage webhooks');
   const row = await webhookRow(ctx.db.kysely, id);
   const now = ctx.clock.now();
+  const owner = await ctx.db.kysely
+    .selectFrom('users as u')
+    .innerJoin('users as o', 'o.id', 'u.owner_id')
+    .select(['o.id', 'o.handle'])
+    .where('u.id', '=', ctx.actor.id)
+    .executeTakeFirst();
   const ping = {
     seq: 0,
     id: newId('event'),
     type: 'webhook.ping',
     actorId: ctx.actor.id,
     // requireAdmin above narrows the actor to a stored user kind (never anonymous).
-    actor: toUserSummary({ ...ctx.actor, avatarUrl: null }),
+    actor: toUserSummary({ ...ctx.actor, avatarUrl: null }, owner ?? null),
     projectId: row.project_id,
     issueId: null,
     data: { webhook: { id: row.id, url: row.url } },

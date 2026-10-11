@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { agentNote } from '@poietic-tech/issues-schema';
   import { btn, input } from '../styles.ts';
   import { createQuery, useQueryClient } from '@tanstack/svelte-query';
   import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -193,6 +194,10 @@
         <span class="min-w-0 flex-1 truncate text-sm">
           <span class="text-fg-muted">@{m.user.handle}</span>
           {#if m.user.name !== m.user.handle}<span class="ml-1.5 text-fg-subtle">{m.user.name}</span
+            >{/if}
+          {#if agentNote(m.user)}<span
+              class="ml-1.5 rounded bg-bg-muted px-1 text-xs text-fg-subtle"
+              >{agentNote(m.user)}</span
             >{/if}
         </span>
         {#if readonly}

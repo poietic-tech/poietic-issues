@@ -10,6 +10,7 @@ import { nowIso, type ServiceContext } from '../context.ts';
 import { conflict, isUniqueViolation, notFound, parseInput } from '../errors.ts';
 import { recordEvent } from '../events.ts';
 import { getProjectRow, getUserRow } from '../refs.ts';
+import { toUserOwner, toUserSummary } from '../mappers.ts';
 
 type Exec = Kysely<Database>;
 
@@ -17,6 +18,7 @@ async function memberRows(db: Exec, projectId: string, userId?: string): Promise
   let q = db
     .selectFrom('project_members as m')
     .innerJoin('users as u', 'u.id', 'm.user_id')
+    .leftJoin('users as o', 'o.id', 'u.owner_id')
     .select([
       'm.role',
       'm.created_at',
@@ -26,12 +28,17 @@ async function memberRows(db: Exec, projectId: string, userId?: string): Promise
       'u.name',
       'u.kind',
       'u.avatar_url',
+      'u.owner_id',
+      'o.handle as owner_handle',
     ])
     .where('m.project_id', '=', projectId)
     .orderBy('u.handle');
   if (userId) q = q.where('m.user_id', '=', userId);
   return (await q.execute()).map((r): ProjectMember => ({
-    user: { id: r.id, handle: r.handle, name: r.name, kind: r.kind, avatarUrl: r.avatar_url },
+    user: toUserSummary(
+      { id: r.id, handle: r.handle, name: r.name, kind: r.kind, avatarUrl: r.avatar_url },
+      toUserOwner(r.owner_id, r.owner_handle),
+    ),
     role: r.role,
     createdAt: r.created_at,
     updatedAt: r.updated_at,

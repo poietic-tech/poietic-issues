@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { agentNote, formatActor } from '@poietic-tech/issues-schema';
   import { btn } from '../styles.ts';
   import { createQuery, useQueryClient } from '@tanstack/svelte-query';
   import type { Comment, Issue, TrackerEvent, User } from '../api.ts';
@@ -47,11 +48,13 @@
 
   type Change = { from: unknown; to: unknown };
   const name = (v: unknown) =>
-    v && typeof v === 'object' && 'name' in v
-      ? String((v as { name: string }).name)
-      : v === null || v === undefined
-        ? 'none'
-        : String(v);
+    v && typeof v === 'object' && 'handle' in v && 'kind' in v
+      ? formatActor(v as Parameters<typeof formatActor>[0])
+      : v && typeof v === 'object' && 'name' in v
+        ? String((v as { name: string }).name)
+        : v === null || v === undefined
+          ? 'none'
+          : String(v);
 
   function describe(e: TrackerEvent): string[] {
     const data = e.data as {
@@ -173,7 +176,9 @@
           <li class="flex items-center gap-2 pl-1 text-xs text-fg-subtle">
             <Avatar user={entry.event.actor} size={14} />
             <span
-              ><span class="text-fg-muted">{entry.event.actor?.name ?? 'Someone'}</span>
+              ><span class="text-fg-muted"
+                >{entry.event.actor ? formatActor(entry.event.actor) : 'Someone'}</span
+              >
               {line}</span
             >
             <span title={entry.at}>· {relativeTime(entry.at)}</span>
@@ -185,8 +190,9 @@
           <div class="flex items-center gap-2 px-3 pt-2 text-xs">
             <Avatar user={c.author} size={18} />
             <span class="font-medium">{c.author.name}</span>
-            {#if c.author.kind === 'agent'}<span class="rounded bg-bg-muted px-1 text-fg-subtle"
-                >agent</span
+            {#if agentNote(c.author)}<span
+                class="rounded bg-bg-muted px-1 text-fg-subtle"
+                data-testid="agent-note">{agentNote(c.author)}</span
               >{/if}
             <span class="text-fg-subtle" title={c.createdAt}
               >{relativeTime(c.createdAt)}{c.editedAt ? ' · edited' : ''}</span

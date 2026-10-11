@@ -8,6 +8,7 @@ import type {
   ProjectRepo,
   Status,
   User,
+  UserOwner,
   UserSummary,
   View,
 } from '@poietic-tech/issues-schema';
@@ -15,13 +16,22 @@ import { migrateViewConfig } from '@poietic-tech/issues-schema';
 
 type Row<T extends keyof Database> = Selectable<Database[T]>;
 
-export function toUser(r: Row<'users'>): User {
+/** The owner reference for a user row joined to its owner's handle (null when there is no owner). */
+export function toUserOwner(
+  ownerId: string | null,
+  ownerHandle: string | null | undefined,
+): UserOwner | null {
+  return ownerId && ownerHandle ? { id: ownerId, handle: ownerHandle } : null;
+}
+
+export function toUser(r: Row<'users'>, ownerHandle: string | null): User {
   return {
     id: r.id,
     handle: r.handle,
     name: r.name,
     kind: r.kind,
     avatarUrl: r.avatar_url,
+    owner: toUserOwner(r.owner_id, ownerHandle),
     email: r.email,
     role: r.role,
     createdAt: r.created_at,
@@ -33,8 +43,9 @@ export function toUser(r: Row<'users'>): User {
 
 export function toUserSummary(
   u: Pick<User, 'id' | 'handle' | 'name' | 'kind' | 'avatarUrl'>,
+  owner: UserOwner | null,
 ): UserSummary {
-  return { id: u.id, handle: u.handle, name: u.name, kind: u.kind, avatarUrl: u.avatarUrl };
+  return { id: u.id, handle: u.handle, name: u.name, kind: u.kind, avatarUrl: u.avatarUrl, owner };
 }
 
 export function toApiToken(r: Row<'api_tokens'>): ApiToken {

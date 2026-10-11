@@ -3,7 +3,7 @@ import { type Attachment, formatIssueKey, isIdOf } from '@poietic-tech/issues-sc
 import { nowIso, type ServiceContext } from '../context.ts';
 import { conflict, DomainError, forbidden, notFound } from '../errors.ts';
 import { recordEvent } from '../events.ts';
-import { toUserSummary } from '../mappers.ts';
+import { toUserOwner, toUserSummary } from '../mappers.ts';
 import { atLeast, requireLevel } from '../access.ts';
 import { getIssueAccess, getIssueRow, requireProjectAccess } from '../refs.ts';
 import { type BlobStore, newBlobKey, sha256Hex } from '../storage/blob-store.ts';
@@ -19,8 +19,16 @@ async function loadAttachment(
   const r = await db
     .selectFrom('attachments as a')
     .innerJoin('users as u', 'u.id', 'a.uploader_id')
+    .leftJoin('users as o', 'o.id', 'u.owner_id')
     .selectAll('a')
-    .select(['u.handle', 'u.name', 'u.kind', 'u.avatar_url'])
+    .select([
+      'u.handle',
+      'u.name',
+      'u.kind',
+      'u.avatar_url',
+      'u.owner_id',
+      'o.handle as owner_handle',
+    ])
     .where('a.id', '=', id)
     .executeTakeFirst();
   return r ? toAttachment(r) : undefined;
@@ -42,18 +50,23 @@ function toAttachment(r: {
   name: string;
   kind: 'human' | 'agent' | 'system';
   avatar_url: string | null;
+  owner_id: string | null;
+  owner_handle: string | null;
 }): Attachment & { storageKey: string } {
   return {
     id: r.id,
     issueId: r.issue_id,
     commentId: r.comment_id,
-    uploader: toUserSummary({
-      id: r.uploader_id,
-      handle: r.handle,
-      name: r.name,
-      kind: r.kind,
-      avatarUrl: r.avatar_url,
-    }),
+    uploader: toUserSummary(
+      {
+        id: r.uploader_id,
+        handle: r.handle,
+        name: r.name,
+        kind: r.kind,
+        avatarUrl: r.avatar_url,
+      },
+      toUserOwner(r.owner_id, r.owner_handle),
+    ),
     filename: r.filename,
     contentType: r.content_type,
     size: r.size,
@@ -168,9 +181,17 @@ export async function listAttachments(
   let q = ctx.db.kysely
     .selectFrom('attachments as a')
     .innerJoin('users as u', 'u.id', 'a.uploader_id')
+    .leftJoin('users as o', 'o.id', 'u.owner_id')
     .leftJoin('comments as c', 'c.id', 'a.comment_id')
     .selectAll('a')
-    .select(['u.handle', 'u.name', 'u.kind', 'u.avatar_url'])
+    .select([
+      'u.handle',
+      'u.name',
+      'u.kind',
+      'u.avatar_url',
+      'u.owner_id',
+      'o.handle as owner_handle',
+    ])
     .where('a.issue_id', '=', issue.id)
     .where('a.deleted_at', 'is', null)
     .orderBy('a.created_at');

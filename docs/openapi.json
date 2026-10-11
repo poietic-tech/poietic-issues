@@ -158,6 +158,17 @@
               "string",
               "null"
             ]
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserOwner"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For an agent signed in through SSO, the user it acts for; null otherwise. Absent from issue snapshots recorded before owners existed."
           }
         },
         "required": [
@@ -166,6 +177,23 @@
           "name",
           "kind",
           "avatarUrl"
+        ]
+      },
+      "UserOwner": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "usr_01h455vb4pex5vsknk084sn02q"
+          },
+          "handle": {
+            "type": "string",
+            "example": "ada"
+          }
+        },
+        "required": [
+          "id",
+          "handle"
         ]
       },
       "AuthConfig": {
@@ -246,6 +274,17 @@
               "string",
               "null"
             ]
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserOwner"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For an agent signed in through SSO, the user it acts for; null otherwise. Absent from issue snapshots recorded before owners existed."
           },
           "email": {
             "type": [

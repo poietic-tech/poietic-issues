@@ -5690,6 +5690,14 @@ export interface components {
              */
             kind: "human" | "agent" | "system";
             avatarUrl: string | null;
+            /** @description For an agent signed in through SSO, the user it acts for; null otherwise. Absent from issue snapshots recorded before owners existed. */
+            owner?: components["schemas"]["UserOwner"] | null;
+        };
+        UserOwner: {
+            /** @example usr_01h455vb4pex5vsknk084sn02q */
+            id: string;
+            /** @example ada */
+            handle: string;
         };
         AuthConfig: {
             /** @description Whether passwordless dev login is enabled (development only). */
@@ -5719,6 +5727,8 @@ export interface components {
              */
             kind: "human" | "agent" | "system";
             avatarUrl: string | null;
+            /** @description For an agent signed in through SSO, the user it acts for; null otherwise. Absent from issue snapshots recorded before owners existed. */
+            owner?: components["schemas"]["UserOwner"] | null;
             email: string | null;
             /** @enum {string} */
             role: "admin" | "member";
@@ -7016,6 +7026,7 @@ export interface components {
 }
 export type Event = components['schemas']['Event'];
 export type UserSummary = components['schemas']['UserSummary'];
+export type UserOwner = components['schemas']['UserOwner'];
 export type AuthConfig = components['schemas']['AuthConfig'];
 export type User = components['schemas']['User'];
 export type Problem = components['schemas']['Problem'];

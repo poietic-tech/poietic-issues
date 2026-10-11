@@ -4,12 +4,15 @@ import { readableProjectIds, writableProjectIds } from '../access.ts';
 import { isAnonymous, type ServiceContext } from '../context.ts';
 import { validationError } from '../errors.ts';
 import { isAdmin } from '../permissions.ts';
+import { toUserOwner } from '../mappers.ts';
 
 export interface ListEventsInput {
   /** Only events with `seq` greater than this (exclusive cursor). */
   after?: number | undefined;
   limit?: number | undefined;
+  /** A project id (not a key): callers resolve refs first, checking access as they do. */
   project?: string | undefined;
+  /** An issue id (not a key such as `ENG-1`): callers resolve refs first, checking access as they do. */
   issue?: string | undefined;
   types?: EventType[] | undefined;
   /** With `issue`: also include link events where the issue is the target. */
@@ -20,12 +23,15 @@ function eventQuery(db: Tx) {
   return db
     .selectFrom('events as e')
     .leftJoin('users as u', 'u.id', 'e.actor_id')
+    .leftJoin('users as o', 'o.id', 'u.owner_id')
     .selectAll('e')
     .select([
       'u.handle as u_handle',
       'u.name as u_name',
       'u.kind as u_kind',
       'u.avatar_url as u_avatar',
+      'u.owner_id as u_owner_id',
+      'o.handle as u_owner_handle',
     ]);
 }
 
@@ -45,6 +51,7 @@ function toTrackerEvent(r: EventRow): TrackerEvent {
             name: r.u_name!,
             kind: r.u_kind!,
             avatarUrl: r.u_avatar,
+            owner: toUserOwner(r.u_owner_id, r.u_owner_handle),
           }
         : null,
     projectId: r.project_id,

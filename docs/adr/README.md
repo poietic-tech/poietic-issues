@@ -27,3 +27,4 @@ Short records of decisions that constrain future work. Copy `0000-template.md`, 
 | [0021](0021-project-visibility-and-roles.md)          | Project visibility, per-project roles and anonymous read access        | Accepted                               |
 | [0022](0022-poietic-auth-package-verifier.md)         | Verify SSO tokens with `@poietic-tech/auth`                            | Accepted                               |
 | [0023](0023-agent-identities.md)                      | Agent identities from SSO identity tokens                              | Accepted                               |
+| [0024](0024-showing-agents-and-owners.md)             | Showing agents and their owners                                        | Accepted                               |

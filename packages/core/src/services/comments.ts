@@ -11,7 +11,7 @@ import {
 import { nowIso, type ServiceContext } from '../context.ts';
 import { conflict, forbidden, notFound, parseInput } from '../errors.ts';
 import { recordEvent } from '../events.ts';
-import { toComment, toUserSummary } from '../mappers.ts';
+import { toComment, toUserOwner, toUserSummary } from '../mappers.ts';
 import { atLeast, requireLevel } from '../access.ts';
 import { getIssueAccess, getIssueRow, requireProjectAccess } from '../refs.ts';
 
@@ -19,20 +19,31 @@ async function loadComment(db: Tx, id: string): Promise<Comment | undefined> {
   const row = await db
     .selectFrom('comments as c')
     .innerJoin('users as u', 'u.id', 'c.author_id')
+    .leftJoin('users as o', 'o.id', 'u.owner_id')
     .selectAll('c')
-    .select(['u.handle', 'u.name', 'u.kind', 'u.avatar_url'])
+    .select([
+      'u.handle',
+      'u.name',
+      'u.kind',
+      'u.avatar_url',
+      'u.owner_id',
+      'o.handle as owner_handle',
+    ])
     .where('c.id', '=', id)
     .executeTakeFirst();
   return row
     ? toComment(
         row,
-        toUserSummary({
-          id: row.author_id,
-          handle: row.handle,
-          name: row.name,
-          kind: row.kind,
-          avatarUrl: row.avatar_url,
-        }),
+        toUserSummary(
+          {
+            id: row.author_id,
+            handle: row.handle,
+            name: row.name,
+            kind: row.kind,
+            avatarUrl: row.avatar_url,
+          },
+          toUserOwner(row.owner_id, row.owner_handle),
+        ),
       )
     : undefined;
 }
@@ -64,8 +75,16 @@ export async function listComments(
   let q = ctx.db.kysely
     .selectFrom('comments as c')
     .innerJoin('users as u', 'u.id', 'c.author_id')
+    .leftJoin('users as o', 'o.id', 'u.owner_id')
     .selectAll('c')
-    .select(['u.handle', 'u.name', 'u.kind', 'u.avatar_url'])
+    .select([
+      'u.handle',
+      'u.name',
+      'u.kind',
+      'u.avatar_url',
+      'u.owner_id',
+      'o.handle as owner_handle',
+    ])
     .where('c.issue_id', '=', issue.id)
     .orderBy('c.created_at')
     .orderBy('c.id');
@@ -74,13 +93,16 @@ export async function listComments(
   return rows.map((row) =>
     toComment(
       row,
-      toUserSummary({
-        id: row.author_id,
-        handle: row.handle,
-        name: row.name,
-        kind: row.kind,
-        avatarUrl: row.avatar_url,
-      }),
+      toUserSummary(
+        {
+          id: row.author_id,
+          handle: row.handle,
+          name: row.name,
+          kind: row.kind,
+          avatarUrl: row.avatar_url,
+        },
+        toUserOwner(row.owner_id, row.owner_handle),
+      ),
     ),
   );
 }

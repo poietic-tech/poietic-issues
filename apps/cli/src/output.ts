@@ -1,4 +1,4 @@
-import { type Issue, readField } from '@poietic-tech/issues-schema';
+import { formatActor, type Issue, readField, type UserSummary } from '@poietic-tech/issues-schema';
 import type { OutputFormat } from './config.ts';
 import type { CliIO } from './io.ts';
 
@@ -28,6 +28,9 @@ const PRIORITY = ['—', 'Urgent', 'High', 'Medium', 'Low'];
 
 const handle = (u: unknown) =>
   (u as { handle?: string } | null)?.handle ? `@${(u as { handle: string }).handle}` : '—';
+/** An actor by handle, marked when it is an agent: `@opal-bot · agent · owned by @opal`. */
+const actor = (u: unknown) =>
+  (u as UserSummary | null)?.handle ? formatActor(u as UserSummary, { label: 'handle' }) : '—';
 const date = (v: unknown) => (typeof v === 'string' ? v.slice(0, 10) : '—');
 const names = (v: unknown) =>
   ((v as Array<{ name: string }> | undefined) ?? []).map((l) => l.name).join(', ') || '—';
@@ -37,13 +40,13 @@ const COLUMNS: Record<Exclude<Kind, 'raw'>, Column[]> = {
     ['KEY', (r) => r.key],
     ['STATUS', (r) => (r.status as { name: string }).name],
     ['PRI', (r) => PRIORITY[r.priority as number]],
-    ['ASSIGNEE', (r) => handle(r.assignee)],
+    ['ASSIGNEE', (r) => actor(r.assignee)],
     ['LABELS', (r) => names(r.labels)],
     ['TITLE', (r) => r.title],
   ],
   comment: [
     ['ID', (r) => r.id],
-    ['AUTHOR', (r) => handle(r.author)],
+    ['AUTHOR', (r) => actor(r.author)],
     ['CREATED', (r) => date(r.createdAt)],
     ['BODY', (r) => String(r.body).replace(/\s+/g, ' ')],
   ],
@@ -59,7 +62,7 @@ const COLUMNS: Record<Exclude<Kind, 'raw'>, Column[]> = {
     ['FILENAME', (r) => r.filename],
     ['TYPE', (r) => r.contentType],
     ['SIZE', (r) => r.size],
-    ['UPLOADER', (r) => handle(r.uploader)],
+    ['UPLOADER', (r) => actor(r.uploader)],
     ['CREATED', (r) => date(r.createdAt)],
   ],
   webhook: [
@@ -92,7 +95,7 @@ const COLUMNS: Record<Exclude<Kind, 'raw'>, Column[]> = {
     ['ID', (r) => r.id],
   ],
   member: [
-    ['USER', (r) => handle(r.user)],
+    ['USER', (r) => actor(r.user)],
     ['ROLE', (r) => r.role],
     ['SINCE', (r) => date(r.createdAt)],
   ],
@@ -124,6 +127,7 @@ const COLUMNS: Record<Exclude<Kind, 'raw'>, Column[]> = {
     ['HANDLE', (r) => `@${String(r.handle)}`],
     ['NAME', (r) => r.name],
     ['KIND', (r) => r.kind],
+    ['OWNER', (r) => handle(r.owner)],
     ['ROLE', (r) => r.role],
     ['ID', (r) => r.id],
   ],
@@ -137,7 +141,7 @@ const COLUMNS: Record<Exclude<Kind, 'raw'>, Column[]> = {
   event: [
     ['SEQ', (r) => r.seq],
     ['TYPE', (r) => r.type],
-    ['ACTOR', (r) => handle(r.actor)],
+    ['ACTOR', (r) => actor(r.actor)],
     ['SUBJECT', (r) => eventSubject(r)],
     ['AT', (r) => String(r.createdAt).replace('T', ' ').slice(0, 19)],
   ],
@@ -301,7 +305,7 @@ export function formatIssue(issue: Row): string {
   const i = issue as unknown as Issue;
   const lines = [
     `${i.key}  ${i.title}${i.deletedAt ? '  [deleted]' : ''}`,
-    `Status: ${i.status.name} (${i.status.category}) · Priority: ${PRIORITY[i.priority]} · Assignee: ${handle(i.assignee)}`,
+    `Status: ${i.status.name} (${i.status.category}) · Priority: ${PRIORITY[i.priority]} · Assignee: ${actor(i.assignee)}`,
     `Labels: ${names(i.labels)} · Parent: ${i.parent?.key ?? '—'} · Estimate: ${i.estimate ?? '—'} · Due: ${i.dueDate ?? '—'}`,
     ...(Object.keys(i.customFields).length
       ? [
@@ -310,7 +314,7 @@ export function formatIssue(issue: Row): string {
             .join(' · ')}`,
         ]
       : []),
-    `Created ${i.createdAt.slice(0, 16).replace('T', ' ')} by ${handle(i.creator)} · Updated ${i.updatedAt.slice(0, 16).replace('T', ' ')} · v${i.version}`,
+    `Created ${i.createdAt.slice(0, 16).replace('T', ' ')} by ${actor(i.creator)} · Updated ${i.updatedAt.slice(0, 16).replace('T', ' ')} · v${i.version}`,
     `Comments: ${i.commentCount} · Sub-issues: ${i.childCount}`,
   ];
   if (i.description.trim()) lines.push('', i.description.trim());
