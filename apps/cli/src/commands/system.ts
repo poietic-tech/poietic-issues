@@ -495,6 +495,8 @@ export function describeCommands(program: Command): {
     environment: {
       POIETIC_ISSUES_SERVER: 'Server URL (remote mode)',
       POIETIC_ISSUES_TOKEN: 'API token for the server',
+      POIETIC_AGENT_TOKEN:
+        'Remote mode: act as this poietic.tech agent (takes precedence over POIETIC_ISSUES_TOKEN)',
       POIETIC_ISSUES_DATABASE_URL: 'Database URL (local mode), e.g. sqlite:./data/dev.db',
       POIETIC_ISSUES_ACTOR: 'Local mode: user handle to act as',
       POIETIC_ISSUES_PROJECT: 'Default project key',

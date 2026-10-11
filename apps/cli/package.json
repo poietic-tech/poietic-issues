@@ -12,6 +12,7 @@
     "poietic-issues": "node src/bin.ts"
   },
   "dependencies": {
+    "@poietic-tech/auth": "^0.2.1",
     "@poietic-tech/issues-client": "workspace:*",
     "@poietic-tech/issues-core": "workspace:*",
     "@poietic-tech/issues-db": "workspace:*",

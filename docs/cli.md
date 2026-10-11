@@ -42,6 +42,8 @@ Configuration precedence (first wins):
 
 `poietic-issues auth status` shows which mode, user and project are in effect, and where each setting came from.
 
+In remote mode, a set `POIETIC_AGENT_TOKEN` overrides every token source above: the CLI acts as that poietic.tech agent ([agents.md](agents.md#acting-as-a-poietictech-agent), [ADR 0023](adr/0023-agent-identities.md)).
+
 ## Output contract
 
 | Format | Flag                        | Output                                                                                     |
