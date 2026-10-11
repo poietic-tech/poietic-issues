@@ -11,6 +11,7 @@ export interface WorkerEnv {
   SSO_JWKS_URL: string;
   SSO_LOGIN_URL: string;
   SSO_REFRESH_URL: string;
+  SSO_LIVENESS_URL: string;
   R2_ACCESS_KEY_ID: string;
   R2_SECRET_ACCESS_KEY: string;
 }
@@ -49,6 +50,7 @@ export function containerEnv(env: WorkerEnv): Record<string, string> {
     POIETIC_ISSUES_SSO_JWKS_URL: env.SSO_JWKS_URL,
     POIETIC_ISSUES_SSO_LOGIN_URL: env.SSO_LOGIN_URL,
     POIETIC_ISSUES_SSO_REFRESH_URL: env.SSO_REFRESH_URL,
+    POIETIC_ISSUES_SSO_LIVENESS_URL: env.SSO_LIVENESS_URL,
     LITESTREAM_ENDPOINT: env.R2_ENDPOINT,
     LITESTREAM_BUCKET: env.DB_BUCKET,
     LITESTREAM_ACCESS_KEY_ID: env.R2_ACCESS_KEY_ID,
