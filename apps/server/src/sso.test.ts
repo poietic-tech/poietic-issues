@@ -61,7 +61,12 @@ describe(`SSO sign-in (${testDialect()})`, () => {
     const res = await app.request(`${BASE}/api/v1/auth/config`);
     expect(await res.json()).toMatchObject({
       devLogin: false,
-      sso: { name: 'Example', loginUrl: `${ISS}/login`, refreshUrl: `${ISS}/me` },
+      sso: {
+        name: 'Example',
+        loginUrl: `${ISS}/login`,
+        refreshUrl: `${ISS}/me`,
+        sessionSeconds: 900,
+      },
     });
     const off = createApp({ db: t.db, auth: { mode: 'standard' } });
     expect(await (await off.request(`${BASE}/api/v1/auth/config`)).json()).toMatchObject({
@@ -129,6 +134,71 @@ describe(`SSO sign-in (${testDialect()})`, () => {
     expect(res.status).toBe(503);
     expect(((await res.json()) as { code: string }).code).toBe('UNAVAILABLE');
     expect(res.headers.get('set-cookie')).toBeNull();
+  });
+
+  describe('short sessions', () => {
+    /** A clock the test moves by hand. */
+    const manualClock = () => {
+      let now = new Date('2026-10-11T12:00:00Z');
+      return {
+        now: () => now,
+        advance: (ms: number) => void (now = new Date(now.getTime() + ms)),
+      };
+    };
+    const me = async (app: ReturnType<typeof createApp>, session: string) =>
+      (await (await app.request(`${BASE}/api/v1/me`, { headers: { cookie: session } })).json()) as {
+        anonymous?: true;
+      };
+    const cookieOf = (res: Response) => res.headers.get('set-cookie')!.split(';')[0]!;
+
+    it('lasts sessionTtlMs, then the visitor is anonymous', async () => {
+      const clock = manualClock();
+      const app = createApp({
+        db: t.db,
+        auth: { mode: 'standard', sso: { ...sso(), sessionTtlMs: 60_000 } },
+        clock,
+      });
+      const res = await post(app, 'admin-short1');
+      expect(res.headers.get('set-cookie')).toContain('Expires=Sun, 11 Oct 2026 12:01:00 GMT');
+      const session = cookieOf(res);
+      clock.advance(59_999);
+      expect((await me(app, session)).anonymous).toBeUndefined();
+      clock.advance(1);
+      expect((await me(app, session)).anonymous).toBe(true);
+    });
+
+    it('renews by signing in again, which ends the session it replaces', async () => {
+      const app = createApp({ db: t.db, auth: { mode: 'standard', sso: sso() } });
+      const first = cookieOf(await post(app, 'admin-short2'));
+      const renewed = await app.request(`${BASE}/api/v1/auth/sso`, {
+        method: 'POST',
+        headers: { origin: BASE, cookie: `example_session=admin-short2; ${first}` },
+      });
+      expect(renewed.status).toBe(200);
+      const second = cookieOf(renewed);
+      expect(second).not.toBe(first);
+      expect((await me(app, first)).anonymous).toBe(true);
+      expect((await me(app, second)).anonymous).toBeUndefined();
+    });
+
+    it('ends the session it was renewing when the issuer says the session has ended', async () => {
+      let alive = true;
+      const app = createApp({
+        db: t.db,
+        auth: {
+          mode: 'standard',
+          sso: { ...sso(), liveness: { isLive: async () => alive } },
+        },
+      });
+      const session = cookieOf(await post(app, 'admin-short3'));
+      alive = false;
+      const res = await app.request(`${BASE}/api/v1/auth/sso`, {
+        method: 'POST',
+        headers: { origin: BASE, cookie: `example_session=admin-short3; ${session}` },
+      });
+      expect(res.status).toBe(401);
+      expect((await me(app, session)).anonymous).toBe(true);
+    });
   });
 
   describe('session liveness at sign-in', () => {

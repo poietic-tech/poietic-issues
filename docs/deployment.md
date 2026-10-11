@@ -80,6 +80,7 @@ All settings are environment variables, validated at startup. An invalid value s
 | `POIETIC_ISSUES_SSO_REFRESH_URL`                                                | —                               | Optional: call this before sign-in to renew a lapsed cookie.                                                                        |
 | `POIETIC_ISSUES_SSO_ADMIN_ROLE`                                                 | `admin`                         | JWT role claim that makes new users admin. Anyone else starts deactivated and must be approved.                                     |
 | `POIETIC_ISSUES_SSO_LIVENESS_URL`                                               | —                               | Optional: the issuer's `/session/live`. Checked before identity-token writes and SSO sign-in.                                       |
+| `POIETIC_ISSUES_SSO_SESSION_MINUTES`                                            | `15`                            | Lifetime of a session from SSO sign-in (2–1440); the web app renews it.                                                             |
 
 ## Database and migrations
 

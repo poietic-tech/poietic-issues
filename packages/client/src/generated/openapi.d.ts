@@ -194,7 +194,7 @@ export interface paths {
         put?: never;
         /**
          * Sign in with single sign-on
-         * @description Exchanges the SSO issuer's cookie (sent automatically by the browser) for a session. A first sign-in creates the user; users other than the issuer's admins wait for an admin to reactivate them (`PENDING_APPROVAL`). Browser-only: must be same-origin. With a liveness check configured, a cookie whose issuer session has ended is `UNAUTHENTICATED`. `UNAVAILABLE` means the issuer's signing keys, or its liveness answer, could not be fetched.
+         * @description Exchanges the SSO issuer's cookie (sent automatically by the browser) for a short session (`AuthConfig.sso.sessionSeconds`), replacing any session the request carries; call it again to renew. A first sign-in creates the user; users other than the issuer's admins wait for an admin to reactivate them (`PENDING_APPROVAL`). Browser-only: must be same-origin. With a liveness check configured, a cookie whose issuer session has ended is `UNAUTHENTICATED`. `UNAVAILABLE` means the issuer's signing keys, or its liveness answer, could not be fetched.
          */
         post: {
             parameters: {
@@ -5563,7 +5563,7 @@ export interface paths {
         };
         /**
          * Live event stream (Server-Sent Events)
-         * @description Streams events as `text/event-stream`: `id` is the event seq, `event` its type, `data` the Event JSON. Reconnect with `Last-Event-ID` (or `?after=<seq>`) to resume without gaps. A `reset` event means the gap was too large to replay: refetch state. Comment lines are heartbeats. Readers below write get `issue.deleted` and `attachment.deleted` as tombstones (ids and the issue key only). An event that ends the viewer's read access to its project arrives without content, and a `?project=` stream on it then ends.
+         * @description Streams events as `text/event-stream`: `id` is the event seq, `event` its type, `data` the Event JSON. Reconnect with `Last-Event-ID` (or `?after=<seq>`) to resume without gaps. A `reset` event means the gap was too large to replay: refetch state. Comment lines are heartbeats. The stream ends when the session or identity token it authenticated with expires. Readers below write get `issue.deleted` and `attachment.deleted` as tombstones (ids and the issue key only). An event that ends the viewer's read access to its project arrives without content, and a `?project=` stream on it then ends.
          */
         get: {
             parameters: {
@@ -5712,6 +5712,8 @@ export interface components {
                 loginUrl: string;
                 /** @description Call with credentials before `POST /auth/sso` to renew a lapsed SSO cookie. */
                 refreshUrl: string | null;
+                /** @description How long a session from `POST /auth/sso` lasts. Renew it before then by calling `refreshUrl` and `POST /auth/sso` again; each renewal re-checks the issuer. */
+                sessionSeconds: number;
             } | null;
         };
         User: {

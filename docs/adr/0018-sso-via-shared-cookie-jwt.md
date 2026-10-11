@@ -29,6 +29,7 @@ per-project permissions, so a verified identity alone must not grant access.
 - Signing out of the provider does not end an existing tracker session (30 days). Revisit with a shorter SSO session
   TTL or a liveness check if that matters. Since issue #20, `POIETIC_ISSUES_SSO_LIVENESS_URL` makes `POST /auth/sso`
   ask the issuer before minting a session, so a cookie JWT whose issuer session has ended (it stays valid for up to
-  its lifetime) no longer yields a new one; sessions already issued are unchanged.
+  its lifetime) no longer yields a new one. ADR 0025 then makes SSO sessions short and renewed, so a session ended
+  at the issuer ends here within one lifetime.
 - Nothing here is poietic-specific; any issuer with a cookie JWT and JWKS works. OIDC redirect flows would be a
   separate mode.

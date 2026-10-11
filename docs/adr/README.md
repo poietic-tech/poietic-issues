@@ -28,3 +28,4 @@ Short records of decisions that constrain future work. Copy `0000-template.md`, 
 | [0022](0022-poietic-auth-package-verifier.md)         | Verify SSO tokens with `@poietic-tech/auth`                            | Accepted                               |
 | [0023](0023-agent-identities.md)                      | Agent identities from SSO identity tokens                              | Accepted                               |
 | [0024](0024-showing-agents-and-owners.md)             | Showing agents and their owners                                        | Accepted                               |
+| [0025](0025-short-renewed-sso-sessions.md)            | Short, renewed SSO sessions                                            | Accepted                               |

@@ -66,6 +66,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     POIETIC_ISSUES_SSO_ADMIN_ROLE: z.string().default('admin'),
     /** The issuer's `/session/live`; when set, identity-token writes are refused once the session is revoked. */
     POIETIC_ISSUES_SSO_LIVENESS_URL: z.url().optional(),
+    /** Lifetime of a tracker session from SSO sign-in; the web app renews it, re-checking the issuer each time. */
+    POIETIC_ISSUES_SSO_SESSION_MINUTES: z.coerce.number().int().min(2).max(1440).default(15),
   });
   const parsed = schema.safeParse(env);
   if (!parsed.success) {
@@ -120,5 +122,6 @@ export function ssoOptionsFromConfig(config: ServerConfig): SsoOptions | undefin
     liveness: config.POIETIC_ISSUES_SSO_LIVENESS_URL
       ? createSsoLiveness({ url: config.POIETIC_ISSUES_SSO_LIVENESS_URL })
       : undefined,
+    sessionTtlMs: config.POIETIC_ISSUES_SSO_SESSION_MINUTES * 60_000,
   };
 }

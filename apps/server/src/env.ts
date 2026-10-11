@@ -30,6 +30,8 @@ export interface SsoOptions {
   verifier: SsoVerifier;
   /** When set, writes made with an identity token are refused once the issuer says its session is no longer live. */
   liveness?: SsoLiveness | undefined;
+  /** How long a tracker session from `POST /auth/sso` lasts before the web app must renew it (default 15 minutes). */
+  sessionTtlMs?: number | undefined;
 }
 
 /**
@@ -87,6 +89,8 @@ export interface AppEnv {
     actor: Actor | null;
     /** `identity`: an SSO identity token in the Authorization header (ADR 0023). */
     authVia: 'bearer' | 'identity' | 'session' | 'trusted' | null;
+    /** When the credential this request authenticated with stops working (a session or identity token), else null. */
+    credentialExpiresAt: Date | null;
     ctx: ServiceContext;
   };
 }
@@ -94,6 +98,8 @@ export interface AppEnv {
 export type TrackerApp = OpenAPIHono<AppEnv>;
 
 export const SESSION_COOKIE = 'poietic_issues_session';
+/** Default lifetime of a tracker session from SSO sign-in (`SsoOptions.sessionTtlMs`). */
+export const SSO_SESSION_TTL_MS = 15 * 60_000;
 /** Pre-rename cookie name, still accepted for one release (ADR 0020). */
 export const LEGACY_SESSION_COOKIE = 'tracker_session';
 export const API_PREFIX = '/api/v1';
