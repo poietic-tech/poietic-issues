@@ -8,7 +8,13 @@
   import { PRIORITY_LABELS } from '$lib/format.ts';
   import { bulkUpdate, cachedIssues, deleteIssues } from '$lib/issues.ts';
   import { navigate, signInPath } from '$lib/nav.ts';
-  import { attemptSso, markSilentSsoDone, silentSsoAllowed } from '$lib/session.ts';
+  import {
+    attemptSso,
+    keepSsoSession,
+    markSilentSsoDone,
+    silentSsoAllowed,
+    ssoSessionHeld,
+  } from '$lib/session.ts';
   import { clearSelection, moveFocus, selection, toggleSelected } from '$lib/selection.svelte.ts';
   import CommandMenu from '$components/CommandMenu.svelte';
   import ConfirmDialog from '$components/ConfirmDialog.svelte';
@@ -32,11 +38,24 @@
   // project doesn't flash "not found" before the visitor is signed in; if it fails they browse anonymously.
   let silentSso = $state<'pending' | 'running' | 'done'>(silentSsoAllowed() ? 'pending' : 'done');
   const anonymous = $derived(!!me.data && !isSignedIn(me.data));
+  const signedIn = $derived(!!me.data && isSignedIn(me.data));
   const authConfig = createQuery(() => ({
     queryKey: keys.authConfig,
     queryFn: fetchers.authConfig,
-    enabled: anonymous && silentSso === 'pending',
+    enabled: (anonymous && silentSso === 'pending') || signedIn,
   }));
+
+  // An SSO session is short: renew it while the app is open, so it ends soon after the issuer's session does.
+  const ssoConfig = $derived(authConfig.data?.sso);
+  $effect(() => {
+    if (!signedIn || !ssoConfig || !ssoSessionHeld()) return;
+    return keepSsoSession(ssoConfig, {
+      // The old session expired before the renewal: refetch what may have been read as anonymous.
+      lapsed: () => void qc.invalidateQueries(),
+      // The issuer ended the session: show the visitor as signed out.
+      ended: () => void qc.invalidateQueries(),
+    });
+  });
   $effect(() => {
     if (!anonymous || silentSso !== 'pending') return;
     const { isError, data } = authConfig;

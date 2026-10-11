@@ -4,6 +4,7 @@ const SSO = {
   name: 'Example',
   loginUrl: 'https://auth.example.test/login',
   refreshUrl: 'https://auth.example.test/me',
+  sessionSeconds: 120,
 };
 
 test.beforeEach(async ({ page }) => {
@@ -151,5 +152,39 @@ test('after signing out, the next visit does not sign back in silently', async (
   await page.goto('/p/OPS');
   await expect(page.getByTestId('project-not-found')).toBeVisible();
   await page.waitForTimeout(300);
+  expect(ssoCalls).toBe(0);
+});
+
+test('keeps renewing an SSO session while the app is open', async ({ page }) => {
+  await page.clock.install();
+  let ssoCalls = 0;
+  await page.route('**/api/v1/auth/sso', async (r) => {
+    ssoCalls++;
+    const res = await page.request.post('/api/v1/auth/dev-login', { data: { user: 'ada' } });
+    await r.fulfill({ status: 200, json: await res.json() });
+  });
+  await page.goto('/login?next=%2Fp%2FENG');
+  await page.waitForURL(/\/p\/ENG/);
+  await expect(page.getByTestId('logout')).toBeVisible();
+  expect(ssoCalls).toBe(1);
+  // Half the 120 s lifetime later the next minute's check renews it.
+  await page.clock.fastForward('00:59');
+  expect(ssoCalls).toBe(1);
+  await page.clock.fastForward('00:02');
+  await expect.poll(() => ssoCalls).toBe(2);
+});
+
+test('never renews a session that did not come from SSO', async ({ page }) => {
+  await page.clock.install();
+  await page.request.post('/api/v1/auth/dev-login', { data: { user: 'ada' } });
+  let ssoCalls = 0;
+  await page.route('**/api/v1/auth/sso', (r) => {
+    ssoCalls++;
+    return r.fulfill({ status: 200, json: {} });
+  });
+  await page.goto('/p/ENG');
+  await expect(page.getByTestId('logout')).toBeVisible();
+  await page.clock.fastForward('05:00');
+  await page.waitForTimeout(200);
   expect(ssoCalls).toBe(0);
 });
