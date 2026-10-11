@@ -46,7 +46,8 @@ export const requestId = createMiddleware<AppEnv>(async (c, next) => {
  *
  * A bearer value is an API token when it starts with `trk_`. With SSO configured, any other value is an identity
  * token from the issuer (an agent's, usually; ADR 0023). Either way the header decides on its own: an invalid
- * bearer is a 401 and never falls back to the session cookie.
+ * bearer is a 401 and never falls back to the session cookie. With a liveness check configured, an identity-token
+ * write is also refused (401) once the issuer says the token's session has ended.
  */
 export function authenticate(deps: ResolvedDeps) {
   return createMiddleware<AppEnv>(async (c, next) => {
@@ -77,6 +78,9 @@ export function authenticate(deps: ResolvedDeps) {
             c.get('logger'),
           );
           via = 'identity';
+          if (actor && UNSAFE.has(c.req.method) && sso.liveness)
+            if (!(await sessionIsLive(sso, value, clock.now(), c.get('logger'))))
+              return problem(c, 'UNAUTHENTICATED', 'The session behind this token has ended');
         } else {
           actor = value ? await authenticateToken({ db, clock }, value) : null;
           via = 'bearer';
@@ -147,6 +151,25 @@ async function identityActor(
       `@${user.handle} is waiting for an admin to approve access`,
     );
   return toActor(user);
+}
+
+/**
+ * Whether the issuer still vouches for an identity token's session, asked before a write so a revoked agent token
+ * stops writing within the liveness cache's lifetime rather than the token's. Fails closed: an issuer that can't be
+ * asked is a 503, as when its keys can't be fetched.
+ */
+async function sessionIsLive(
+  sso: SsoOptions,
+  token: string,
+  now: Date,
+  logger: Logger,
+): Promise<boolean> {
+  try {
+    return await sso.liveness!.isLive(token, now);
+  } catch (error) {
+    logger.warn({ err: error }, 'SSO session liveness check failed');
+    throw new DomainError('UNAVAILABLE', `Could not reach ${sso.name} to check the session`);
+  }
 }
 
 /** Anonymous requests may read (core decides what is visible, ADR 0021); everything else needs a user. */

@@ -79,6 +79,7 @@ All settings are environment variables, validated at startup. An invalid value s
 | `POIETIC_ISSUES_SSO_LOGIN_URL`                                                  | —                               | Where to send the user to sign in; append `redirect=<return URL>`.                                                                  |
 | `POIETIC_ISSUES_SSO_REFRESH_URL`                                                | —                               | Optional: call this before sign-in to renew a lapsed cookie.                                                                        |
 | `POIETIC_ISSUES_SSO_ADMIN_ROLE`                                                 | `admin`                         | JWT role claim that makes new users admin. Anyone else starts deactivated and must be approved.                                     |
+| `POIETIC_ISSUES_SSO_LIVENESS_URL`                                               | —                               | Optional: the issuer's `/session/live`. Identity-token writes get 401 once it says the session ended.                               |
 
 ## Database and migrations
 
