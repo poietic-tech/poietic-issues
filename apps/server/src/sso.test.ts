@@ -199,6 +199,82 @@ describe(`SSO sign-in (${testDialect()})`, () => {
       expect((await app.request(`${BASE}/api/v1/me`, bearer('trk_admin-own4'))).status).toBe(401);
     });
 
+    describe('session liveness before writes', () => {
+      const NOW = new Date('2026-10-11T12:00:00Z');
+      /** The liveness stub: "dead" in the token means revoked, "gone" means the issuer can't be reached. */
+      function live() {
+        const asked: { token: string; now: Date }[] = [];
+        return {
+          asked,
+          liveness: {
+            isLive: async (token: string, now: Date) => {
+              asked.push({ token, now });
+              if (token.includes('gone')) throw new Error('liveness unavailable');
+              return !token.includes('dead');
+            },
+          },
+        };
+      }
+      const rename = (token: string) => ({
+        method: 'PATCH',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'Renamed bot' }),
+      });
+
+      it('refuses a write once the session has ended, but still serves reads', async () => {
+        const { asked, liveness } = live();
+        const app = createApp({
+          db: t.db,
+          auth: { mode: 'standard', sso: { ...sso(), liveness } },
+          clock: { now: () => NOW },
+        });
+        await post(app, 'admin-live1');
+        const ok = await app.request(`${BASE}/api/v1/users/me`, rename('agent:admin-live1:a'));
+        expect(ok.status).toBe(200);
+        const dead = await app.request(`${BASE}/api/v1/users/me`, rename('agent:admin-live1:dead'));
+        expect(dead.status).toBe(401);
+        expect(await code(dead)).toBe('UNAUTHENTICATED');
+        const read = await app.request(`${BASE}/api/v1/me`, bearer('agent:admin-live1:dead'));
+        expect(read.status).toBe(200);
+        expect(asked).toEqual([
+          { token: 'agent:admin-live1:a', now: NOW },
+          { token: 'agent:admin-live1:dead', now: NOW },
+        ]);
+      });
+
+      it('fails closed with 503 when the issuer cannot be asked, and logs it', async () => {
+        const lines: string[] = [];
+        const logger = pino({ level: 'warn' }, { write: (l: string) => void lines.push(l) });
+        const { liveness } = live();
+        const app = createApp({
+          db: t.db,
+          auth: { mode: 'standard', sso: { ...sso(), liveness } },
+          logger,
+        });
+        await post(app, 'admin-live2');
+        const res = await app.request(`${BASE}/api/v1/users/me`, rename('agent:admin-live2:gone'));
+        expect(res.status).toBe(503);
+        expect(await code(res)).toBe('UNAVAILABLE');
+        expect(lines.join('')).toContain('liveness unavailable');
+      });
+
+      it('is not consulted for session cookies', async () => {
+        const { asked, liveness } = live();
+        const app = createApp({
+          db: t.db,
+          auth: { mode: 'standard', sso: { ...sso(), liveness } },
+        });
+        const session = (await post(app, 'admin-live3')).headers.get('set-cookie')!.split(';')[0]!;
+        const res = await app.request(`${BASE}/api/v1/users/me`, {
+          method: 'PATCH',
+          headers: { cookie: session, origin: BASE, 'content-type': 'application/json' },
+          body: JSON.stringify({ name: 'Renamed person' }),
+        });
+        expect(res.status).toBe(200);
+        expect(asked).toEqual([]);
+      });
+    });
+
     it('answers 503 when the issuer is unreachable, and 401 when SSO is off', async () => {
       const app = createApp({ db: t.db, auth: { mode: 'standard', sso: sso() } });
       const down = await app.request(`${BASE}/api/v1/me`, bearer('down'));

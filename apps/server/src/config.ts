@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { SsoOptions } from './env.ts';
+import { createSsoLiveness } from './sso/liveness.ts';
 import { createSsoVerifier } from './sso/verifier.ts';
 
 const bool = (fallback: boolean) =>
@@ -63,6 +64,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     POIETIC_ISSUES_SSO_LOGIN_URL: z.url().optional(),
     POIETIC_ISSUES_SSO_REFRESH_URL: z.url().optional(),
     POIETIC_ISSUES_SSO_ADMIN_ROLE: z.string().default('admin'),
+    /** The issuer's `/session/live`; when set, identity-token writes are refused once the session is revoked. */
+    POIETIC_ISSUES_SSO_LIVENESS_URL: z.url().optional(),
   });
   const parsed = schema.safeParse(env);
   if (!parsed.success) {
@@ -114,5 +117,8 @@ export function ssoOptionsFromConfig(config: ServerConfig): SsoOptions | undefin
     refreshUrl: config.POIETIC_ISSUES_SSO_REFRESH_URL,
     adminRole: config.POIETIC_ISSUES_SSO_ADMIN_ROLE,
     verifier: createSsoVerifier({ jwksUrl: config.POIETIC_ISSUES_SSO_JWKS_URL!, issuer, audience }),
+    liveness: config.POIETIC_ISSUES_SSO_LIVENESS_URL
+      ? createSsoLiveness({ url: config.POIETIC_ISSUES_SSO_LIVENESS_URL })
+      : undefined,
   };
 }
