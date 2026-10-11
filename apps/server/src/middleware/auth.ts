@@ -154,11 +154,11 @@ async function identityActor(
 }
 
 /**
- * Whether the issuer still vouches for an identity token's session, asked before a write so a revoked agent token
- * stops writing within the liveness cache's lifetime rather than the token's. Fails closed: an issuer that can't be
- * asked is a 503, as when its keys can't be fetched.
+ * Whether the issuer still vouches for an identity token's session, asked before a write (and before `POST /auth/sso`
+ * trades the token for a tracker session) so a revoked session stops within the liveness cache's lifetime rather
+ * than the token's. Fails closed: an issuer that can't be asked is a 503, as when its keys can't be fetched.
  */
-async function sessionIsLive(
+export async function sessionIsLive(
   sso: SsoOptions,
   token: string,
   now: Date,

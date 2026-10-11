@@ -42,8 +42,9 @@ token carries `kind: "agent"` and the owner's subject. Before this, each tracker
 - The liveness check **fails closed**. An issuer that can't be reached within 5 seconds, or answers anything but
   200 `{ "live": boolean }`, makes the write a 503 `UNAVAILABLE`, matching how an unreachable JWKS is treated.
   Failing open would let a revoked agent keep writing whenever the issuer is degraded, which is exactly when
-  nobody is watching. The cost is that agents cannot write during an issuer outage longer than the cache; people
-  signed in with a tracker session are unaffected, since cookie sessions are not checked.
+  nobody is watching. The cost is that agents cannot write during an issuer outage longer than the cache, and
+  nobody can start a new tracker session through `POST /auth/sso`, which asks the same question before trading the
+  SSO cookie for one; people already signed in with a tracker session are unaffected.
 - Each identity-token request verifies a JWT and reads `user_identities`. Known identities resolve without the
   write lock; only the first request from a new identity writes.
 - `trk_` tokens remain the way to give a non-SSO deployment, or a CI job without an agent token, its own user.

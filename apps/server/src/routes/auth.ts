@@ -15,7 +15,7 @@ import {
 import { MeSchema, UserSchema, UserSummarySchema } from '@poietic-tech/issues-schema';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import type { Context } from 'hono';
-import { sameOrigin } from '../middleware/auth.ts';
+import { sameOrigin, sessionIsLive } from '../middleware/auth.ts';
 import {
   type AppEnv,
   LEGACY_SESSION_COOKIE,
@@ -167,7 +167,8 @@ export function registerAuthRoutes(app: TrackerApp, deps: ResolvedDeps) {
       description:
         "Exchanges the SSO issuer's cookie (sent automatically by the browser) for a session. A first sign-in " +
         "creates the user; users other than the issuer's admins wait for an admin to reactivate them " +
-        "(`PENDING_APPROVAL`). Browser-only: must be same-origin. `UNAVAILABLE` means the issuer's signing keys could not be fetched.",
+        '(`PENDING_APPROVAL`). Browser-only: must be same-origin. With a liveness check configured, a cookie whose issuer session has ended ' +
+        "is `UNAUTHENTICATED`. `UNAVAILABLE` means the issuer's signing keys, or its liveness answer, could not be fetched.",
       responses: {
         200: json(UserSchema, 'Signed in'),
         ...errorResponses('FORBIDDEN', 'NOT_FOUND', 'PENDING_APPROVAL', 'UNAVAILABLE'),
@@ -196,6 +197,13 @@ export function registerAuthRoutes(app: TrackerApp, deps: ResolvedDeps) {
       // Agents act through identity tokens in the Authorization header; they never get a browser session.
       if (claims.kind !== 'human')
         throw new DomainError('FORBIDDEN', 'Agents cannot sign in to the web app');
+      // The cookie's JWT outlives a sign-out at the issuer by up to its lifetime; a tracker session would outlive it
+      // far longer, so ask the issuer before minting one.
+      if (
+        sso.liveness &&
+        !(await sessionIsLive(sso, token!, c.get('ctx').clock.now(), c.get('logger')))
+      )
+        throw new DomainError('UNAUTHENTICATED', `Not signed in to ${sso.name}`);
       const ctx = withActor(c.get('ctx'), SYSTEM_ACTOR);
       const { user, status } = await signInWithSso(
         ctx,
