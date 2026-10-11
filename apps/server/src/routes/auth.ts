@@ -195,7 +195,13 @@ export function registerAuthRoutes(app: TrackerApp, deps: ResolvedDeps) {
       const ctx = withActor(c.get('ctx'), SYSTEM_ACTOR);
       const { user, status } = await signInWithSso(
         ctx,
-        { issuer: sso.issuer, subject: claims.sub, name: claims.name, role: claims.role },
+        {
+          issuer: sso.issuer,
+          subject: claims.sub,
+          name: claims.name,
+          role: claims.role,
+          groups: claims.groups,
+        },
         { adminRole: sso.adminRole },
       );
       if (status === 'pending')

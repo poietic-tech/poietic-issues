@@ -12,6 +12,8 @@ export interface SsoIdentity {
   name: string;
   /** The issuer's role claim; equal to `adminRole` makes a new user an active admin. */
   role: string;
+  /** The issuer's group slugs. Carried for group-based approval (issue #16); not used to grant access yet. */
+  groups: readonly string[];
 }
 
 export interface SsoSignIn {
