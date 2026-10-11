@@ -154,6 +154,7 @@
                 name: user.name,
                 kind: user.kind,
                 avatarUrl: user.avatarUrl,
+                owner: user.owner ?? null,
               }
             : null,
         },

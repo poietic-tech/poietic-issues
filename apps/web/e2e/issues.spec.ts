@@ -68,6 +68,67 @@ test('edits title, description and properties', async ({ page }) => {
   );
 });
 
+test("names an agent's owner on its comments, activity, assignment and creation", async ({
+  page,
+}) => {
+  // SSO provisions owned agents, which the e2e server lacks; patch one into the issue's responses instead.
+  const key = await apiCreateIssue(page.request, {});
+  const bot = {
+    id: 'usr_01h455vb4pex5vsknk084sn02q',
+    handle: 'ada-bot',
+    name: 'Ada bot',
+    kind: 'agent',
+    avatarUrl: null,
+    owner: { id: 'usr_01h455vb4pex5vsknk084sn02r', handle: 'ada' },
+  };
+  await page.route(`**/api/v1/issues/${key}`, async (route) => {
+    if (route.request().method() !== 'GET') return route.continue();
+    const issue = await (await route.fetch()).json();
+    await route.fulfill({
+      json: { ...issue, creatorId: bot.id, creator: bot, assigneeId: bot.id, assignee: bot },
+    });
+  });
+  await page.route(`**/api/v1/issues/${key}/comments**`, async (route) => {
+    const now = new Date().toISOString();
+    await route.fulfill({
+      json: {
+        data: [
+          {
+            id: 'cmt_01h455vb4pex5vsknk084sn02q',
+            issueId: 'iss_01h455vb4pex5vsknk084sn02q',
+            authorId: bot.id,
+            author: bot,
+            body: 'On it',
+            createdAt: now,
+            updatedAt: now,
+            editedAt: null,
+            deletedAt: null,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+  });
+  await page.route(`**/api/v1/issues/${key}/activity**`, async (route) => {
+    const body = await (await route.fetch()).json();
+    await route.fulfill({
+      json: { ...body, data: body.data.map((e: object) => ({ ...e, actor: bot })) },
+    });
+  });
+  await page.goto(`/i/${key}`);
+  const detail = page.getByTestId('issue-detail');
+  await expect(page.getByTestId('comment').getByTestId('agent-note')).toHaveText(
+    'agent · owned by @ada',
+  );
+  await expect(page.getByTestId('activity')).toContainText(
+    'Ada bot · agent · owned by @ada created the issue',
+  );
+  await expect(detail.getByTestId('assignee-picker')).toContainText(
+    'Ada bot · agent · owned by @ada',
+  );
+  await expect(detail.getByText('Ada bot · agent · owned by @ada ·')).toBeVisible();
+});
+
 test('comments on an issue', async ({ page }) => {
   const key = await apiCreateIssue(page.request, {});
   await page.goto(`/i/${key}`);

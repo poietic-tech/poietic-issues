@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatActor } from '@poietic-tech/issues-schema';
   import { useQueryClient } from '@tanstack/svelte-query';
   import type { Issue } from '../api.ts';
   import { relativeTime } from '../format.ts';
@@ -74,7 +75,7 @@
   {/snippet}
   {#snippet creator()}
     <span class="inline-flex items-center gap-1.5 px-1.5 text-fg-muted"
-      ><Avatar user={issue.creator} size={16} />{issue.creator.name} · {relativeTime(
+      ><Avatar user={issue.creator} size={16} />{formatActor(issue.creator)} · {relativeTime(
         issue.createdAt,
       )}</span
     >
