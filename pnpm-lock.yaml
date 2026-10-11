@@ -50,6 +50,9 @@ importers:
 
   apps/cli:
     dependencies:
+      '@poietic-tech/auth':
+        specifier: ^0.2.1
+        version: 0.2.1
       '@poietic-tech/issues-client':
         specifier: workspace:*
         version: link:../../packages/client

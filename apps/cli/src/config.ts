@@ -158,6 +158,8 @@ export function resolveConfig(flags: GlobalFlags, io: CliIO): ResolvedConfig {
         [user.tokens[normalizeServer(finalServer)], 'user config'],
       )
     : undefined;
+  // POIETIC_AGENT_TOKEN, when set, replaces the token in remote mode (openTransport).
+  if (finalServer && env.POIETIC_AGENT_TOKEN) sources.agent = 'env';
 
   const formatRaw = flags.json
     ? 'json'

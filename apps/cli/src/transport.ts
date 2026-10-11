@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
+import { agentFromEnv, PoieticAuthError, type PoieticAgent } from '@poietic-tech/auth';
 import { type ApiClient, createClient } from '@poietic-tech/issues-client';
 import { blobStoreFromEnv, ensureBuiltins } from '@poietic-tech/issues-core';
 import { dirname, join } from 'node:path';
@@ -35,9 +36,44 @@ export function retryingFetch(inner: (r: Request) => Promise<Response> = (r) => 
         if (body) init.body = body;
         return await inner(new Request(request.url, init));
       } catch (error) {
-        if (attempt >= RETRY_DELAYS_MS.length) throw error;
+        // A CliError is a decision (e.g. a refused agent token), not a network failure.
+        if (error instanceof CliError || attempt >= RETRY_DELAYS_MS.length) throw error;
         await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
       }
+    }
+  };
+}
+
+/**
+ * Remote fetch as the agent named by POIETIC_AGENT_TOKEN (ADR 0023), or null when it is unset. Each request carries
+ * the identity token the agent token is exchanged for at auth.poietic.tech; the agent token itself goes nowhere else
+ * and is never printed.
+ */
+export function agentFetch(
+  env: CliIO['env'],
+  opts: { fetchImpl?: typeof fetch } = {},
+): ((request: Request) => Promise<Response>) | null {
+  let agent: PoieticAgent | null;
+  try {
+    agent = agentFromEnv(env, opts);
+  } catch {
+    throw new CliError(
+      'VALIDATION_FAILED',
+      'POIETIC_AGENT_TOKEN is malformed: it must be the whole token, with no spaces',
+    );
+  }
+  if (!agent) return null;
+  return async (request) => {
+    try {
+      return await agent.fetch(request);
+    } catch (error) {
+      if (!(error instanceof PoieticAuthError)) throw error;
+      throw error.status === 401
+        ? new CliError(
+            'UNAUTHENTICATED',
+            'auth.poietic.tech refused POIETIC_AGENT_TOKEN: it is revoked or expired, or its owner may no longer own agents',
+          )
+        : new CliError('UNAVAILABLE', `Could not exchange POIETIC_AGENT_TOKEN (${error.message})`);
     }
   };
 }
@@ -52,6 +88,13 @@ export async function openTransport(config: ResolvedConfig, io: CliIO): Promise<
     };
   }
   if (config.mode === 'remote') {
+    const asAgent = agentFetch(io.env);
+    if (asAgent)
+      return {
+        client: createClient({ baseUrl: config.server!, fetch: retryingFetch(asAgent) }),
+        describe: `${config.server} (agent)`,
+        close: async () => {},
+      };
     return {
       client: createClient({
         baseUrl: config.server!,

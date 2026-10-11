@@ -27,6 +27,8 @@ export interface UsersTable {
   created_at: Timestamp;
   updated_at: Timestamp;
   deactivated_at: Timestamp | null;
+  /** The human an agent acts for (`kind = 'agent'`); null otherwise. */
+  owner_id: string | null;
 }
 
 export interface ApiTokensTable {

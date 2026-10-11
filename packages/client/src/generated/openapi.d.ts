@@ -5740,6 +5740,8 @@ export interface components {
              * @example 2026-09-26T13:49:00.123Z
              */
             deactivatedAt: string | null;
+            /** @description For an agent signed in through SSO, the user it acts for; null otherwise. */
+            ownerId: string | null;
         };
         /** @description RFC 9457 problem details with a stable machine-readable `code`. */
         Problem: {

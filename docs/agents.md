@@ -21,6 +21,17 @@ In remote mode without a token (`POIETIC_ISSUES_TOKEN` unset and none stored by 
 
 Committing a `.poietic-issues.json` (`poietic-issues init --project ENG --server …`) in a repository lets any agent working there find the right project.
 
+### Acting as a poietic.tech agent
+
+On a server configured for poietic.tech SSO, an agent can act with its own poietic.tech identity instead of a `trk_` token. Create the agent at auth.poietic.tech/account/agents, then set its token where the harness runs:
+
+```sh
+export POIETIC_ISSUES_SERVER=https://issues.poietic.tech
+export POIETIC_AGENT_TOKEN=pat_…             # never in a repository or a browser bundle
+```
+
+In remote mode the CLI exchanges `POIETIC_AGENT_TOKEN` with auth.poietic.tech for a ten-minute identity token, sends that to the server, and ignores `POIETIC_ISSUES_TOKEN`. `poietic-issues auth status` shows `(agent)`. On its first request, the server creates the agent as a `kind: agent` member owned by you. You must have signed in to the tracker at least once, and the agent is active when your account is. Like any member, it needs a role on each private project it works in. A malformed token exits with code 2. A revoked or expired token exits with code 5. The CLI never prints the token. See [ADR 0023](adr/0023-agent-identities.md).
+
 ### issues.poietic.tech identities
 
 Interactive and unattended agents use separate users, so history shows which one acted and each token can be revoked on its own:

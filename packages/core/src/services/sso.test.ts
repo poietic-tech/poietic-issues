@@ -31,7 +31,15 @@ describe(`signInWithSso (${testDialect()})`, () => {
   it('creates an unknown non-admin identity as a pending member', async () => {
     const r = await signInWithSso(
       sys(),
-      { issuer: ISS, subject: 'u1', name: 'Grace Hopper', role: 'user', groups: [] },
+      {
+        issuer: ISS,
+        subject: 'u1',
+        name: 'Grace Hopper',
+        role: 'user',
+        groups: [],
+        kind: 'human',
+        owner: null,
+      },
       opts,
     );
     expect(r.status).toBe('pending');
@@ -47,7 +55,15 @@ describe(`signInWithSso (${testDialect()})`, () => {
   it('creates an unknown admin-role identity as an active admin', async () => {
     const r = await signInWithSso(
       sys(),
-      { issuer: ISS, subject: 'a1', name: 'Boss', role: 'admin', groups: [] },
+      {
+        issuer: ISS,
+        subject: 'a1',
+        name: 'Boss',
+        role: 'admin',
+        groups: [],
+        kind: 'human',
+        owner: null,
+      },
       opts,
     );
     expect(r.status).toBe('active');
@@ -58,12 +74,28 @@ describe(`signInWithSso (${testDialect()})`, () => {
   it('returns the same user for a known identity and never changes name or role', async () => {
     const first = await signInWithSso(
       sys(),
-      { issuer: ISS, subject: 'k1', name: 'Kay', role: 'admin', groups: [] },
+      {
+        issuer: ISS,
+        subject: 'k1',
+        name: 'Kay',
+        role: 'admin',
+        groups: [],
+        kind: 'human',
+        owner: null,
+      },
       opts,
     );
     const again = await signInWithSso(
       sys(),
-      { issuer: ISS, subject: 'k1', name: 'Renamed', role: 'user', groups: [] },
+      {
+        issuer: ISS,
+        subject: 'k1',
+        name: 'Renamed',
+        role: 'user',
+        groups: [],
+        kind: 'human',
+        owner: null,
+      },
       opts,
     );
     expect(again.user.id).toBe(first.user.id);
@@ -74,14 +106,30 @@ describe(`signInWithSso (${testDialect()})`, () => {
   it('keeps an identity pending until an admin reactivates the user', async () => {
     const p = await signInWithSso(
       sys(),
-      { issuer: ISS, subject: 'p1', name: 'Pat', role: 'user', groups: [] },
+      {
+        issuer: ISS,
+        subject: 'p1',
+        name: 'Pat',
+        role: 'user',
+        groups: [],
+        kind: 'human',
+        owner: null,
+      },
       opts,
     );
     expect(
       (
         await signInWithSso(
           sys(),
-          { issuer: ISS, subject: 'p1', name: 'Pat', role: 'user', groups: [] },
+          {
+            issuer: ISS,
+            subject: 'p1',
+            name: 'Pat',
+            role: 'user',
+            groups: [],
+            kind: 'human',
+            owner: null,
+          },
           opts,
         )
       ).status,
@@ -91,7 +139,15 @@ describe(`signInWithSso (${testDialect()})`, () => {
       (
         await signInWithSso(
           sys(),
-          { issuer: ISS, subject: 'p1', name: 'Pat', role: 'user', groups: [] },
+          {
+            issuer: ISS,
+            subject: 'p1',
+            name: 'Pat',
+            role: 'user',
+            groups: [],
+            kind: 'human',
+            owner: null,
+          },
           opts,
         )
       ).status,
@@ -102,13 +158,29 @@ describe(`signInWithSso (${testDialect()})`, () => {
     // 'member' and 'admin' exist from createTestContext.
     const r = await signInWithSso(
       sys(),
-      { issuer: ISS, subject: 'm1', name: 'Member', role: 'user', groups: [] },
+      {
+        issuer: ISS,
+        subject: 'm1',
+        name: 'Member',
+        role: 'user',
+        groups: [],
+        kind: 'human',
+        owner: null,
+      },
       opts,
     );
     expect(r.user.handle).toBe('member-2');
     const other = await signInWithSso(
       sys(),
-      { issuer: 'https://other.test', subject: 'm1', name: 'Member', role: 'user', groups: [] },
+      {
+        issuer: 'https://other.test',
+        subject: 'm1',
+        name: 'Member',
+        role: 'user',
+        groups: [],
+        kind: 'human',
+        owner: null,
+      },
       opts,
     );
     expect(other.user.id).not.toBe(r.user.id);
@@ -118,13 +190,29 @@ describe(`signInWithSso (${testDialect()})`, () => {
   it('creates a user named User from a whitespace-only name, never a reserved handle', async () => {
     const blank = await signInWithSso(
       sys(),
-      { issuer: ISS, subject: 'blank', name: '   ', role: 'user', groups: [] },
+      {
+        issuer: ISS,
+        subject: 'blank',
+        name: '   ',
+        role: 'user',
+        groups: [],
+        kind: 'human',
+        owner: null,
+      },
       opts,
     );
     expect(blank.user.name).toBe('User');
     const me = await signInWithSso(
       sys(),
-      { issuer: ISS, subject: 'me1', name: 'Me', role: 'user', groups: [] },
+      {
+        issuer: ISS,
+        subject: 'me1',
+        name: 'Me',
+        role: 'user',
+        groups: [],
+        kind: 'human',
+        owner: null,
+      },
       opts,
     );
     expect(me.user.handle).not.toBe('me');
@@ -134,7 +222,15 @@ describe(`signInWithSso (${testDialect()})`, () => {
   it('records a user.created event', async () => {
     const r = await signInWithSso(
       sys(),
-      { issuer: ISS, subject: 'e1', name: 'Evie', role: 'user', groups: [] },
+      {
+        issuer: ISS,
+        subject: 'e1',
+        name: 'Evie',
+        role: 'user',
+        groups: [],
+        kind: 'human',
+        owner: null,
+      },
       opts,
     );
     const evs = await t.db.kysely
@@ -143,5 +239,58 @@ describe(`signInWithSso (${testDialect()})`, () => {
       .where('type', '=', 'user.created')
       .execute();
     expect(evs.some((e) => e.data.includes(r.user.id))).toBe(true);
+  });
+
+  describe('agents', () => {
+    const human = (subject: string, name: string, role = 'user') =>
+      ({ issuer: ISS, subject, name, role, groups: [], kind: 'human', owner: null }) as const;
+    const agent = (subject: string, owner: string, name = 'Helper', role = 'user') =>
+      ({ issuer: ISS, subject, name, role, groups: [], kind: 'agent', owner }) as const;
+
+    it('creates an agent of an active owner as an active member owned by that user', async () => {
+      const owner = await signInWithSso(sys(), human('o1', 'Olive', 'admin'), opts);
+      const r = await signInWithSso(sys(), agent('ag1', 'o1', 'Olive bot', 'admin'), opts);
+      expect(r.status).toBe('active');
+      expect(r.user).toMatchObject({
+        kind: 'agent',
+        role: 'member', // an agent's role claim never makes it an admin
+        handle: 'olive-bot',
+        ownerId: owner.user.id,
+        deactivatedAt: null,
+      });
+      expect(owner.user.ownerId).toBeNull();
+      const again = await signInWithSso(sys(), agent('ag1', 'o1'), opts);
+      expect(again).toMatchObject({ status: 'active', user: { id: r.user.id } });
+    });
+
+    it('creates an agent of a pending owner as pending', async () => {
+      const owner = await signInWithSso(sys(), human('o2', 'Pending Pat'), opts);
+      expect(owner.status).toBe('pending');
+      const r = await signInWithSso(sys(), agent('ag2', 'o2'), opts);
+      expect(r.status).toBe('pending');
+      expect(r.user.deactivatedAt).not.toBeNull();
+      expect((await signInWithSso(sys(), agent('ag2', 'o2'), opts)).status).toBe('pending');
+    });
+
+    it('refuses an agent whose owner has never signed in, and creates nothing', async () => {
+      await expect(signInWithSso(sys(), agent('ag3', 'nobody'), opts)).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      });
+      const row = await t.db.kysely
+        .selectFrom('user_identities')
+        .select('user_id')
+        .where('subject', '=', 'ag3')
+        .executeTakeFirst();
+      expect(row).toBeUndefined();
+    });
+
+    it('stops a known agent while its owner is deactivated', async () => {
+      const owner = await signInWithSso(sys(), human('o4', 'Otto', 'admin'), opts);
+      expect((await signInWithSso(sys(), agent('ag4', 'o4'), opts)).status).toBe('active');
+      await updateUser(t.ctx, owner.user.id, { deactivated: true });
+      expect((await signInWithSso(sys(), agent('ag4', 'o4'), opts)).status).toBe('owner_inactive');
+      await updateUser(t.ctx, owner.user.id, { deactivated: false });
+      expect((await signInWithSso(sys(), agent('ag4', 'o4'), opts)).status).toBe('active');
+    });
   });
 });

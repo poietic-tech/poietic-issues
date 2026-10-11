@@ -33,6 +33,9 @@ export const UserSchema = UserSummarySchema.extend({
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
   deactivatedAt: TimestampSchema.nullable(),
+  ownerId: z.string().nullable().meta({
+    description: 'For an agent signed in through SSO, the user it acts for; null otherwise.',
+  }),
 }).meta({ id: 'User' });
 export type User = z.infer<typeof UserSchema>;
 

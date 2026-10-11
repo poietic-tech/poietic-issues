@@ -3,12 +3,25 @@ import {
   ANONYMOUS_ACTOR,
   authenticateSession,
   authenticateToken,
+  DomainError,
+  signInWithSso,
   SYSTEM_ACTOR,
+  TOKEN_PREFIX,
+  toActor,
+  type Actor,
+  type ServiceContext,
 } from '@poietic-tech/issues-core';
 import { newId } from '@poietic-tech/issues-schema';
 import { getCookie } from 'hono/cookie';
 import { createMiddleware } from 'hono/factory';
-import { type AppEnv, LEGACY_SESSION_COOKIE, type ResolvedDeps, SESSION_COOKIE } from '../env.ts';
+import {
+  type AppEnv,
+  LEGACY_SESSION_COOKIE,
+  type ResolvedDeps,
+  SESSION_COOKIE,
+  type SsoOptions,
+} from '../env.ts';
+import type { Logger } from '../logger.ts';
 import { problem } from '../problem.ts';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -30,6 +43,10 @@ export const requestId = createMiddleware<AppEnv>(async (c, next) => {
  * per-request ServiceContext. Without credentials (or with a stale session cookie) the context acts as the
  * anonymous actor, which can read public projects only (ADR 0021). Cookie-authenticated unsafe requests must
  * be same-origin (CSRF protection); bearer requests carry no ambient credentials and are exempt.
+ *
+ * A bearer value is an API token when it starts with `trk_`. With SSO configured, any other value is an identity
+ * token from the issuer (an agent's, usually; ADR 0023). Either way the header decides on its own: an invalid
+ * bearer is a 401 and never falls back to the session cookie.
  */
 export function authenticate(deps: ResolvedDeps) {
   return createMiddleware<AppEnv>(async (c, next) => {
@@ -50,10 +67,21 @@ export function authenticate(deps: ResolvedDeps) {
     } else {
       const header = c.req.header('authorization');
       if (header) {
-        const match = /^Bearer\s+(\S+)$/i.exec(header);
-        actor = match ? await authenticateToken({ db, clock }, match[1]!) : null;
+        const value = /^Bearer\s+(\S+)$/i.exec(header)?.[1];
+        const sso = deps.auth.sso;
+        if (value && sso && !value.startsWith(TOKEN_PREFIX)) {
+          actor = await identityActor(
+            { db, clock, ids: deps.ids ?? newId, requestId: c.get('requestId') },
+            sso,
+            value,
+            c.get('logger'),
+          );
+          via = 'identity';
+        } else {
+          actor = value ? await authenticateToken({ db, clock }, value) : null;
+          via = 'bearer';
+        }
         if (!actor) return problem(c, 'UNAUTHENTICATED', 'Invalid, expired or revoked token');
-        via = 'bearer';
       } else {
         const cookie = getCookie(c, SESSION_COOKIE) ?? getCookie(c, LEGACY_SESSION_COOKIE);
         if (cookie) {
@@ -78,6 +106,47 @@ export function authenticate(deps: ResolvedDeps) {
     });
     await next();
   });
+}
+
+/**
+ * Resolves an SSO identity token to its actor, provisioning the user (or agent) on first use, or null when the token
+ * does not verify. Throws UNAVAILABLE when the issuer's keys can't be fetched and PENDING_APPROVAL for an inactive user.
+ */
+async function identityActor(
+  deps: Omit<ServiceContext, 'actor'>,
+  sso: SsoOptions,
+  token: string,
+  logger: Logger,
+): Promise<Actor | null> {
+  let claims;
+  try {
+    claims = await sso.verifier.verify(token);
+  } catch (error) {
+    logger.warn({ err: error }, 'SSO identity token verification failed');
+    throw new DomainError('UNAVAILABLE', `Could not reach ${sso.name} to verify the token`);
+  }
+  if (!claims) return null;
+  const { user, status } = await signInWithSso(
+    { ...deps, actor: SYSTEM_ACTOR },
+    {
+      issuer: sso.issuer,
+      subject: claims.sub,
+      name: claims.name,
+      role: claims.role,
+      groups: claims.groups,
+      kind: claims.kind,
+      owner: claims.owner,
+    },
+    { adminRole: sso.adminRole },
+  );
+  if (status === 'owner_inactive')
+    throw new DomainError('PENDING_APPROVAL', `@${user.handle}'s owner is deactivated`);
+  if (status === 'pending')
+    throw new DomainError(
+      'PENDING_APPROVAL',
+      `@${user.handle} is waiting for an admin to approve access`,
+    );
+  return toActor(user);
 }
 
 /** Anonymous requests may read (core decides what is visible, ADR 0021); everything else needs a user. */

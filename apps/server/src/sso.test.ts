@@ -14,7 +14,10 @@ beforeAll(async () => {
 });
 afterAll(() => t.destroy());
 
-/** A fake verifier: the cookie value is the subject; "admin-*" subjects carry role admin; "bad" fails; "down" throws. */
+/**
+ * A fake verifier: the token is the subject; "admin-*" subjects carry role admin; "agent:<owner>:<n>" is an agent
+ * owned by subject <owner>; "bad" fails; "down" throws.
+ */
 function sso(): SsoOptions {
   return {
     name: 'Example',
@@ -35,8 +38,8 @@ function sso(): SsoOptions {
               name: `Person ${token}`,
               role: token.startsWith('admin') ? 'admin' : 'user',
               groups: [],
-              kind: 'human',
-              owner: null,
+              kind: token.startsWith('agent:') ? 'agent' : 'human',
+              owner: token.startsWith('agent:') ? token.split(':')[1]! : null,
               sid: 's1',
               iat: 0,
               exp: 0,
@@ -102,6 +105,15 @@ describe(`SSO sign-in (${testDialect()})`, () => {
     expect(res.headers.get('set-cookie')).toBeNull();
   });
 
+  it('refuses an agent identity a browser session', async () => {
+    const app = createApp({ db: t.db, auth: { mode: 'standard', sso: sso() } });
+    await post(app, 'admin-owner');
+    const res = await post(app, 'agent:admin-owner:1');
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { code: string }).code).toBe('FORBIDDEN');
+    expect(res.headers.get('set-cookie')).toBeNull();
+  });
+
   it('answers 401 without a valid cookie, 403 cross-origin, 404 when off', async () => {
     const app = createApp({ db: t.db, auth: { mode: 'standard', sso: sso() } });
     expect((await post(app, null)).status).toBe(401);
@@ -125,5 +137,75 @@ describe(`SSO sign-in (${testDialect()})`, () => {
     const app = createApp({ db: t.db, auth: { mode: 'standard', sso: sso() }, logger });
     await post(app, 'down');
     expect(lines.join('')).toContain('JWKS unavailable');
+  });
+
+  describe('identity tokens in the Authorization header', () => {
+    const bearer = (token: string, extra: Record<string, string> = {}) => ({
+      headers: { authorization: `Bearer ${token}`, ...extra },
+    });
+    const code = async (res: Response) => ((await res.json()) as { code: string }).code;
+
+    it('acts as an agent owned by its signed-in owner, provisioning it on first use', async () => {
+      const app = createApp({ db: t.db, auth: { mode: 'standard', sso: sso() } });
+      const owner = (await (await post(app, 'admin-own1')).json()) as { id: string };
+      const res = await app.request(`${BASE}/api/v1/me`, bearer('agent:admin-own1:a'));
+      expect(res.status).toBe(200);
+      const me = (await res.json()) as { id: string };
+      expect(me).toMatchObject({
+        kind: 'agent',
+        role: 'member',
+        ownerId: owner.id,
+        deactivatedAt: null,
+      });
+      const again = await app.request(`${BASE}/api/v1/me`, bearer('agent:admin-own1:a'));
+      expect(((await again.json()) as { id: string }).id).toBe(me.id);
+    });
+
+    it('needs no same-origin check: an identity token is not an ambient credential', async () => {
+      const app = createApp({ db: t.db, auth: { mode: 'standard', sso: sso() } });
+      await post(app, 'admin-own2');
+      const res = await app.request(`${BASE}/api/v1/users/me`, {
+        method: 'PATCH',
+        headers: {
+          authorization: 'Bearer agent:admin-own2:a',
+          origin: 'https://evil.example',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ name: 'Renamed bot' }),
+      });
+      expect(res.status).toBe(200);
+    });
+
+    it('refuses an agent whose owner has never signed in, and a pending human', async () => {
+      const app = createApp({ db: t.db, auth: { mode: 'standard', sso: sso() } });
+      const orphan = await app.request(`${BASE}/api/v1/me`, bearer('agent:nobody:a'));
+      expect(orphan.status).toBe(403);
+      expect(await code(orphan)).toBe('FORBIDDEN');
+      const pending = await app.request(`${BASE}/api/v1/me`, bearer('u-pending'));
+      expect(pending.status).toBe(403);
+      expect(await code(pending)).toBe('PENDING_APPROVAL');
+    });
+
+    it('decides on its own: an invalid bearer is 401 even with a valid session cookie', async () => {
+      const app = createApp({ db: t.db, auth: { mode: 'standard', sso: sso() } });
+      const session = (await post(app, 'admin-own3')).headers.get('set-cookie')!.split(';')[0]!;
+      const res = await app.request(`${BASE}/api/v1/me`, bearer('bad', { cookie: session }));
+      expect(res.status).toBe(401);
+    });
+
+    it('treats trk_ values as API tokens, never as identity tokens', async () => {
+      const app = createApp({ db: t.db, auth: { mode: 'standard', sso: sso() } });
+      // The fake verifier would accept this value as a subject; it must never reach it.
+      expect((await app.request(`${BASE}/api/v1/me`, bearer('trk_admin-own4'))).status).toBe(401);
+    });
+
+    it('answers 503 when the issuer is unreachable, and 401 when SSO is off', async () => {
+      const app = createApp({ db: t.db, auth: { mode: 'standard', sso: sso() } });
+      const down = await app.request(`${BASE}/api/v1/me`, bearer('down'));
+      expect(down.status).toBe(503);
+      expect(await code(down)).toBe('UNAVAILABLE');
+      const off = createApp({ db: t.db, auth: { mode: 'standard' } });
+      expect((await off.request(`${BASE}/api/v1/me`, bearer('admin-own5'))).status).toBe(401);
+    });
   });
 });
