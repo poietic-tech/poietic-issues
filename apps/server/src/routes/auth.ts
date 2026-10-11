@@ -91,12 +91,13 @@ export function registerAuthRoutes(app: TrackerApp, deps: ResolvedDeps) {
         {
           devLogin: true,
           sso: ssoInfo,
-          users: users.map(({ id, handle, name, kind, avatarUrl }) => ({
+          users: users.map(({ id, handle, name, kind, avatarUrl, owner }) => ({
             id,
             handle,
             name,
             kind,
             avatarUrl,
+            owner,
           })),
         },
         200,

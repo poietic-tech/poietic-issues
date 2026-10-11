@@ -29,6 +29,7 @@ import {
   projectFieldRegistry,
 } from './custom-field-query.ts';
 import { list, scalarCondition, setCondition } from './sql-conditions.ts';
+import { toUserOwner } from './mappers.ts';
 
 type Exec = Kysely<Database>;
 type Bool = RawBuilder<boolean>;
@@ -56,7 +57,9 @@ export async function loadIssues(db: Exec, ids: string[]): Promise<Issue[]> {
       .innerJoin('projects as p', 'p.id', 'i.project_id')
       .innerJoin('statuses as s', 's.id', 'i.status_id')
       .innerJoin('users as c', 'c.id', 'i.creator_id')
+      .leftJoin('users as co', 'co.id', 'c.owner_id')
       .leftJoin('users as a', 'a.id', 'i.assignee_id')
+      .leftJoin('users as ao', 'ao.id', 'a.owner_id')
       .leftJoin('issues as pi', 'pi.id', 'i.parent_id')
       .leftJoin('projects as pp', 'pp.id', 'pi.project_id')
       .leftJoin('project_repos as rp', 'rp.id', 'i.repo_id')
@@ -70,10 +73,14 @@ export async function loadIssues(db: Exec, ids: string[]): Promise<Issue[]> {
         'c.name as c_name',
         'c.kind as c_kind',
         'c.avatar_url as c_avatar',
+        'c.owner_id as c_owner_id',
+        'co.handle as c_owner_handle',
         'a.handle as a_handle',
         'a.name as a_name',
         'a.kind as a_kind',
         'a.avatar_url as a_avatar',
+        'a.owner_id as a_owner_id',
+        'ao.handle as a_owner_handle',
         'pi.number as parent_number',
         'pi.title as parent_title',
         'pp.key as parent_project_key',
@@ -134,6 +141,7 @@ export async function loadIssues(db: Exec, ids: string[]): Promise<Issue[]> {
                 name: r.a_name!,
                 kind: r.a_kind!,
                 avatarUrl: r.a_avatar,
+                owner: toUserOwner(r.a_owner_id, r.a_owner_handle),
               }
             : null,
         creatorId: r.creator_id,
@@ -143,6 +151,7 @@ export async function loadIssues(db: Exec, ids: string[]): Promise<Issue[]> {
           name: r.c_name,
           kind: r.c_kind,
           avatarUrl: r.c_avatar,
+          owner: toUserOwner(r.c_owner_id, r.c_owner_handle),
         },
         parentId: r.parent_id,
         parent:

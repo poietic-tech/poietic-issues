@@ -129,14 +129,14 @@ async function findIdentity(
     .innerJoin('users', 'users.id', 'user_identities.user_id')
     .leftJoin('users as owners', 'owners.id', 'users.owner_id')
     .selectAll('users')
-    .select('owners.deactivated_at as owner_deactivated_at')
+    .select(['owners.deactivated_at as owner_deactivated_at', 'owners.handle as owner_handle'])
     .where('user_identities.issuer', '=', identity.issuer)
     .where('user_identities.subject', '=', identity.subject)
     .executeTakeFirst();
   if (!row) return undefined;
-  const { owner_deactivated_at, ...user } = row;
+  const { owner_deactivated_at, owner_handle, ...user } = row;
   return {
-    user: toUser(user),
+    user: toUser(user, owner_handle),
     status: user.deactivated_at ? 'pending' : owner_deactivated_at ? 'owner_inactive' : 'active',
   };
 }

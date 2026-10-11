@@ -5,11 +5,10 @@ import {
   type CreatedApiToken,
   type CreateTokenInput,
   CreateTokenInputSchema,
-  type User,
 } from '@poietic-tech/issues-schema';
 import { type Actor, nowIso, type ServiceContext } from '../context.ts';
 import { forbidden, notFound, parseInput } from '../errors.ts';
-import { toApiToken, toUser } from '../mappers.ts';
+import { toApiToken } from '../mappers.ts';
 import { isAdmin, requireSignedIn } from '../permissions.ts';
 import { getUserRow } from '../refs.ts';
 import { toActor } from './users.ts';
@@ -135,7 +134,7 @@ export async function authenticateToken(
         .execute(),
     );
   }
-  return toActor(toUser(row));
+  return toActor(row);
 }
 
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -175,7 +174,7 @@ export async function authenticateSession(
     .executeTakeFirst();
   if (!row || row.deactivated_at || row.session_expires_at <= ctx.clock.now().toISOString())
     return null;
-  return toActor(toUser(row));
+  return toActor(row);
 }
 
 export async function deleteSession(
@@ -194,5 +193,5 @@ export async function actorForUser(
 ): Promise<Actor | null> {
   const row = await getUserRow(ctx, ctx.db.kysely, ref).catch(() => undefined);
   if (!row || row.deactivated_at) return null;
-  return toActor(toUser(row) satisfies User);
+  return toActor(row);
 }

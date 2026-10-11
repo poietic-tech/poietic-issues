@@ -2,8 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { testDialect } from '@poietic-tech/issues-db/testing';
 import { SYSTEM_ACTOR, withActor } from '../context.ts';
 import { createTestContext, type TestContext } from '../testing.ts';
+import { createComment, listComments } from './comments.ts';
+import { listEvents } from './events.ts';
+import { createIssue, getIssue } from './issues.ts';
+import { addMember, listMembers } from './members.ts';
+import { createProject } from './projects.ts';
 import { handleFromName, signInWithSso } from './sso.ts';
-import { updateUser } from './users.ts';
+import { getUser, listUsers, toActor, updateUser } from './users.ts';
 
 const ISS = 'https://auth.example.test';
 let t: TestContext;
@@ -291,6 +296,34 @@ describe(`signInWithSso (${testDialect()})`, () => {
       expect((await signInWithSso(sys(), agent('ag4', 'o4'), opts)).status).toBe('owner_inactive');
       await updateUser(t.ctx, owner.user.id, { deactivated: false });
       expect((await signInWithSso(sys(), agent('ag4', 'o4'), opts)).status).toBe('active');
+    });
+
+    it("names the agent's owner wherever the agent appears", async () => {
+      const owner = await signInWithSso(sys(), human('o5', 'Opal', 'admin'), opts);
+      const bot = await signInWithSso(sys(), agent('ag5', 'o5', 'Opal bot'), opts);
+      const ref = { id: owner.user.id, handle: 'opal' };
+      expect(bot.user.owner).toEqual(ref);
+      expect(owner.user.owner).toBeNull();
+
+      await createProject(t.ctx, { key: 'OWN', name: 'Owners' });
+      await addMember(t.ctx, 'OWN', { user: bot.user.id, role: 'editor' });
+      const botCtx = withActor(t.ctx, toActor(bot.user));
+      const issue = await createIssue(botCtx, 'OWN', { title: 'Hi', assignee: bot.user.id });
+      await createComment(botCtx, issue.key, { body: 'On it' });
+
+      const fetched = await getIssue(t.ctx, issue.key);
+      expect(fetched.creator.owner).toEqual(ref);
+      expect(fetched.assignee?.owner).toEqual(ref);
+      const [comment] = await listComments(t.ctx, issue.key);
+      expect(comment!.author.owner).toEqual(ref);
+      const members = await listMembers(t.ctx, 'OWN');
+      expect(members.find((m) => m.user.id === bot.user.id)!.user.owner).toEqual(ref);
+      const events = (await listEvents(t.ctx, { limit: 1000 })).data;
+      expect(events.find((e) => e.actorId === bot.user.id)!.actor!.owner).toEqual(ref);
+      expect((await getUser(t.ctx, bot.user.id)).owner).toEqual(ref);
+      const users = await listUsers(t.ctx);
+      expect(users.find((u) => u.id === bot.user.id)!.owner).toEqual(ref);
+      expect(users.find((u) => u.id === owner.user.id)!.owner).toBeNull();
     });
   });
 });
