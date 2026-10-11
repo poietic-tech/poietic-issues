@@ -24,8 +24,8 @@ export interface SsoIdentity {
 export interface SsoSignIn {
   user: User;
   /**
-   * `pending` until an admin reactivates the user. `owner_inactive`: an agent whose owner is deactivated, so it
-   * may not act until the owner is reactivated.
+   * `pending` until an admin reactivates the user (an agent created while its owner was inactive starts pending too).
+   * `owner_inactive`: an active agent whose owner is deactivated, so it may not act until the owner is reactivated.
    */
   status: 'active' | 'pending' | 'owner_inactive';
 }
@@ -116,7 +116,7 @@ export async function signInWithSso(
         created_at: nowIso(ctx),
       })
       .execute();
-    return { user, status: active ? 'active' : owner ? 'owner_inactive' : 'pending' };
+    return { user, status: active ? 'active' : 'pending' };
   });
 }
 

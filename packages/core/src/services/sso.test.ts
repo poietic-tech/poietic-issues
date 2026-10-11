@@ -267,8 +267,9 @@ describe(`signInWithSso (${testDialect()})`, () => {
       const owner = await signInWithSso(sys(), human('o2', 'Pending Pat'), opts);
       expect(owner.status).toBe('pending');
       const r = await signInWithSso(sys(), agent('ag2', 'o2'), opts);
-      expect(r.status).toBe('owner_inactive');
+      expect(r.status).toBe('pending');
       expect(r.user.deactivatedAt).not.toBeNull();
+      expect((await signInWithSso(sys(), agent('ag2', 'o2'), opts)).status).toBe('pending');
     });
 
     it('refuses an agent whose owner has never signed in, and creates nothing', async () => {
