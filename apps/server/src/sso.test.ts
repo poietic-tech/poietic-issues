@@ -4,7 +4,7 @@ import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app.ts';
 import type { SsoOptions } from './env.ts';
-import type { SsoClaims } from './sso/jwt.ts';
+import type { SsoClaims } from './sso/verifier.ts';
 
 const BASE = 'http://tracker.test';
 const ISS = 'https://auth.example.test';
@@ -34,6 +34,10 @@ function sso(): SsoOptions {
               sub: token,
               name: `Person ${token}`,
               role: token.startsWith('admin') ? 'admin' : 'user',
+              groups: [],
+              kind: 'human',
+              owner: null,
+              sid: 's1',
               iat: 0,
               exp: 0,
             } satisfies SsoClaims);
