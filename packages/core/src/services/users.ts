@@ -71,7 +71,7 @@ export async function insertUser(
   tx: Tx,
   ctx: ServiceContext,
   data: z.output<typeof CreateUserInputSchema>,
-  opts: { deactivated?: boolean } = {},
+  opts: { deactivated?: boolean; ownerId?: string } = {},
 ): Promise<User> {
   const now = nowIso(ctx);
   const row = await tx
@@ -87,6 +87,7 @@ export async function insertUser(
       created_at: now,
       updated_at: now,
       deactivated_at: opts.deactivated ? now : null,
+      owner_id: opts.ownerId ?? null,
     })
     .returningAll()
     .executeTakeFirstOrThrow();

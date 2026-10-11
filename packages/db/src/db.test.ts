@@ -28,6 +28,7 @@ async function seedBasics(db: TestDb, key = 'ENG') {
         created_at: NOW,
         updated_at: NOW,
         deactivated_at: null,
+        owner_id: null,
       })
       .execute();
     await tx
@@ -298,6 +299,8 @@ describe(`migrations (${dialect})`, () => {
   it('migrate down removes everything and migrate up restores it', async () => {
     const db = await createTestDb();
     try {
+      expect(await migrateDown(db)).toEqual(['0005_user_owner']);
+      await expect(sql`select owner_id from users`.execute(db.kysely)).rejects.toThrow();
       expect(await migrateDown(db)).toEqual(['0004_project_access']);
       await expect(sql`select count(*) from project_members`.execute(db.kysely)).rejects.toThrow();
       expect(await migrateDown(db)).toEqual(['0003_user_identities']);
@@ -313,12 +316,14 @@ describe(`migrations (${dialect})`, () => {
         '0002_webhook_delivery_details',
         '0003_user_identities',
         '0004_project_access',
+        '0005_user_owner',
       ]);
       expect(await migrateToLatest(db)).toEqual([
         '0001_init',
         '0002_webhook_delivery_details',
         '0003_user_identities',
         '0004_project_access',
+        '0005_user_owner',
       ]);
       expect((await migrationStatus(db)).upToDate).toBe(true);
     } finally {
@@ -329,6 +334,7 @@ describe(`migrations (${dialect})`, () => {
   it('0004 makes active non-admin users editors of existing projects', async () => {
     const db = await createTestDb();
     try {
+      await migrateDown(db);
       await migrateDown(db); // back to 0003
       const ts = '2026-01-01T00:00:00.000Z';
       const user = (
@@ -369,6 +375,7 @@ describe(`migrations (${dialect})`, () => {
   it('0004 does not make the system user a member of existing projects', async () => {
     const db = await createTestDb();
     try {
+      await migrateDown(db);
       await migrateDown(db); // back to 0003
       const ts = '2026-01-01T00:00:00.000Z';
       // Even a system user whose role is `member` (the built-in one is an admin) must be skipped.

@@ -27,6 +27,7 @@ export function toUser(r: Row<'users'>): User {
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     deactivatedAt: r.deactivated_at,
+    ownerId: r.owner_id,
   };
 }
 

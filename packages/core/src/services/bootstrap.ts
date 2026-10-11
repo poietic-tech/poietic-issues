@@ -44,6 +44,7 @@ export async function ensureBuiltins(db: Db, clock: Clock = systemClock): Promis
           created_at: now,
           updated_at: now,
           deactivated_at: null,
+          owner_id: null,
         })
         .execute();
     }
