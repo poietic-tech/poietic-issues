@@ -131,6 +131,44 @@ describe(`SSO sign-in (${testDialect()})`, () => {
     expect(res.headers.get('set-cookie')).toBeNull();
   });
 
+  describe('session liveness at sign-in', () => {
+    /** "dead" in the token means its issuer session ended; "gone" means the issuer can't be asked. */
+    const liveness = (asked: string[] = []) => ({
+      isLive: async (token: string) => {
+        asked.push(token);
+        if (token.includes('gone')) throw new Error('liveness unavailable');
+        return !token.includes('dead');
+      },
+    });
+
+    it('refuses a tracker session for a cookie whose issuer session has ended', async () => {
+      const asked: string[] = [];
+      const app = createApp({
+        db: t.db,
+        auth: { mode: 'standard', sso: { ...sso(), liveness: liveness(asked) } },
+      });
+      const dead = await post(app, 'admin-dead');
+      expect(dead.status).toBe(401);
+      expect(((await dead.json()) as { code: string }).code).toBe('UNAUTHENTICATED');
+      expect(dead.headers.get('set-cookie')).toBeNull();
+      expect((await post(app, 'admin-alive')).status).toBe(200);
+      expect(asked).toEqual(['admin-dead', 'admin-alive']);
+    });
+
+    it('fails closed with 503 when the issuer cannot be asked, and never asks for agents', async () => {
+      const asked: string[] = [];
+      const app = createApp({
+        db: t.db,
+        auth: { mode: 'standard', sso: { ...sso(), liveness: liveness(asked) } },
+      });
+      const gone = await post(app, 'admin-gone');
+      expect(gone.status).toBe(503);
+      expect(gone.headers.get('set-cookie')).toBeNull();
+      expect((await post(app, 'agent:admin-alive:x')).status).toBe(403);
+      expect(asked).toEqual(['admin-gone']);
+    });
+  });
+
   it('logs a warning when the verifier fails', async () => {
     const lines: string[] = [];
     const logger = pino({ level: 'warn' }, { write: (l: string) => void lines.push(l) });
@@ -237,6 +275,7 @@ describe(`SSO sign-in (${testDialect()})`, () => {
         const read = await app.request(`${BASE}/api/v1/me`, bearer('agent:admin-live1:dead'));
         expect(read.status).toBe(200);
         expect(asked).toEqual([
+          { token: 'admin-live1', now: NOW },
           { token: 'agent:admin-live1:a', now: NOW },
           { token: 'agent:admin-live1:dead', now: NOW },
         ]);
@@ -258,13 +297,14 @@ describe(`SSO sign-in (${testDialect()})`, () => {
         expect(lines.join('')).toContain('liveness unavailable');
       });
 
-      it('is not consulted for session cookies', async () => {
+      it('is not consulted for writes with a tracker session cookie', async () => {
         const { asked, liveness } = live();
         const app = createApp({
           db: t.db,
           auth: { mode: 'standard', sso: { ...sso(), liveness } },
         });
         const session = (await post(app, 'admin-live3')).headers.get('set-cookie')!.split(';')[0]!;
+        asked.length = 0;
         const res = await app.request(`${BASE}/api/v1/users/me`, {
           method: 'PATCH',
           headers: { cookie: session, origin: BASE, 'content-type': 'application/json' },
