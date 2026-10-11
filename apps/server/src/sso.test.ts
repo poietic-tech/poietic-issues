@@ -14,7 +14,10 @@ beforeAll(async () => {
 });
 afterAll(() => t.destroy());
 
-/** A fake verifier: the cookie value is the subject; "admin-*" subjects carry role admin; "bad" fails; "down" throws. */
+/**
+ * A fake verifier: the token is the subject; "admin-*" subjects carry role admin; "agent:<owner>:<n>" is an agent
+ * owned by subject <owner>; "bad" fails; "down" throws.
+ */
 function sso(): SsoOptions {
   return {
     name: 'Example',
@@ -35,8 +38,8 @@ function sso(): SsoOptions {
               name: `Person ${token}`,
               role: token.startsWith('admin') ? 'admin' : 'user',
               groups: [],
-              kind: 'human',
-              owner: null,
+              kind: token.startsWith('agent:') ? 'agent' : 'human',
+              owner: token.startsWith('agent:') ? token.split(':')[1]! : null,
               sid: 's1',
               iat: 0,
               exp: 0,
@@ -99,6 +102,15 @@ describe(`SSO sign-in (${testDialect()})`, () => {
     const res = await post(app, 'u-1');
     expect(res.status).toBe(403);
     expect(((await res.json()) as { code: string }).code).toBe('PENDING_APPROVAL');
+    expect(res.headers.get('set-cookie')).toBeNull();
+  });
+
+  it('refuses an agent identity a browser session', async () => {
+    const app = createApp({ db: t.db, auth: { mode: 'standard', sso: sso() } });
+    await post(app, 'admin-owner');
+    const res = await post(app, 'agent:admin-owner:1');
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { code: string }).code).toBe('FORBIDDEN');
     expect(res.headers.get('set-cookie')).toBeNull();
   });
 

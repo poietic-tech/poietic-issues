@@ -192,6 +192,9 @@ export function registerAuthRoutes(app: TrackerApp, deps: ResolvedDeps) {
         }
       }
       if (!claims) throw new DomainError('UNAUTHENTICATED', `Not signed in to ${sso.name}`);
+      // Agents act through identity tokens in the Authorization header; they never get a browser session.
+      if (claims.kind !== 'human')
+        throw new DomainError('FORBIDDEN', 'Agents cannot sign in to the web app');
       const ctx = withActor(c.get('ctx'), SYSTEM_ACTOR);
       const { user, status } = await signInWithSso(
         ctx,
@@ -201,10 +204,12 @@ export function registerAuthRoutes(app: TrackerApp, deps: ResolvedDeps) {
           name: claims.name,
           role: claims.role,
           groups: claims.groups,
+          kind: 'human',
+          owner: null,
         },
         { adminRole: sso.adminRole },
       );
-      if (status === 'pending')
+      if (status !== 'active')
         throw new DomainError(
           'PENDING_APPROVAL',
           `@${user.handle} is waiting for an admin to approve access`,
