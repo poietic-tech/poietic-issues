@@ -1,3 +1,4 @@
+export * from './actors.ts';
 export * from './attachments.ts';
 export * from './common.ts';
 export * from './custom-fields.ts';
