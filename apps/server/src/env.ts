@@ -10,7 +10,7 @@ import type {
 } from '@poietic-tech/issues-core';
 import type { Db } from '@poietic-tech/issues-db';
 import type { Logger } from './logger.ts';
-import type { JwtVerifier } from './sso/jwt.ts';
+import type { SsoVerifier } from './sso/verifier.ts';
 
 /** Single sign-on with a JWT that a shared issuer keeps in a cookie. */
 export interface SsoOptions {
@@ -26,7 +26,7 @@ export interface SsoOptions {
   refreshUrl?: string | undefined;
   /** Token `role` that makes a new user an active admin. */
   adminRole: string;
-  verifier: JwtVerifier;
+  verifier: SsoVerifier;
 }
 
 /**

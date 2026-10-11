@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { SsoOptions } from './env.ts';
-import { createJwtVerifier } from './sso/jwt.ts';
+import { createSsoVerifier } from './sso/verifier.ts';
 
 const bool = (fallback: boolean) =>
   z
@@ -113,6 +113,6 @@ export function ssoOptionsFromConfig(config: ServerConfig): SsoOptions | undefin
     loginUrl: config.POIETIC_ISSUES_SSO_LOGIN_URL!,
     refreshUrl: config.POIETIC_ISSUES_SSO_REFRESH_URL,
     adminRole: config.POIETIC_ISSUES_SSO_ADMIN_ROLE,
-    verifier: createJwtVerifier({ jwksUrl: config.POIETIC_ISSUES_SSO_JWKS_URL!, issuer, audience }),
+    verifier: createSsoVerifier({ jwksUrl: config.POIETIC_ISSUES_SSO_JWKS_URL!, issuer, audience }),
   };
 }
