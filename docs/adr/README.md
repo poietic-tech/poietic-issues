@@ -26,3 +26,4 @@ Short records of decisions that constrain future work. Copy `0000-template.md`, 
 | [0020](0020-rename-to-poietic-issues.md)              | Rename to poietic-issues                                               | Accepted                               |
 | [0021](0021-project-visibility-and-roles.md)          | Project visibility, per-project roles and anonymous read access        | Accepted                               |
 | [0022](0022-poietic-auth-package-verifier.md)         | Verify SSO tokens with `@poietic-tech/auth`                            | Accepted                               |
+| [0023](0023-agent-identities.md)                      | Agent identities from SSO identity tokens                              | Accepted                               |

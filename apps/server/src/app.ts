@@ -80,7 +80,10 @@ function buildApi(resolved: ResolvedDeps): TrackerApp {
     type: 'http',
     scheme: 'bearer',
     description:
-      'API token (`trk_…`), created with `POST /users/{user}/tokens` or `poietic-issues token create`.',
+      'API token (`trk_…`), created with `POST /users/{user}/tokens` or `poietic-issues token create`. ' +
+      'With single sign-on configured, any other bearer value is an identity token from the SSO issuer, such as an ' +
+      "agent's. A new agent becomes a user owned by its (already signed-in) owner. `trk_` tokens always take " +
+      'precedence, and an invalid bearer value is rejected rather than falling back to a session cookie.',
   });
   api.openAPIRegistry.registerComponent('securitySchemes', 'sessionCookie', {
     type: 'apiKey',

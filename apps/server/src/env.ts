@@ -82,7 +82,8 @@ export interface AppEnv {
     requestId: string;
     logger: Logger;
     actor: Actor | null;
-    authVia: 'bearer' | 'session' | 'trusted' | null;
+    /** `identity`: an SSO identity token in the Authorization header (ADR 0023). */
+    authVia: 'bearer' | 'identity' | 'session' | 'trusted' | null;
     ctx: ServiceContext;
   };
 }
