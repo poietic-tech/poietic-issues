@@ -318,7 +318,7 @@ describe(`signInWithSso (${testDialect()})`, () => {
       expect(comment!.author.owner).toEqual(ref);
       const members = await listMembers(t.ctx, 'OWN');
       expect(members.find((m) => m.user.id === bot.user.id)!.user.owner).toEqual(ref);
-      const events = (await listEvents(t.ctx, { limit: 1000 })).data;
+      const events = (await listEvents(t.ctx, { issue: issue.id })).data;
       expect(events.find((e) => e.actorId === bot.user.id)!.actor!.owner).toEqual(ref);
       expect((await getUser(t.ctx, bot.user.id)).owner).toEqual(ref);
       const users = await listUsers(t.ctx);

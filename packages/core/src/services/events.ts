@@ -10,7 +10,9 @@ export interface ListEventsInput {
   /** Only events with `seq` greater than this (exclusive cursor). */
   after?: number | undefined;
   limit?: number | undefined;
+  /** A project id (not a key): callers resolve refs first, checking access as they do. */
   project?: string | undefined;
+  /** An issue id (not a key such as `ENG-1`): callers resolve refs first, checking access as they do. */
   issue?: string | undefined;
   types?: EventType[] | undefined;
   /** With `issue`: also include link events where the issue is the target. */
