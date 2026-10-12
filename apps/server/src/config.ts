@@ -64,7 +64,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     POIETIC_ISSUES_SSO_LOGIN_URL: z.url().optional(),
     POIETIC_ISSUES_SSO_REFRESH_URL: z.url().optional(),
     POIETIC_ISSUES_SSO_ADMIN_ROLE: z.string().default('admin'),
-    /** The issuer's `/session/live`; when set, identity-token writes are refused once the session is revoked. */
+    /** The issuer's `/session/live`; when set, identity-token requests are refused once the session is revoked. */
     POIETIC_ISSUES_SSO_LIVENESS_URL: z.url().optional(),
     /** Lifetime of a tracker session from SSO sign-in; the web app renews it, re-checking the issuer each time. */
     POIETIC_ISSUES_SSO_SESSION_MINUTES: z.coerce.number().int().min(2).max(1440).default(15),

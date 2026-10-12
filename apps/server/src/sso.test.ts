@@ -307,7 +307,7 @@ describe(`SSO sign-in (${testDialect()})`, () => {
       expect((await app.request(`${BASE}/api/v1/me`, bearer('trk_admin-own4'))).status).toBe(401);
     });
 
-    describe('session liveness before writes', () => {
+    describe('session liveness on every request', () => {
       const NOW = new Date('2026-10-11T12:00:00Z');
       /** The liveness stub: "dead" in the token means revoked, "gone" means the issuer can't be reached. */
       function live() {
@@ -329,7 +329,7 @@ describe(`SSO sign-in (${testDialect()})`, () => {
         body: JSON.stringify({ name: 'Renamed bot' }),
       });
 
-      it('refuses a write once the session has ended, but still serves reads', async () => {
+      it('refuses writes and reads once the session has ended', async () => {
         const { asked, liveness } = live();
         const app = createApp({
           db: t.db,
@@ -343,11 +343,15 @@ describe(`SSO sign-in (${testDialect()})`, () => {
         expect(dead.status).toBe(401);
         expect(await code(dead)).toBe('UNAUTHENTICATED');
         const read = await app.request(`${BASE}/api/v1/me`, bearer('agent:admin-live1:dead'));
-        expect(read.status).toBe(200);
+        expect(read.status).toBe(401);
+        const liveRead = await app.request(`${BASE}/api/v1/me`, bearer('agent:admin-live1:a'));
+        expect(liveRead.status).toBe(200);
         expect(asked).toEqual([
           { token: 'admin-live1', now: NOW },
           { token: 'agent:admin-live1:a', now: NOW },
           { token: 'agent:admin-live1:dead', now: NOW },
+          { token: 'agent:admin-live1:dead', now: NOW },
+          { token: 'agent:admin-live1:a', now: NOW },
         ]);
       });
 
@@ -365,6 +369,8 @@ describe(`SSO sign-in (${testDialect()})`, () => {
         expect(res.status).toBe(503);
         expect(await code(res)).toBe('UNAVAILABLE');
         expect(lines.join('')).toContain('liveness unavailable');
+        const read = await app.request(`${BASE}/api/v1/me`, bearer('agent:admin-live2:gone'));
+        expect(read.status).toBe(503);
       });
 
       it('is not consulted for writes with a tracker session cookie', async () => {

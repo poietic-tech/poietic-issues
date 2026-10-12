@@ -67,7 +67,8 @@ const withoutContent = (e: TrackerEvent, actorId: string): TrackerEvent => ({
  * stream (with or without `?project=`) is closed after delivering a `user.updated` event about them; the client
  * reconnects as who they are now and resumes. Replay runs on the identity the reconnect authenticated as, so it
  * never closes the stream. A stream also ends when the credential it authenticated with expires (a short SSO session,
- * an identity token), so access ended at the issuer does not outlive it here.
+ * an identity token), or when the issuer says an identity token's session has ended, so access ended at the issuer
+ * does not outlive it here.
  *
  * Readers below write get `issue.deleted` and `attachment.deleted` as content-free tombstones, live and on replay,
  * so open views drop the row. An event that ends the viewer's read access to its project is delivered without its
@@ -87,7 +88,8 @@ export function registerStreamRoute(
       'Streams events as `text/event-stream`: `id` is the event seq, `event` its type, `data` the Event JSON. ' +
       'Reconnect with `Last-Event-ID` (or `?after=<seq>`) to resume without gaps. A `reset` event means the gap ' +
       'was too large to replay: refetch state. Comment lines are heartbeats. The stream ends when the session or ' +
-      'identity token it authenticated with expires. Readers below write get ' +
+      "identity token it authenticated with expires, or when the issuer says that token's session has ended. " +
+      'Readers below write get ' +
       '`issue.deleted` and `attachment.deleted` as tombstones (ids and the issue key only). An event that ends ' +
       "the viewer's read access to its project arrives without content, and a `?project=` stream on it then ends.",
     request: {
@@ -221,8 +223,13 @@ export function registerStreamRoute(
         const now = () => (deps.clock ?? { now: () => new Date() }).now().getTime();
         const expired = () => expiresAt !== undefined && now() >= expiresAt;
         const stopping = () => stream.aborted || deps.shutdownSignal?.aborted === true || expired();
+        // An identity-token stream also re-asks the issuer (cached, so at most one request per cache lifetime) before
+        // each delivery and heartbeat, and ends once the token's session has ended or can't be confirmed (fail closed).
+        const stillLive = c.get('credentialStillLive');
+        const revoked = async () => !!stillLive && !(await stillLive().catch(() => false));
         deps.shutdownSignal?.addEventListener('abort', onShutdown);
         loop: while (!stopping()) {
+          if (await revoked()) break;
           while (queue.length) {
             const { run, visible, lost } = await nextVisible();
             // The viewer's role or status changed: end the stream after that event so the client reconnects as who
