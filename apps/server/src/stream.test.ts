@@ -389,6 +389,54 @@ describe(`SSE /events/stream (${testDialect()})`, () => {
     expect(Date.now() - started).toBeLessThan(4000);
   });
 
+  it("ends an identity-token stream once the issuer says the token's session has ended", async () => {
+    let alive = true;
+    const ISS = 'https://auth.example.test';
+    const ssoApp = createApp({
+      db: t.db,
+      tailer,
+      auth: {
+        mode: 'standard',
+        sso: {
+          name: 'Example',
+          cookie: 'example_session',
+          issuer: ISS,
+          loginUrl: `${ISS}/login`,
+          adminRole: 'admin',
+          verifier: {
+            verify: async (token) => ({
+              iss: ISS,
+              aud: 'x',
+              sub: token,
+              name: 'Streamer',
+              role: 'admin',
+              groups: [],
+              kind: 'human',
+              owner: null,
+              sid: 's1',
+              iat: 0,
+              exp: Math.floor(Date.now() / 1000) + 600,
+            }),
+          },
+          liveness: { isLive: async () => alive },
+        },
+      },
+    });
+    const messages = await collect(
+      '?project=SSE',
+      {},
+      () => false,
+      async () => {
+        alive = false;
+        await createIssue(t.ctx, 'SSE', { title: 'after revocation' });
+      },
+      'streamer-1',
+      ssoApp,
+    );
+    expect(messages.ended).toBe(true);
+    expect(messages.map((m) => m.event)).toEqual(['ready']);
+  });
+
   it("closes the viewer's stream when a user.updated event names them", async () => {
     const messages = await collect(
       '',

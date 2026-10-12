@@ -28,7 +28,7 @@ export interface SsoOptions {
   /** Token `role` that makes a new user an active admin. */
   adminRole: string;
   verifier: SsoVerifier;
-  /** When set, writes made with an identity token are refused once the issuer says its session is no longer live. */
+  /** When set, identity-token requests are refused once the issuer says the token's session is no longer live. */
   liveness?: SsoLiveness | undefined;
   /** How long a tracker session from `POST /auth/sso` lasts before the web app must renew it (default 15 minutes). */
   sessionTtlMs?: number | undefined;
@@ -91,6 +91,8 @@ export interface AppEnv {
     authVia: 'bearer' | 'identity' | 'session' | 'trusted' | null;
     /** When the credential this request authenticated with stops working (a session or identity token), else null. */
     credentialExpiresAt: Date | null;
+    /** Re-asks the issuer whether an identity token's session is still live (cached); null when there is no check. */
+    credentialStillLive: (() => Promise<boolean>) | null;
     ctx: ServiceContext;
   };
 }
