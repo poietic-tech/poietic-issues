@@ -40,5 +40,7 @@ for a token it can verify.
 - Each open, signed-in tab costs a refresh call to the issuer and a `POST /auth/sso` (with a liveness check)
   every half-lifetime.
 - An issuer outage longer than one lifetime signs everyone who used SSO out of the tracker.
-- Sessions issued before this change keep their 30 days, and the web app does not renew them, since they carry
-  no SSO marker. The gap closes when they expire, or sooner if those users sign out and back in.
+- Sessions issued before this change lasted 30 days and carry no SSO marker, so the web app could not renew them.
+  Migration `0006_end_sso_users_sessions` deletes every session of a user with an SSO identity once. People who
+  use SSO are signed in again from the sign-in page, silently while their issuer session is live. Sessions of
+  users without an SSO identity (token or dev login only) are kept.

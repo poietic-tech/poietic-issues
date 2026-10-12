@@ -299,6 +299,7 @@ describe(`migrations (${dialect})`, () => {
   it('migrate down removes everything and migrate up restores it', async () => {
     const db = await createTestDb();
     try {
+      expect(await migrateDown(db)).toEqual(['0006_end_sso_users_sessions']);
       expect(await migrateDown(db)).toEqual(['0005_user_owner']);
       await expect(sql`select owner_id from users`.execute(db.kysely)).rejects.toThrow();
       expect(await migrateDown(db)).toEqual(['0004_project_access']);
@@ -317,6 +318,7 @@ describe(`migrations (${dialect})`, () => {
         '0003_user_identities',
         '0004_project_access',
         '0005_user_owner',
+        '0006_end_sso_users_sessions',
       ]);
       expect(await migrateToLatest(db)).toEqual([
         '0001_init',
@@ -324,6 +326,7 @@ describe(`migrations (${dialect})`, () => {
         '0003_user_identities',
         '0004_project_access',
         '0005_user_owner',
+        '0006_end_sso_users_sessions',
       ]);
       expect((await migrationStatus(db)).upToDate).toBe(true);
     } finally {
@@ -334,6 +337,7 @@ describe(`migrations (${dialect})`, () => {
   it('0004 makes active non-admin users editors of existing projects', async () => {
     const db = await createTestDb();
     try {
+      await migrateDown(db);
       await migrateDown(db);
       await migrateDown(db); // back to 0003
       const ts = '2026-01-01T00:00:00.000Z';
@@ -376,6 +380,7 @@ describe(`migrations (${dialect})`, () => {
     const db = await createTestDb();
     try {
       await migrateDown(db);
+      await migrateDown(db);
       await migrateDown(db); // back to 0003
       const ts = '2026-01-01T00:00:00.000Z';
       // Even a system user whose role is `member` (the built-in one is an admin) must be skipped.
@@ -393,6 +398,38 @@ describe(`migrations (${dialect})`, () => {
       const rows = await sql<{ user_id: string }>`
         select user_id from project_members order by user_id`.execute(db.kysely);
       expect(rows.rows).toEqual([{ user_id: 'usr_human' }]);
+    } finally {
+      await db.destroy();
+    }
+  });
+});
+
+describe(`migration 0006 (${dialect})`, () => {
+  it('ends the sessions of users with an SSO identity, and keeps the rest', async () => {
+    const db = await createTestDb();
+    try {
+      await migrateDown(db); // back to 0005
+      const ts = '2026-01-01T00:00:00.000Z';
+      const later = '2026-02-01T00:00:00.000Z';
+      for (const id of ['usr_sso', 'usr_token'])
+        await sql`insert into users (id, handle, name, email, kind, role, avatar_url, created_at, updated_at, deactivated_at)
+          values (${id}, ${id}, ${id}, null, 'human', 'member', null, ${ts}, ${ts}, null)`.execute(
+          db.kysely,
+        );
+      await sql`insert into user_identities (issuer, subject, user_id, created_at)
+        values ('https://auth.example.test', 's1', 'usr_sso', ${ts})`.execute(db.kysely);
+      for (const [id, user] of [
+        ['ses_a', 'usr_sso'],
+        ['ses_b', 'usr_sso'],
+        ['ses_c', 'usr_token'],
+      ] as const)
+        await sql`insert into sessions (id, user_id, created_at, expires_at)
+          values (${id}, ${user}, ${ts}, ${later})`.execute(db.kysely);
+      expect(await migrateToLatest(db)).toEqual(['0006_end_sso_users_sessions']);
+      const rows = await sql<{ id: string }>`select id from sessions order by id`.execute(
+        db.kysely,
+      );
+      expect(rows.rows).toEqual([{ id: 'ses_c' }]);
     } finally {
       await db.destroy();
     }
