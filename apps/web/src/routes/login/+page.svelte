@@ -7,7 +7,7 @@
   import { createQuery, useQueryClient } from '@tanstack/svelte-query';
   import { api, call, errorMessage } from '$lib/api.ts';
   import { fetchers, keys } from '$lib/queries.ts';
-  import { attemptSso } from '$lib/session.ts';
+  import { attemptSso, forgetSsoSession } from '$lib/session.ts';
   import Avatar from '$components/Avatar.svelte';
 
   const qc = useQueryClient();
@@ -31,6 +31,7 @@
     error = '';
     try {
       await call(api.POST('/auth/token-login', { body: { token: token.trim() } }));
+      forgetSsoSession();
       await finish();
     } catch (e) {
       error = errorMessage(e);
@@ -43,6 +44,7 @@
     busy = true;
     try {
       await call(api.POST('/auth/dev-login', { body: { user } }));
+      forgetSsoSession();
       await finish();
     } catch (e) {
       error = errorMessage(e);

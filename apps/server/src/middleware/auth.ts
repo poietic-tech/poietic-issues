@@ -55,6 +55,7 @@ export function authenticate(deps: ResolvedDeps) {
     const clock = deps.clock ?? { now: () => new Date() };
     let actor = null;
     let via: AppEnv['Variables']['authVia'] = null;
+    let expiresAt: Date | null = null;
 
     if (deps.auth.mode === 'trusted') {
       actor = await actorForUser({ db, actor: SYSTEM_ACTOR }, deps.auth.actor);
@@ -71,12 +72,14 @@ export function authenticate(deps: ResolvedDeps) {
         const value = /^Bearer\s+(\S+)$/i.exec(header)?.[1];
         const sso = deps.auth.sso;
         if (value && sso && !value.startsWith(TOKEN_PREFIX)) {
-          actor = await identityActor(
+          const identity = await identityActor(
             { db, clock, ids: deps.ids ?? newId, requestId: c.get('requestId') },
             sso,
             value,
             c.get('logger'),
           );
+          actor = identity?.actor ?? null;
+          expiresAt = identity?.expiresAt ?? null;
           via = 'identity';
           if (actor && UNSAFE.has(c.req.method) && sso.liveness)
             if (!(await sessionIsLive(sso, value, clock.now(), c.get('logger'))))
@@ -89,9 +92,11 @@ export function authenticate(deps: ResolvedDeps) {
       } else {
         const cookie = getCookie(c, SESSION_COOKIE) ?? getCookie(c, LEGACY_SESSION_COOKIE);
         if (cookie) {
-          actor = await authenticateSession({ db, clock }, cookie);
-          if (actor) {
+          const session = await authenticateSession({ db, clock }, cookie);
+          actor = session?.actor ?? null;
+          if (session) {
             via = 'session';
+            expiresAt = new Date(session.expiresAt);
             if (UNSAFE.has(c.req.method) && !sameOrigin(c.req.raw, deps.auth.allowedOrigins ?? []))
               return problem(c, 'FORBIDDEN', 'Cross-origin request rejected (CSRF protection)');
           }
@@ -101,6 +106,7 @@ export function authenticate(deps: ResolvedDeps) {
 
     c.set('actor', actor);
     c.set('authVia', via);
+    c.set('credentialExpiresAt', expiresAt);
     c.set('ctx', {
       db,
       actor: actor ?? ANONYMOUS_ACTOR,
@@ -113,15 +119,16 @@ export function authenticate(deps: ResolvedDeps) {
 }
 
 /**
- * Resolves an SSO identity token to its actor, provisioning the user (or agent) on first use, or null when the token
- * does not verify. Throws UNAVAILABLE when the issuer's keys can't be fetched and PENDING_APPROVAL for an inactive user.
+ * Resolves an SSO identity token to its actor and expiry, provisioning the user (or agent) on first use, or null when
+ * the token does not verify. Throws UNAVAILABLE when the issuer's keys can't be fetched and PENDING_APPROVAL for an
+ * inactive user.
  */
 async function identityActor(
   deps: Omit<ServiceContext, 'actor'>,
   sso: SsoOptions,
   token: string,
   logger: Logger,
-): Promise<Actor | null> {
+): Promise<{ actor: Actor; expiresAt: Date } | null> {
   let claims;
   try {
     claims = await sso.verifier.verify(token);
@@ -150,7 +157,7 @@ async function identityActor(
       'PENDING_APPROVAL',
       `@${user.handle} is waiting for an admin to approve access`,
     );
-  return toActor(user);
+  return { actor: toActor(user), expiresAt: new Date(claims.exp * 1000) };
 }
 
 /**

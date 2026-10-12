@@ -35,6 +35,7 @@ describe('SSO configuration', () => {
     expect(sso.refreshUrl).toBeUndefined();
     expect(typeof sso.verifier.verify).toBe('function');
     expect(sso.liveness).toBeUndefined();
+    expect(sso.sessionTtlMs).toBe(15 * 60_000);
   });
 
   it('checks session liveness only when POIETIC_ISSUES_SSO_LIVENESS_URL is set', () => {

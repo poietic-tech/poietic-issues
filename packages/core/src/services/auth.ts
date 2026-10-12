@@ -139,16 +139,26 @@ export async function authenticateToken(
 
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-/** Creates a web session; returns the cookie value (only its hash is stored). */
+/**
+ * Creates a web session lasting `ttlMs` (30 days by default; SSO sign-ins pass a short one and renew it) and returns
+ * the cookie value (only its hash is stored). The user's expired sessions are dropped on the way, so short sessions
+ * renewed all day do not pile up.
+ */
 export async function createSession(
   ctx: Pick<ServiceContext, 'db' | 'clock'>,
   userId: string,
+  ttlMs: number = SESSION_TTL_MS,
 ): Promise<{ cookie: string; expiresAt: string }> {
   const cookie = randomBytes(32).toString('base64url');
   const now = ctx.clock.now();
-  const expiresAt = new Date(now.getTime() + SESSION_TTL_MS).toISOString();
-  await withWriteTx(ctx.db, (tx) =>
-    tx
+  const expiresAt = new Date(now.getTime() + ttlMs).toISOString();
+  await withWriteTx(ctx.db, async (tx) => {
+    await tx
+      .deleteFrom('sessions')
+      .where('user_id', '=', userId)
+      .where('expires_at', '<=', now.toISOString())
+      .execute();
+    await tx
       .insertInto('sessions')
       .values({
         id: sha256(cookie),
@@ -156,15 +166,16 @@ export async function createSession(
         created_at: now.toISOString(),
         expires_at: expiresAt,
       })
-      .execute(),
-  );
+      .execute();
+  });
   return { cookie, expiresAt };
 }
 
+/** The session's user and when the session ends, or null for an unknown, expired or deactivated one. */
 export async function authenticateSession(
   ctx: Pick<ServiceContext, 'db' | 'clock'>,
   cookie: string,
-): Promise<Actor | null> {
+): Promise<{ actor: Actor; expiresAt: string } | null> {
   const row = await ctx.db.kysely
     .selectFrom('sessions')
     .innerJoin('users', 'users.id', 'sessions.user_id')
@@ -174,7 +185,7 @@ export async function authenticateSession(
     .executeTakeFirst();
   if (!row || row.deactivated_at || row.session_expires_at <= ctx.clock.now().toISOString())
     return null;
-  return toActor(row);
+  return { actor: toActor(row), expiresAt: row.session_expires_at };
 }
 
 export async function deleteSession(

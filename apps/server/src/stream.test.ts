@@ -1,8 +1,10 @@
 import {
+  actorForUser,
   addMember,
   createIssue,
   createLink,
   createProject,
+  createSession,
   createToken,
   createUser,
   deleteAttachment,
@@ -368,6 +370,23 @@ describe(`SSE /events/stream (${testDialect()})`, () => {
     );
     expect(messages.some((m) => m.event === 'reset')).toBe(false);
     expect(messages.filter((m) => m.event === template.type)).toHaveLength(1000);
+  });
+
+  it('ends a stream when the session it authenticated with expires', async () => {
+    const admin = (await actorForUser(t.ctx, 'admin'))!;
+    const realClock = { now: () => new Date() };
+    const { cookie } = await createSession({ db: t.db, clock: realClock }, admin.id, 400);
+    const started = Date.now();
+    const messages = await collect(
+      '',
+      { cookie: `poietic_issues_session=${cookie}` },
+      () => false,
+      undefined,
+      null,
+    );
+    expect(messages.ended).toBe(true);
+    expect(messages.map((m) => m.event)).toEqual(['ready']);
+    expect(Date.now() - started).toBeLessThan(4000);
   });
 
   it("closes the viewer's stream when a user.updated event names them", async () => {

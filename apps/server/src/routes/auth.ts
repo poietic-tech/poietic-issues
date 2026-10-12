@@ -21,6 +21,7 @@ import {
   LEGACY_SESSION_COOKIE,
   type ResolvedDeps,
   SESSION_COOKIE,
+  SSO_SESSION_TTL_MS,
   type TrackerApp,
 } from '../env.ts';
 import { errorResponses, json, jsonBody, noContent } from './common.ts';
@@ -46,6 +47,14 @@ const AuthConfigSchema = z
           description:
             'Call with credentials before `POST /auth/sso` to renew a lapsed SSO cookie.',
         }),
+        sessionSeconds: z
+          .number()
+          .int()
+          .openapi({
+            description:
+              'How long a session from `POST /auth/sso` lasts. Renew it before then by calling `refreshUrl` and ' +
+              '`POST /auth/sso` again; each renewal re-checks the issuer.',
+          }),
       })
       .nullable()
       .openapi({ description: 'Single sign-on, when configured.' }),
@@ -57,12 +66,25 @@ export function registerAuthRoutes(app: TrackerApp, deps: ResolvedDeps) {
   const secure = deps.auth.mode === 'standard' && deps.auth.secureCookies === true;
   const sso = deps.auth.mode === 'standard' ? deps.auth.sso : undefined;
   const ssoInfo = sso
-    ? { name: sso.name, loginUrl: sso.loginUrl, refreshUrl: sso.refreshUrl ?? null }
+    ? {
+        name: sso.name,
+        loginUrl: sso.loginUrl,
+        refreshUrl: sso.refreshUrl ?? null,
+        sessionSeconds: Math.round((sso.sessionTtlMs ?? SSO_SESSION_TTL_MS) / 1000),
+      }
     : null;
 
-  async function startSession(c: Context<AppEnv>, userId: string) {
+  /** Deletes the tracker sessions the request carries (current and pre-rename cookie names). */
+  async function dropSessions(c: Context<AppEnv>) {
+    for (const name of [SESSION_COOKIE, LEGACY_SESSION_COOKIE]) {
+      const cookie = getCookie(c, name);
+      if (cookie) await deleteSession(c.get('ctx'), cookie);
+    }
+  }
+
+  async function startSession(c: Context<AppEnv>, userId: string, ttlMs?: number) {
     const ctx = c.get('ctx');
-    const session = await createSession(ctx, userId);
+    const session = await createSession(ctx, userId, ttlMs);
     setCookie(c, SESSION_COOKIE, session.cookie, {
       httpOnly: true,
       sameSite: 'Lax',
@@ -165,7 +187,8 @@ export function registerAuthRoutes(app: TrackerApp, deps: ResolvedDeps) {
       security: [],
       summary: 'Sign in with single sign-on',
       description:
-        "Exchanges the SSO issuer's cookie (sent automatically by the browser) for a session. A first sign-in " +
+        "Exchanges the SSO issuer's cookie (sent automatically by the browser) for a short session " +
+        '(`AuthConfig.sso.sessionSeconds`), replacing any session the request carries; call it again to renew. A first sign-in ' +
         "creates the user; users other than the issuer's admins wait for an admin to reactivate them " +
         '(`PENDING_APPROVAL`). Browser-only: must be same-origin. With a liveness check configured, a cookie whose issuer session has ended ' +
         "is `UNAUTHENTICATED`. `UNAVAILABLE` means the issuer's signing keys, or its liveness answer, could not be fetched.",
@@ -199,11 +222,14 @@ export function registerAuthRoutes(app: TrackerApp, deps: ResolvedDeps) {
         throw new DomainError('FORBIDDEN', 'Agents cannot sign in to the web app');
       // The cookie's JWT outlives a sign-out at the issuer by up to its lifetime; a tracker session would outlive it
       // far longer, so ask the issuer before minting one.
+      // A failed renewal also ends the session it was renewing.
       if (
         sso.liveness &&
         !(await sessionIsLive(sso, token!, c.get('ctx').clock.now(), c.get('logger')))
-      )
+      ) {
+        await dropSessions(c);
         throw new DomainError('UNAUTHENTICATED', `Not signed in to ${sso.name}`);
+      }
       const ctx = withActor(c.get('ctx'), SYSTEM_ACTOR);
       const { user, status } = await signInWithSso(
         ctx,
@@ -223,7 +249,9 @@ export function registerAuthRoutes(app: TrackerApp, deps: ResolvedDeps) {
           'PENDING_APPROVAL',
           `@${user.handle} is waiting for an admin to approve access`,
         );
-      await startSession(c, user.id);
+      // A renewal replaces the session it renews, so the old cookie stops working at once.
+      await dropSessions(c);
+      await startSession(c, user.id, sso.sessionTtlMs ?? SSO_SESSION_TTL_MS);
       return c.json(user, 200);
     },
   );

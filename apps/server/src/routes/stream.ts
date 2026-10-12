@@ -66,7 +66,8 @@ const withoutContent = (e: TrackerEvent, actorId: string): TrackerEvent => ({
  * visibility change. A connection with more than 1000 events waiting gets `reset` and is closed, and a viewer's
  * stream (with or without `?project=`) is closed after delivering a `user.updated` event about them; the client
  * reconnects as who they are now and resumes. Replay runs on the identity the reconnect authenticated as, so it
- * never closes the stream.
+ * never closes the stream. A stream also ends when the credential it authenticated with expires (a short SSO session,
+ * an identity token), so access ended at the issuer does not outlive it here.
  *
  * Readers below write get `issue.deleted` and `attachment.deleted` as content-free tombstones, live and on replay,
  * so open views drop the row. An event that ends the viewer's read access to its project is delivered without its
@@ -85,7 +86,8 @@ export function registerStreamRoute(
     description:
       'Streams events as `text/event-stream`: `id` is the event seq, `event` its type, `data` the Event JSON. ' +
       'Reconnect with `Last-Event-ID` (or `?after=<seq>`) to resume without gaps. A `reset` event means the gap ' +
-      'was too large to replay: refetch state. Comment lines are heartbeats. Readers below write get ' +
+      'was too large to replay: refetch state. Comment lines are heartbeats. The stream ends when the session or ' +
+      'identity token it authenticated with expires. Readers below write get ' +
       '`issue.deleted` and `attachment.deleted` as tombstones (ids and the issue key only). An event that ends ' +
       "the viewer's read access to its project arrives without content, and a `?project=` stream on it then ends.",
     request: {
@@ -213,7 +215,12 @@ export function registerStreamRoute(
           else for (const e of replay.data) await send(e);
         }
         await stream.writeSSE({ event: 'ready', data: JSON.stringify({ seq: last }) });
-        const stopping = () => stream.aborted || deps.shutdownSignal?.aborted === true;
+        // The stream ends when the session or identity token it authenticated with does, so a short SSO session (or
+        // one the issuer ended) does not keep delivering; the browser reconnects with whatever it holds by then.
+        const expiresAt = c.get('credentialExpiresAt')?.getTime();
+        const now = () => (deps.clock ?? { now: () => new Date() }).now().getTime();
+        const expired = () => expiresAt !== undefined && now() >= expiresAt;
+        const stopping = () => stream.aborted || deps.shutdownSignal?.aborted === true || expired();
         deps.shutdownSignal?.addEventListener('abort', onShutdown);
         loop: while (!stopping()) {
           while (queue.length) {
@@ -233,7 +240,12 @@ export function registerStreamRoute(
           }
           await new Promise<void>((resolve) => {
             wake = resolve;
-            setTimeout(resolve, HEARTBEAT_MS);
+            setTimeout(
+              resolve,
+              expiresAt === undefined
+                ? HEARTBEAT_MS
+                : Math.min(HEARTBEAT_MS, Math.max(0, expiresAt - now())),
+            );
           });
           wake = undefined;
           if (!queue.length && !overflowed && !stopping()) await stream.write(': heartbeat\n\n');
