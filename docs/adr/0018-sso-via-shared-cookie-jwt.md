@@ -1,6 +1,6 @@
 # 0018. SSO via a parent-domain cookie JWT
 
-- **Status:** Accepted; the vendored verifier is superseded by [0022](0022-poietic-auth-package-verifier.md)
+- **Status:** Accepted; the vendored verifier is superseded by [0022](0022-poietic-auth-package-verifier.md); with a directory configured, names follow it ([0027](0027-sso-directory.md))
 - **Date:** 2026-10-07
 
 ## Context

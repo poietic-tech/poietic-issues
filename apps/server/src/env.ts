@@ -10,6 +10,7 @@ import type {
 } from '@poietic-tech/issues-core';
 import type { Db } from '@poietic-tech/issues-db';
 import type { Logger } from './logger.ts';
+import type { SsoDirectory } from './sso/directory.ts';
 import type { SsoLiveness } from './sso/liveness.ts';
 import type { SsoVerifier } from './sso/verifier.ts';
 
@@ -32,6 +33,8 @@ export interface SsoOptions {
   verifier: SsoVerifier;
   /** When set, identity-token requests are refused once the issuer says the token's session is no longer live. */
   liveness?: SsoLiveness | undefined;
+  /** When set, `GET /users` first refreshes local users from the issuer's directory (ADR 0027). */
+  directory?: SsoDirectory | undefined;
   /** How long a tracker session from `POST /auth/sso` lasts before the web app must renew it (default 15 minutes). */
   sessionTtlMs?: number | undefined;
 }

@@ -365,7 +365,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List users */
+        /**
+         * List users
+         * @description With an SSO directory configured, a signed-in listing first refreshes users from it, at most every few minutes: names and avatars follow the directory, and members of the approval group who have never signed in are added, so they can be assigned. If the directory is unreachable, the local users are listed as they are.
+         */
         get: {
             parameters: {
                 query?: {

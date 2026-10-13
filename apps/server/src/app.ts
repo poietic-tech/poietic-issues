@@ -106,7 +106,7 @@ function buildApi(resolved: ResolvedDeps): TrackerApp {
   api.use('*', idempotency(resolved));
 
   registerAuthRoutes(api, resolved);
-  registerUserRoutes(api);
+  registerUserRoutes(api, resolved);
   registerProjectRoutes(api);
   registerMemberRoutes(api);
   registerIssueRoutes(api);
