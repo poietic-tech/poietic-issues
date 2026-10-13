@@ -4,6 +4,7 @@ import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app.ts';
 import type { SsoOptions } from './env.ts';
+import { createSsoDirectory } from './sso/directory.ts';
 import type { SsoClaims } from './sso/verifier.ts';
 
 const BASE = 'http://tracker.test';
@@ -413,6 +414,53 @@ describe(`SSO sign-in (${testDialect()})`, () => {
       expect(await code(down)).toBe('UNAVAILABLE');
       const off = createApp({ db: t.db, auth: { mode: 'standard' } });
       expect((await off.request(`${BASE}/api/v1/me`, bearer('admin-own5'))).status).toBe(401);
+    });
+  });
+
+  describe('the directory', () => {
+    it('lists a member-group person who has never signed in, and survives the directory being down', async () => {
+      let down = false;
+      const fetchImpl = (async () =>
+        down
+          ? new Response('down', { status: 503 })
+          : Response.json({
+              users: [
+                {
+                  id: 'dir-only',
+                  name: 'Directory Only',
+                  avatar_url: null,
+                  groups: ['crew'],
+                  kind: 'human',
+                  owner: null,
+                  created_at: 0,
+                },
+              ],
+              next_cursor: null,
+            })) as typeof fetch;
+      const directory = createSsoDirectory({
+        serviceKey: 'ptk_test',
+        baseUrl: ISS,
+        issuer: ISS,
+        memberGroup: 'crew',
+        fetchImpl,
+        ttlMs: 0,
+        retryMs: 0,
+      });
+      const app = createApp({
+        db: t.db,
+        auth: { mode: 'standard', sso: { ...sso(), memberGroup: 'crew', directory } },
+      });
+      const session = (await post(app, 'admin-dir')).headers.get('set-cookie')!.split(';')[0]!;
+      const list = async () => {
+        const res = await app.request(`${BASE}/api/v1/users`, { headers: { cookie: session } });
+        expect(res.status).toBe(200);
+        return ((await res.json()) as { data: { name: string }[] }).data.map((u) => u.name);
+      };
+      expect(await list()).toContain('Directory Only');
+      down = true;
+      expect(await list()).toContain('Directory Only');
+      // Anonymous listings never reach the directory.
+      expect((await app.request(`${BASE}/api/v1/users`)).status).toBe(401);
     });
   });
 });

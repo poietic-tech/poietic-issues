@@ -6,7 +6,9 @@ import {
   listTokens,
   listUsers,
   revokeToken,
+  SYSTEM_ACTOR,
   updateUser,
+  withActor,
 } from '@poietic-tech/issues-core';
 import {
   ApiTokenSchema,
@@ -16,26 +18,36 @@ import {
   UpdateUserInputSchema,
   UserSchema,
 } from '@poietic-tech/issues-schema';
-import type { TrackerApp } from '../env.ts';
+import type { ResolvedDeps, TrackerApp } from '../env.ts';
 import { BooleanQuery, errorResponses, json, jsonBody, refParam } from './common.ts';
 
 const tags = ['Users'];
 const userParam = z.object({ user: refParam('user', 'User id, handle, `@handle` or `me`.', 'me') });
 
-export function registerUserRoutes(app: TrackerApp) {
+export function registerUserRoutes(app: TrackerApp, deps: ResolvedDeps) {
+  const directory = deps.auth.mode === 'standard' ? deps.auth.sso?.directory : undefined;
   app.openapi(
     createRoute({
       method: 'get',
       path: '/users',
       tags,
       summary: 'List users',
+      description:
+        'With an SSO directory configured, a signed-in listing first refreshes users from it, at most every few ' +
+        'minutes: names and avatars follow the directory, and members of the approval group who have never signed in ' +
+        'are added, so they can be assigned. If the directory is unreachable, the local users are listed as they are.',
       request: { query: z.object({ includeDeactivated: BooleanQuery }) },
       responses: {
         200: json(z.object({ data: z.array(UserSchema) }), 'Users'),
         ...errorResponses(),
       },
     }),
-    async (c) => c.json({ data: await listUsers(c.get('ctx'), c.req.valid('query')) }, 200),
+    async (c) => {
+      // The directory owns who people are; signed-in listings refresh the local cache first (ADR 0027).
+      if (directory && c.get('actor'))
+        await directory.refresh(withActor(c.get('ctx'), SYSTEM_ACTOR), c.get('logger'));
+      return c.json({ data: await listUsers(c.get('ctx'), c.req.valid('query')) }, 200);
+    },
   );
 
   app.openapi(

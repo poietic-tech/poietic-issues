@@ -47,6 +47,23 @@ export function handleFromName(name: string): string {
   return slug.length >= 2 && !RESERVED_HANDLES.has(slug) ? slug : 'user';
 }
 
+/** The first free handle derived from a display name: `ada`, else `ada-2`, `ada-3`, … */
+export async function freeHandle(tx: Tx, name: string): Promise<string> {
+  const base = handleFromName(name);
+  const taken = new Set(
+    (
+      await tx
+        .selectFrom('users')
+        .select('handle')
+        .where((eb) => eb.or([eb('handle', '=', base), eb('handle', 'like', `${base}-%`)]))
+        .execute()
+    ).map((r) => r.handle.toLowerCase()),
+  );
+  let handle = base;
+  for (let n = 2; taken.has(handle); n++) handle = `${base}-${n}`;
+  return handle;
+}
+
 /**
  * Maps an SSO identity to its poietic-issues user, creating one on first sign-in. Role and name are fixed at creation:
  * later sign-ins never re-derive privilege or access from the token. A new human is an active admin when its role is
@@ -87,18 +104,7 @@ export async function signInWithSso(
         );
     }
 
-    const base = handleFromName(identity.name);
-    const taken = new Set(
-      (
-        await tx
-          .selectFrom('users')
-          .select('handle')
-          .where((eb) => eb.or([eb('handle', '=', base), eb('handle', 'like', `${base}-%`)]))
-          .execute()
-      ).map((r) => r.handle.toLowerCase()),
-    );
-    let handle = base;
-    for (let n = 2; taken.has(handle); n++) handle = `${base}-${n}`;
+    const handle = await freeHandle(tx, identity.name);
 
     const admin = identity.kind === 'human' && identity.role === opts.adminRole;
     const member =

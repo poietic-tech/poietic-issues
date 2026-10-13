@@ -36,6 +36,7 @@ describe('SSO configuration', () => {
     expect(typeof sso.verifier.verify).toBe('function');
     expect(sso.liveness).toBeUndefined();
     expect(sso.memberGroup).toBeUndefined();
+    expect(sso.directory).toBeUndefined();
     expect(sso.sessionTtlMs).toBe(15 * 60_000);
   });
 
@@ -57,5 +58,12 @@ describe('SSO configuration', () => {
     expect(() => loadConfig({ ...SSO, POIETIC_ISSUES_SSO_MEMBER_GROUP: '' })).toThrow(
       /POIETIC_ISSUES_SSO_MEMBER_GROUP/,
     );
+  });
+
+  it('reads the directory only with a service key', () => {
+    const sso = ssoOptionsFromConfig(
+      loadConfig({ ...SSO, POIETIC_ISSUES_SSO_DIRECTORY_KEY: 'ptk_x' }),
+    )!;
+    expect(typeof sso.directory?.refresh).toBe('function');
   });
 });

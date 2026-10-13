@@ -17,6 +17,7 @@ const env: WorkerEnv = {
   SSO_MEMBER_GROUP: 'issues-users',
   R2_ACCESS_KEY_ID: 'AKID',
   R2_SECRET_ACCESS_KEY: 'SECRET',
+  SSO_DIRECTORY_KEY: 'ptk_dir',
 };
 
 describe('containerEnv', () => {
@@ -41,6 +42,7 @@ describe('containerEnv', () => {
       POIETIC_ISSUES_SSO_REFRESH_URL: 'https://auth.poietic.tech/me',
       POIETIC_ISSUES_SSO_LIVENESS_URL: 'https://auth.poietic.tech/session/live',
       POIETIC_ISSUES_SSO_MEMBER_GROUP: 'issues-users',
+      POIETIC_ISSUES_SSO_DIRECTORY_KEY: 'ptk_dir',
       LITESTREAM_ENDPOINT: 'https://acct.r2.cloudflarestorage.com',
       LITESTREAM_BUCKET: 'poietic-issues-db',
       LITESTREAM_ACCESS_KEY_ID: 'AKID',
@@ -48,9 +50,10 @@ describe('containerEnv', () => {
     });
   });
 
-  it('refuses to start without the R2 credentials', () => {
+  it('refuses to start without the R2 credentials or the directory key', () => {
     expect(() => containerEnv({ ...env, R2_SECRET_ACCESS_KEY: '' })).toThrow(
       /R2_SECRET_ACCESS_KEY/,
     );
+    expect(() => containerEnv({ ...env, SSO_DIRECTORY_KEY: '' })).toThrow(/SSO_DIRECTORY_KEY/);
   });
 });

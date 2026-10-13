@@ -15,6 +15,8 @@ export interface WorkerEnv {
   SSO_MEMBER_GROUP: string;
   R2_ACCESS_KEY_ID: string;
   R2_SECRET_ACCESS_KEY: string;
+  /** auth.poietic.tech service key for its directory API (ADR 0027). */
+  SSO_DIRECTORY_KEY: string;
 }
 
 const REQUIRED = [
@@ -22,6 +24,7 @@ const REQUIRED = [
   'R2_ENDPOINT',
   'R2_ACCESS_KEY_ID',
   'R2_SECRET_ACCESS_KEY',
+  'SSO_DIRECTORY_KEY',
 ] as const;
 
 /**
@@ -53,6 +56,7 @@ export function containerEnv(env: WorkerEnv): Record<string, string> {
     POIETIC_ISSUES_SSO_REFRESH_URL: env.SSO_REFRESH_URL,
     POIETIC_ISSUES_SSO_LIVENESS_URL: env.SSO_LIVENESS_URL,
     POIETIC_ISSUES_SSO_MEMBER_GROUP: env.SSO_MEMBER_GROUP,
+    POIETIC_ISSUES_SSO_DIRECTORY_KEY: env.SSO_DIRECTORY_KEY,
     LITESTREAM_ENDPOINT: env.R2_ENDPOINT,
     LITESTREAM_BUCKET: env.DB_BUCKET,
     LITESTREAM_ACCESS_KEY_ID: env.R2_ACCESS_KEY_ID,

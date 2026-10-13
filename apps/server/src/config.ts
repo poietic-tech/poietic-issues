@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { SsoOptions } from './env.ts';
+import { createSsoDirectory } from './sso/directory.ts';
 import { createSsoLiveness } from './sso/liveness.ts';
 import { createSsoVerifier } from './sso/verifier.ts';
 
@@ -66,6 +67,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     POIETIC_ISSUES_SSO_ADMIN_ROLE: z.string().default('admin'),
     /** Issuer group whose members are approved automatically on first sign-in. Unset: an admin approves everyone. */
     POIETIC_ISSUES_SSO_MEMBER_GROUP: z.string().min(1).optional(),
+    /** Service key for the issuer's directory API (auth.poietic.tech). Set: users are refreshed from it (ADR 0027). */
+    POIETIC_ISSUES_SSO_DIRECTORY_KEY: z.string().min(1).optional(),
+    /** The directory API's origin. Default: the issuer's origin. */
+    POIETIC_ISSUES_SSO_DIRECTORY_URL: z.url().optional(),
     /** The issuer's `/session/live`; when set, identity-token requests are refused once the session is revoked. */
     POIETIC_ISSUES_SSO_LIVENESS_URL: z.url().optional(),
     /** Lifetime of a tracker session from SSO sign-in; the web app renews it, re-checking the issuer each time. */
@@ -122,6 +127,14 @@ export function ssoOptionsFromConfig(config: ServerConfig): SsoOptions | undefin
     adminRole: config.POIETIC_ISSUES_SSO_ADMIN_ROLE,
     memberGroup: config.POIETIC_ISSUES_SSO_MEMBER_GROUP,
     verifier: createSsoVerifier({ jwksUrl: config.POIETIC_ISSUES_SSO_JWKS_URL!, issuer, audience }),
+    directory: config.POIETIC_ISSUES_SSO_DIRECTORY_KEY
+      ? createSsoDirectory({
+          serviceKey: config.POIETIC_ISSUES_SSO_DIRECTORY_KEY,
+          baseUrl: config.POIETIC_ISSUES_SSO_DIRECTORY_URL ?? new URL(issuer).origin,
+          issuer,
+          memberGroup: config.POIETIC_ISSUES_SSO_MEMBER_GROUP,
+        })
+      : undefined,
     liveness: config.POIETIC_ISSUES_SSO_LIVENESS_URL
       ? createSsoLiveness({ url: config.POIETIC_ISSUES_SSO_LIVENESS_URL })
       : undefined,

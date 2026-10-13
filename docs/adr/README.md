@@ -30,3 +30,4 @@ Short records of decisions that constrain future work. Copy `0000-template.md`, 
 | [0024](0024-showing-agents-and-owners.md)             | Showing agents and their owners                                        | Accepted                               |
 | [0025](0025-short-renewed-sso-sessions.md)            | Short, renewed SSO sessions                                            | Accepted                               |
 | [0026](0026-sso-member-group.md)                      | Approve SSO users by group                                             | Accepted                               |
+| [0027](0027-sso-directory.md)                         | The SSO directory owns who people are                                  | Accepted                               |
