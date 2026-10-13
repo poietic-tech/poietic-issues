@@ -14,6 +14,7 @@ const env: WorkerEnv = {
   SSO_LOGIN_URL: 'https://auth.poietic.tech/signin',
   SSO_REFRESH_URL: 'https://auth.poietic.tech/me',
   SSO_LIVENESS_URL: 'https://auth.poietic.tech/session/live',
+  SSO_MEMBER_GROUP: 'issues-users',
   R2_ACCESS_KEY_ID: 'AKID',
   R2_SECRET_ACCESS_KEY: 'SECRET',
 };
@@ -39,6 +40,7 @@ describe('containerEnv', () => {
       POIETIC_ISSUES_SSO_LOGIN_URL: 'https://auth.poietic.tech/signin',
       POIETIC_ISSUES_SSO_REFRESH_URL: 'https://auth.poietic.tech/me',
       POIETIC_ISSUES_SSO_LIVENESS_URL: 'https://auth.poietic.tech/session/live',
+      POIETIC_ISSUES_SSO_MEMBER_GROUP: 'issues-users',
       LITESTREAM_ENDPOINT: 'https://acct.r2.cloudflarestorage.com',
       LITESTREAM_BUCKET: 'poietic-issues-db',
       LITESTREAM_ACCESS_KEY_ID: 'AKID',
