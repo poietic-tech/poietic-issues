@@ -35,6 +35,7 @@ describe('SSO configuration', () => {
     expect(sso.refreshUrl).toBeUndefined();
     expect(typeof sso.verifier.verify).toBe('function');
     expect(sso.liveness).toBeUndefined();
+    expect(sso.memberGroup).toBeUndefined();
     expect(sso.sessionTtlMs).toBe(15 * 60_000);
   });
 
@@ -46,5 +47,15 @@ describe('SSO configuration', () => {
       }),
     )!;
     expect(typeof sso.liveness?.isLive).toBe('function');
+  });
+
+  it('approves a configured group automatically, and rejects an empty group name', () => {
+    expect(
+      ssoOptionsFromConfig(loadConfig({ ...SSO, POIETIC_ISSUES_SSO_MEMBER_GROUP: 'issues-users' }))!
+        .memberGroup,
+    ).toBe('issues-users');
+    expect(() => loadConfig({ ...SSO, POIETIC_ISSUES_SSO_MEMBER_GROUP: '' })).toThrow(
+      /POIETIC_ISSUES_SSO_MEMBER_GROUP/,
+    );
   });
 });

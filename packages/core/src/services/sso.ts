@@ -13,7 +13,7 @@ export interface SsoIdentity {
   name: string;
   /** The issuer's role claim; equal to `adminRole` makes a new human an active admin. Ignored for agents. */
   role: string;
-  /** The issuer's group slugs. Carried for group-based approval (issue #16); not used to grant access yet. */
+  /** The issuer's group slugs. Membership of `memberGroup` makes a new human an active member (ADR 0026). */
   groups: readonly string[];
   /** A person, or an agent acting for one (ADR 0023). */
   kind: 'human' | 'agent';
@@ -49,7 +49,8 @@ export function handleFromName(name: string): string {
 
 /**
  * Maps an SSO identity to its poietic-issues user, creating one on first sign-in. Role and name are fixed at creation:
- * later sign-ins never re-derive privilege from the token. New non-admin humans start deactivated (pending).
+ * later sign-ins never re-derive privilege or access from the token. A new human is an active admin when its role is
+ * `adminRole`, an active member when it is in `memberGroup`, and otherwise starts deactivated (pending).
  *
  * An agent becomes a `kind: 'agent'` member owned by the user its `owner` subject maps to, active exactly when that
  * owner is. An agent whose owner has never signed in is refused, so there are no orphan agents. A known agent may act
@@ -58,7 +59,11 @@ export function handleFromName(name: string): string {
 export async function signInWithSso(
   ctx: ServiceContext,
   identity: SsoIdentity,
-  opts: { adminRole: string },
+  opts: {
+    adminRole: string;
+    /** A group whose members are created as active members instead of pending. Unset: nobody is. */
+    memberGroup?: string | undefined;
+  },
 ): Promise<SsoSignIn> {
   // Every identity-token request lands here, so a known identity is resolved without taking the write lock.
   const known = await findIdentity(ctx.db.kysely, identity);
@@ -96,7 +101,11 @@ export async function signInWithSso(
     for (let n = 2; taken.has(handle); n++) handle = `${base}-${n}`;
 
     const admin = identity.kind === 'human' && identity.role === opts.adminRole;
-    const active = owner ? !owner.deactivated_at : admin;
+    const member =
+      identity.kind === 'human' &&
+      opts.memberGroup !== undefined &&
+      identity.groups.includes(opts.memberGroup);
+    const active = owner ? !owner.deactivated_at : admin || member;
     const data = CreateUserInputSchema.parse({
       handle,
       name: identity.name.trim().slice(0, 100) || (owner ? 'Agent' : 'User'),

@@ -16,7 +16,7 @@ afterAll(() => t.destroy());
 
 /**
  * A fake verifier: the token is the subject; "admin-*" subjects carry role admin; "agent:<owner>:<n>" is an agent
- * owned by subject <owner>; "bad" fails; "down" throws.
+ * owned by subject <owner>; "member-*" subjects are in the group "crew"; "bad" fails; "down" throws.
  */
 function sso(): SsoOptions {
   return {
@@ -37,7 +37,7 @@ function sso(): SsoOptions {
               sub: token,
               name: `Person ${token}`,
               role: token.startsWith('admin') ? 'admin' : 'user',
-              groups: [],
+              groups: token.startsWith('member-') ? ['crew'] : [],
               kind: token.startsWith('agent:') ? 'agent' : 'human',
               owner: token.startsWith('agent:') ? token.split(':')[1]! : null,
               sid: 's1',
@@ -117,6 +117,21 @@ describe(`SSO sign-in (${testDialect()})`, () => {
     expect(res.status).toBe(403);
     expect(((await res.json()) as { code: string }).code).toBe('FORBIDDEN');
     expect(res.headers.get('set-cookie')).toBeNull();
+  });
+
+  it('signs a member of the configured group straight in, and leaves others pending', async () => {
+    const app = createApp({
+      db: t.db,
+      auth: { mode: 'standard', sso: { ...sso(), memberGroup: 'crew' } },
+    });
+    const res = await post(app, 'member-1');
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ role: 'member', deactivatedAt: null });
+    expect(res.headers.get('set-cookie')).toMatch(/^poietic_issues_session=/);
+    expect((await post(app, 'outsider-1')).status).toBe(403);
+    // Without the option, group membership changes nothing.
+    const off = createApp({ db: t.db, auth: { mode: 'standard', sso: sso() } });
+    expect((await post(off, 'member-2')).status).toBe(403);
   });
 
   it('answers 401 without a valid cookie, 403 cross-origin, 404 when off', async () => {

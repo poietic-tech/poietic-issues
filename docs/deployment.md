@@ -79,6 +79,7 @@ All settings are environment variables, validated at startup. An invalid value s
 | `POIETIC_ISSUES_SSO_LOGIN_URL`                                                  | —                               | Where to send the user to sign in; append `redirect=<return URL>`.                                                                  |
 | `POIETIC_ISSUES_SSO_REFRESH_URL`                                                | —                               | Optional: call this before sign-in to renew a lapsed cookie.                                                                        |
 | `POIETIC_ISSUES_SSO_ADMIN_ROLE`                                                 | `admin`                         | JWT role claim that makes new users admin. Anyone else starts deactivated and must be approved.                                     |
+| `POIETIC_ISSUES_SSO_MEMBER_GROUP`                                               | —                               | Issuer group whose members are created as active members on first sign-in. Unset: everyone who isn't admin waits for approval.      |
 | `POIETIC_ISSUES_SSO_LIVENESS_URL`                                               | —                               | Optional: the issuer's `/session/live`. Checked on identity-token requests and SSO sign-in.                                         |
 | `POIETIC_ISSUES_SSO_SESSION_MINUTES`                                            | `15`                            | Lifetime of a session from SSO sign-in (2–1440); the web app renews it.                                                             |
 
@@ -129,7 +130,7 @@ Several replicas can run against one Postgres database:
 
 Set `POIETIC_ISSUES_SSO_ISSUER` and the related configuration variables to enable SSO. See [ADR 0018](adr/0018-sso-via-shared-cookie-jwt.md) for the design.
 
-New users signed in via SSO start deactivated (the sign-in answers with the `PENDING_APPROVAL` error code) until an admin approves them, unless their SSO role matches `POIETIC_ISSUES_SSO_ADMIN_ROLE` (default `admin`). To list and approve pending users:
+New users signed in via SSO start deactivated (the sign-in answers with the `PENDING_APPROVAL` error code) until an admin approves them, unless their SSO role matches `POIETIC_ISSUES_SSO_ADMIN_ROLE` (default `admin`) or they are in the group named by `POIETIC_ISSUES_SSO_MEMBER_GROUP` (issues.poietic.tech uses `issues-users`). Both are checked only when a user is first created: someone who signed in before joining the group stays pending until approved, and leaving the group later changes nothing ([ADR 0026](adr/0026-sso-member-group.md)). To list and approve pending users:
 
 ```sh
 poietic-issues user list --include-deactivated  # find pending users

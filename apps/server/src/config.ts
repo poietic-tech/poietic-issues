@@ -64,6 +64,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     POIETIC_ISSUES_SSO_LOGIN_URL: z.url().optional(),
     POIETIC_ISSUES_SSO_REFRESH_URL: z.url().optional(),
     POIETIC_ISSUES_SSO_ADMIN_ROLE: z.string().default('admin'),
+    /** Issuer group whose members are approved automatically on first sign-in. Unset: an admin approves everyone. */
+    POIETIC_ISSUES_SSO_MEMBER_GROUP: z.string().min(1).optional(),
     /** The issuer's `/session/live`; when set, identity-token requests are refused once the session is revoked. */
     POIETIC_ISSUES_SSO_LIVENESS_URL: z.url().optional(),
     /** Lifetime of a tracker session from SSO sign-in; the web app renews it, re-checking the issuer each time. */
@@ -118,6 +120,7 @@ export function ssoOptionsFromConfig(config: ServerConfig): SsoOptions | undefin
     loginUrl: config.POIETIC_ISSUES_SSO_LOGIN_URL!,
     refreshUrl: config.POIETIC_ISSUES_SSO_REFRESH_URL,
     adminRole: config.POIETIC_ISSUES_SSO_ADMIN_ROLE,
+    memberGroup: config.POIETIC_ISSUES_SSO_MEMBER_GROUP,
     verifier: createSsoVerifier({ jwksUrl: config.POIETIC_ISSUES_SSO_JWKS_URL!, issuer, audience }),
     liveness: config.POIETIC_ISSUES_SSO_LIVENESS_URL
       ? createSsoLiveness({ url: config.POIETIC_ISSUES_SSO_LIVENESS_URL })
