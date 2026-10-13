@@ -32,6 +32,7 @@
     "SSO_LOGIN_URL": "https://auth.poietic.tech/signin",
     "SSO_REFRESH_URL": "https://auth.poietic.tech/me",
     "SSO_LIVENESS_URL": "https://auth.poietic.tech/session/live",
+    "SSO_MEMBER_GROUP": "issues-users",
   },
   // R2_ENDPOINT is passed at deploy time (--var), built from CLOUDFLARE_ACCOUNT_ID.
   // Secrets (set by .github/workflows/deploy.yml): R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY.

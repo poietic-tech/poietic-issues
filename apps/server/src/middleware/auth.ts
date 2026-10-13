@@ -152,7 +152,7 @@ async function identityActor(
       kind: claims.kind,
       owner: claims.owner,
     },
-    { adminRole: sso.adminRole },
+    { adminRole: sso.adminRole, memberGroup: sso.memberGroup },
   );
   if (status === 'owner_inactive')
     throw new DomainError('PENDING_APPROVAL', `@${user.handle}'s owner is deactivated`);

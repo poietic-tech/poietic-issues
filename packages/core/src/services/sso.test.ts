@@ -246,6 +246,55 @@ describe(`signInWithSso (${testDialect()})`, () => {
     expect(evs.some((e) => e.data.includes(r.user.id))).toBe(true);
   });
 
+  describe('member group', () => {
+    const withGroups = (subject: string, groups: string[], role = 'user') =>
+      ({
+        issuer: ISS,
+        subject,
+        name: `G ${subject}`,
+        role,
+        groups,
+        kind: 'human',
+        owner: null,
+      }) as const;
+    const crew = { adminRole: 'admin', memberGroup: 'crew' };
+
+    it('creates a new human in the member group as an active member', async () => {
+      const r = await signInWithSso(sys(), withGroups('g1', ['other', 'crew']), crew);
+      expect(r.status).toBe('active');
+      expect(r.user).toMatchObject({ role: 'member', deactivatedAt: null });
+    });
+
+    it('leaves humans outside the group, or with no group configured, pending', async () => {
+      expect((await signInWithSso(sys(), withGroups('g2', ['other']), crew)).status).toBe(
+        'pending',
+      );
+      expect((await signInWithSso(sys(), withGroups('g3', ['crew']), opts)).status).toBe('pending');
+    });
+
+    it('still makes an admin-role group member an admin', async () => {
+      const r = await signInWithSso(sys(), withGroups('g4', ['crew'], 'admin'), crew);
+      expect(r).toMatchObject({ status: 'active', user: { role: 'admin' } });
+    });
+
+    it('fixes access at creation: joining or leaving the group later changes nothing', async () => {
+      expect((await signInWithSso(sys(), withGroups('g5', []), crew)).status).toBe('pending');
+      expect((await signInWithSso(sys(), withGroups('g5', ['crew']), crew)).status).toBe('pending');
+      expect((await signInWithSso(sys(), withGroups('g6', ['crew']), crew)).status).toBe('active');
+      expect((await signInWithSso(sys(), withGroups('g6', []), crew)).status).toBe('active');
+    });
+
+    it('does not approve an agent through its own groups', async () => {
+      await signInWithSso(sys(), withGroups('g7', []), opts); // a pending owner
+      const r = await signInWithSso(
+        sys(),
+        { ...withGroups('g7-bot', ['crew']), kind: 'agent', owner: 'g7' },
+        crew,
+      );
+      expect(r.status).toBe('pending');
+    });
+  });
+
   describe('agents', () => {
     const human = (subject: string, name: string, role = 'user') =>
       ({ issuer: ISS, subject, name, role, groups: [], kind: 'human', owner: null }) as const;

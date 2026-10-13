@@ -242,7 +242,7 @@ export function registerAuthRoutes(app: TrackerApp, deps: ResolvedDeps) {
           kind: 'human',
           owner: null,
         },
-        { adminRole: sso.adminRole },
+        { adminRole: sso.adminRole, memberGroup: sso.memberGroup },
       );
       if (status !== 'active')
         throw new DomainError(

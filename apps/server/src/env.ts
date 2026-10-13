@@ -27,6 +27,8 @@ export interface SsoOptions {
   refreshUrl?: string | undefined;
   /** Token `role` that makes a new user an active admin. */
   adminRole: string;
+  /** Issuer group whose members are created as active members on first sign-in (ADR 0026). */
+  memberGroup?: string | undefined;
   verifier: SsoVerifier;
   /** When set, identity-token requests are refused once the issuer says the token's session is no longer live. */
   liveness?: SsoLiveness | undefined;
