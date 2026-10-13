@@ -42,12 +42,14 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          POIETIC_AUTH_SERVICE_KEY: ${{ secrets.POIETIC_AUTH_SERVICE_KEY }}
         run: |
-          for s in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; do
+          for s in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY POIETIC_AUTH_SERVICE_KEY; do
             [ -n "${!s}" ] || { echo "::error::secret $s is empty"; exit 1; }
           done
-          jq -n --arg id "$R2_ACCESS_KEY_ID" --arg secret "$R2_SECRET_ACCESS_KEY" \
-            '{R2_ACCESS_KEY_ID: $id, R2_SECRET_ACCESS_KEY: $secret}' | pnpm exec wrangler secret bulk
+          jq -n --arg id "$R2_ACCESS_KEY_ID" --arg secret "$R2_SECRET_ACCESS_KEY" --arg dir "$POIETIC_AUTH_SERVICE_KEY" \
+            '{R2_ACCESS_KEY_ID: $id, R2_SECRET_ACCESS_KEY: $secret, SSO_DIRECTORY_KEY: $dir}' |
+            pnpm exec wrangler secret bulk
       - name: Deploy
         working-directory: deploy/cloudflare
         env:
