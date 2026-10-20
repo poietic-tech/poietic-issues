@@ -1,20 +1,18 @@
 import type { Schemas } from '@poietic-tech/issues-client';
-import { Command } from 'commander';
+import type { Command } from 'commander';
 import { usage } from '../errors.ts';
-import type { CliIO } from '../io.ts';
 import { formatIssue } from '../output.ts';
 import {
   collect,
   collectRaw,
   keyValues,
-  makeAction,
   nullable,
   parseIntStrict,
   parsePriority,
   readJsonArg,
   readTextArg,
-  type Runtime,
-} from '../runtime.ts';
+} from '../tree/args.ts';
+import type { CommandRuntime, Tree } from '../tree/runtime.ts';
 
 type Opts = Record<string, unknown>;
 
@@ -59,7 +57,11 @@ function issueFieldOptions(cmd: Command, mode: 'create' | 'edit'): Command {
   return cmd;
 }
 
-async function buildIssueInput(rt: Runtime, o: Opts, existingMetadata?: Record<string, unknown>) {
+async function buildIssueInput(
+  rt: CommandRuntime,
+  o: Opts,
+  existingMetadata?: Record<string, unknown>,
+) {
   const input: Record<string, unknown> = o.input
     ? await readJsonArg(rt.io, String(o.input), '--input')
     : {};
@@ -91,9 +93,9 @@ async function buildIssueInput(rt: Runtime, o: Opts, existingMetadata?: Record<s
   return input;
 }
 
-export function issueCommand(io: CliIO): Command {
-  const act = (fn: (rt: Runtime, args: unknown[], o: Opts) => Promise<void>) => makeAction(io, fn);
-  const issue = new Command('issue').description('Create, find, edit and organize issues');
+export function registerIssue(parent: Command, tree: Tree): Command {
+  const act: Tree['act'] = (fn) => tree.act(fn);
+  const issue = parent.command('issue').description('Create, find, edit and organize issues');
 
   issue
     .command('list')
@@ -340,7 +342,7 @@ export function issueCommand(io: CliIO): Command {
           'issue',
           data,
           (i) =>
-            `${String(i.key)} ${o.permanent ? 'permanently deleted' : 'moved to the trash (poietic-issues issue restore to undo)'}\n`,
+            `${String(i.key)} ${o.permanent ? 'permanently deleted' : `moved to the trash (${tree.commandName} issue restore to undo)`}\n`,
         );
       }),
     );

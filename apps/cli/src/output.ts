@@ -20,7 +20,7 @@ export type Kind =
   | 'event'
   | 'raw';
 
-type Row = Record<string, unknown>;
+export type Row = Record<string, unknown>;
 type Column = [header: string, get: (row: Row) => unknown];
 
 const PRIORITY = ['—', 'Urgent', 'High', 'Medium', 'Low'];

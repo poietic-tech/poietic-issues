@@ -1,30 +1,29 @@
 import type { Schemas } from '@poietic-tech/issues-client';
-import { Command, Option } from 'commander';
-import type { CliIO } from '../io.ts';
-import { makeAction, type Runtime } from '../runtime.ts';
-
-type Opts = Record<string, unknown>;
+import type { Command } from 'commander';
+import type { Tree } from '../tree/runtime.ts';
 
 export const PROJECT_ROLES = ['viewer', 'editor', 'manager'] as const;
 export const PROJECT_VISIBILITIES = ['public', 'private'] as const;
 
 /** `--role <role>`, required, limited to the project roles (a bad value is a usage error, exit 2). */
-const roleOption = (what: string) =>
-  new Option('--role <role>', what).choices(PROJECT_ROLES).makeOptionMandatory();
+const roleOption = (cmd: Command, what: string) =>
+  cmd.createOption('--role <role>', what).choices(PROJECT_ROLES).makeOptionMandatory();
 
 /** `--visibility <visibility>`, limited to the two visibilities. */
-export const visibilityOption = (what: string) =>
-  new Option('--visibility <visibility>', what).choices(PROJECT_VISIBILITIES);
+export const visibilityOption = (cmd: Command, what: string) =>
+  cmd.createOption('--visibility <visibility>', what).choices(PROJECT_VISIBILITIES);
 
 /**
  * `project members …`. The project comes from the global `-P/--project`, `POIETIC_ISSUES_PROJECT` or
  * `.poietic-issues.json`, so the positional slot is free for the user.
  */
-export function membersCommand(io: CliIO): Command {
-  const act = (fn: (rt: Runtime, args: unknown[], o: Opts) => Promise<void>) => makeAction(io, fn);
-  const cmd = new Command('members').description(
-    "Manage who can use a private project and how (a project's members; project is set with -P)",
-  );
+export function registerMembers(parent: Command, tree: Tree): Command {
+  const act: Tree['act'] = (fn) => tree.act(fn);
+  const cmd = parent
+    .command('members')
+    .description(
+      "Manage who can use a private project and how (a project's members; project is set with -P)",
+    );
   cmd
     .command('list')
     .alias('ls')
@@ -48,7 +47,9 @@ export function membersCommand(io: CliIO): Command {
     .command('add')
     .description('Give a user a role on the project (needs manage)')
     .argument('<user>', 'handle, @handle or user id')
-    .addOption(roleOption('viewer reads, editor also writes, manager also manages the project'))
+    .addOption(
+      roleOption(cmd, 'viewer reads, editor also writes, manager also manages the project'),
+    )
     .action(
       act(async (rt, [user], o) => {
         const api = await rt.api();
@@ -67,7 +68,7 @@ export function membersCommand(io: CliIO): Command {
     .command('set')
     .description("Change a member's role (needs manage)")
     .argument('<user>', 'handle, @handle or user id')
-    .addOption(roleOption('the new role'))
+    .addOption(roleOption(cmd, 'the new role'))
     .action(
       act(async (rt, [user], o) => {
         const api = await rt.api();
@@ -101,11 +102,11 @@ export function membersCommand(io: CliIO): Command {
 }
 
 /** `project repo …`: the GitHub repositories linked to a project. The project comes from `-P` as above. */
-export function repoCommand(io: CliIO): Command {
-  const act = (fn: (rt: Runtime, args: unknown[], o: Opts) => Promise<void>) => makeAction(io, fn);
-  const cmd = new Command('repo').description(
-    "Manage a project's linked GitHub repositories (project is set with -P)",
-  );
+export function registerRepo(parent: Command, tree: Tree): Command {
+  const act: Tree['act'] = (fn) => tree.act(fn);
+  const cmd = parent
+    .command('repo')
+    .description("Manage a project's linked GitHub repositories (project is set with -P)");
   cmd
     .command('list')
     .alias('ls')

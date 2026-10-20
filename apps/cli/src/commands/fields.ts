@@ -1,13 +1,12 @@
 import type { ApiClient, Schemas } from '@poietic-tech/issues-client';
-import { Command } from 'commander';
+import type { Command } from 'commander';
 import { CliError, usage } from '../errors.ts';
-import type { CliIO } from '../io.ts';
-import { collect, makeAction, readJsonArg, type Runtime } from '../runtime.ts';
+import { collect, readJsonArg } from '../tree/args.ts';
+import type { CommandRuntime, Tree } from '../tree/runtime.ts';
 
-type Opts = Record<string, unknown>;
 type Field = Schemas['CustomField'];
 
-async function fieldByKey(rt: Runtime, api: ApiClient, ref: string): Promise<Field> {
+async function fieldByKey(rt: CommandRuntime, api: ApiClient, ref: string): Promise<Field> {
   const fields = (
     await rt.call(
       api.GET('/projects/{project}/fields', {
@@ -31,11 +30,13 @@ function describe(field: Field): string {
   return `${field.key}  ${field.name}  [${field.type}]${field.archivedAt ? '  (archived)' : ''}${options}\n`;
 }
 
-export function fieldCommand(io: CliIO): Command {
-  const act = (fn: (rt: Runtime, args: unknown[], o: Opts) => Promise<void>) => makeAction(io, fn);
-  const cmd = new Command('field').description(
-    'Custom fields: define them per project, set them with `issue edit --set key=value`',
-  );
+export function registerField(parent: Command, tree: Tree): Command {
+  const act: Tree['act'] = (fn) => tree.act(fn);
+  const cmd = parent
+    .command('field')
+    .description(
+      'Custom fields: define them per project, set them with `issue edit --set key=value`',
+    );
   cmd
     .command('list')
     .alias('ls')
@@ -56,7 +57,7 @@ export function fieldCommand(io: CliIO): Command {
         ).data;
         if (rt.out.format === 'table') {
           if (!fields.length) return rt.io.stderr('No custom fields.\n');
-          return rt.io.stdout(fields.map(describe).join(''));
+          return rt.out.raw(fields.map(describe).join(''));
         }
         rt.out.list('raw', fields);
       }),

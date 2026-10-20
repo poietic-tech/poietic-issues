@@ -1,7 +1,9 @@
 import { Command, CommanderError, Option } from 'commander';
-import { adminCommands } from './commands/index.ts';
 import { toCliError } from './errors.ts';
 import type { CliIO } from './io.ts';
+import { authCommand, dbCommand, serveCommand } from './local/commands.ts';
+import { adminTree } from './runtime.ts';
+import { registerTree } from './tree/index.ts';
 
 export const CLI_VERSION = '0.1.0';
 
@@ -41,7 +43,27 @@ export function buildProgram(io: CliIO): Command {
       writeErr: (s) => io.stderr(s),
       outputError: () => {}, // rendered by run() so --json can format it
     });
-  for (const cmd of adminCommands(io, () => program)) program.addCommand(cmd);
+  // The shared command tree, with this binary's local-only commands interleaved in the existing help order.
+  const tree = adminTree(io);
+  registerTree(program, tree, [
+    'issue',
+    'comment',
+    'link',
+    'attachment',
+    'project',
+    'status',
+    'label',
+    'field',
+    'view',
+    'event',
+    'webhook',
+    'user',
+  ]);
+  program.addCommand(authCommand(io));
+  registerTree(program, tree, ['whoami', 'init']);
+  program.addCommand(dbCommand(io));
+  program.addCommand(serveCommand(io));
+  registerTree(program, tree, ['schema', 'api', 'commands']);
   for (const cmd of program.commands) configureRecursively(cmd, io);
   return program;
 }

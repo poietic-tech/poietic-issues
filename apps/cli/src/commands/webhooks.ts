@@ -1,9 +1,6 @@
-import { Command } from 'commander';
+import type { Command } from 'commander';
 import { CliError, usage } from '../errors.ts';
-import type { CliIO } from '../io.ts';
-import { makeAction, type Runtime } from '../runtime.ts';
-
-type Opts = Record<string, unknown>;
+import type { Tree } from '../tree/runtime.ts';
 
 const list = (v: string) =>
   v
@@ -11,11 +8,11 @@ const list = (v: string) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-export function webhookCommand(io: CliIO): Command {
-  const act = (fn: (rt: Runtime, args: unknown[], o: Opts) => Promise<void>) => makeAction(io, fn);
-  const cmd = new Command('webhook').description(
-    'Push events to other services over HTTPS (admins; signed per Standard Webhooks)',
-  );
+export function registerWebhook(parent: Command, tree: Tree): Command {
+  const act: Tree['act'] = (fn) => tree.act(fn);
+  const cmd = parent
+    .command('webhook')
+    .description('Push events to other services over HTTPS (admins; signed per Standard Webhooks)');
   cmd
     .command('list')
     .alias('ls')
