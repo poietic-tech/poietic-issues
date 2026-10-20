@@ -3,11 +3,13 @@ import { createTestContext, type TestContext } from '@poietic-tech/issues-core/t
 import { testDialect } from '@poietic-tech/issues-db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app.ts';
+import { testSso } from './testing.ts';
 
 let t: TestContext;
 let app: ReturnType<typeof createApp>;
 let adminToken: string;
 let memberToken: string;
+let sso: ReturnType<typeof testSso>;
 
 const BASE = 'http://tracker.test';
 
@@ -40,9 +42,10 @@ function asAdmin(path: string, init: { method?: string; body?: unknown } = {}) {
 
 beforeAll(async () => {
   t = await createTestContext();
-  app = createApp({ db: t.db, auth: { mode: 'standard', allowDevLogin: true } });
-  adminToken = (await createToken(t.ctx, 'admin', { name: 'test' })).token;
-  memberToken = (await createToken(t.member, 'member', { name: 'test' })).token;
+  sso = testSso(t);
+  app = createApp({ db: t.db, auth: { mode: 'standard', allowDevLogin: true, sso: sso.options } });
+  adminToken = await sso.bearer('admin');
+  memberToken = await sso.bearer('member');
   for (const [key, visibility] of [
     ['PUB', 'public'],
     ['PRV', 'private'],
@@ -143,7 +146,9 @@ describe(`anonymous HTTP access (${testDialect()})`, () => {
     const tokenLogin = await app.request(`${BASE}/api/v1/auth/token-login`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: BASE },
-      body: JSON.stringify({ token: memberToken }),
+      body: JSON.stringify({
+        token: (await createToken(t.member, 'member', { name: 'login' })).token,
+      }),
     });
     expect(tokenLogin.status).toBe(200);
     expect(((await tokenLogin.json()) as { handle: string }).handle).toBe('member');
@@ -266,7 +271,7 @@ describe(`member and repo routes (${testDialect()})`, () => {
     expect((await as(adminToken, 'POST', '/projects/SRV/repos', { repo: 'acme/srv' })).status).toBe(
       201,
     );
-    const botToken = (await createToken(t.agent, 'bot', { name: 'test' })).token;
+    const botToken = await sso.bearer('bot');
 
     // A viewer (the member) and an editor (the bot) both get 403, not 404: they can see the project.
     for (const [who, token] of [

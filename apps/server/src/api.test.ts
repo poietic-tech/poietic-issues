@@ -3,11 +3,13 @@ import { createTestContext, grant, type TestContext } from '@poietic-tech/issues
 import { testDialect } from '@poietic-tech/issues-db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app.ts';
+import { testSso } from './testing.ts';
 
 let t: TestContext;
 let app: ReturnType<typeof createApp>;
 let adminToken: string;
 let memberToken: string;
+let sso: ReturnType<typeof testSso>;
 
 const BASE = 'http://tracker.test';
 
@@ -33,9 +35,10 @@ async function call(
 
 beforeAll(async () => {
   t = await createTestContext();
-  app = createApp({ db: t.db, auth: { mode: 'standard', allowDevLogin: true } });
-  adminToken = (await createToken(t.ctx, 'admin', { name: 'test' })).token;
-  memberToken = (await createToken(t.member, 'member', { name: 'test' })).token;
+  sso = testSso(t);
+  app = createApp({ db: t.db, auth: { mode: 'standard', allowDevLogin: true, sso: sso.options } });
+  adminToken = await sso.bearer('admin');
+  memberToken = await sso.bearer('member');
 });
 afterAll(() => t.destroy());
 
@@ -361,7 +364,7 @@ describe(`HTTP API (${testDialect()})`, () => {
 
     const tokenLogin = await call('POST', '/auth/token-login', {
       token: null,
-      body: { token: memberToken },
+      body: { token: (await createToken(t.member, 'member', { name: 'login' })).token },
     });
     expect(tokenLogin.status).toBe(200);
   });

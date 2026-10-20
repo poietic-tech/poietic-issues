@@ -1,20 +1,17 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import {
-  createProject,
-  createToken,
-  verifyWebhook,
-  WebhookRunner,
-} from '@poietic-tech/issues-core';
+import { createProject, verifyWebhook, WebhookRunner } from '@poietic-tech/issues-core';
 import { createTestContext, type TestContext } from '@poietic-tech/issues-core/testing';
 import { testDialect } from '@poietic-tech/issues-db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp, generateOpenApiDocument } from './app.ts';
+import { testSso } from './testing.ts';
 
 let t: TestContext;
 let app: ReturnType<typeof createApp>;
 let admin: string;
 let member: string;
+let sso: ReturnType<typeof testSso>;
 let receiver: Server;
 let receiverUrl: string;
 const received: Array<{ headers: Record<string, string>; body: string }> = [];
@@ -22,9 +19,15 @@ const received: Array<{ headers: Record<string, string>; body: string }> = [];
 beforeAll(async () => {
   t = await createTestContext();
   await createProject(t.ctx, { key: 'HOOK', name: 'Hooks' });
-  app = createApp({ db: t.db, clock: t.ctx.clock, webhooks: { allowPrivate: true } });
-  admin = (await createToken(t.ctx, 'admin', { name: 'wh' })).token;
-  member = (await createToken(t.member, 'member', { name: 'wh' })).token;
+  sso = testSso(t);
+  app = createApp({
+    db: t.db,
+    clock: t.ctx.clock,
+    webhooks: { allowPrivate: true },
+    auth: { mode: 'standard', sso: sso.options },
+  });
+  admin = await sso.bearer('admin');
+  member = await sso.bearer('member');
   receiver = createServer((req, res) => {
     let body = '';
     req.on('data', (c: Buffer) => (body += c.toString()));
@@ -106,7 +109,7 @@ describe(`webhooks API (${testDialect()})`, () => {
   it('is admin-only and validates URLs and event types', async () => {
     const forbidden = await call('GET', '/webhooks', undefined, member);
     expect(forbidden.status).toBe(403);
-    const strict = createApp({ db: t.db });
+    const strict = createApp({ db: t.db, auth: { mode: 'standard', sso: sso.options } });
     const res = await strict.request('http://t/api/v1/webhooks', {
       method: 'POST',
       headers: { authorization: `Bearer ${admin}`, 'content-type': 'application/json' },
