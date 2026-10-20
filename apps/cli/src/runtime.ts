@@ -18,7 +18,7 @@ export class Runtime implements CommandRuntime {
   #output: Output | undefined;
   #transport: Transport | undefined;
 
-  constructor(io: CliIO, flags: GlobalFlags, commandName = 'poietic-issues') {
+  constructor(io: CliIO, flags: GlobalFlags, commandName = 'poietic-issues-admin') {
     this.io = io;
     this.#commandName = commandName;
     try {
@@ -49,11 +49,6 @@ export class Runtime implements CommandRuntime {
   async api(): Promise<ApiClient> {
     this.#transport ??= await openTransport(this.config, this.io);
     return this.#transport.client;
-  }
-
-  async describeTransport(): Promise<string> {
-    await this.api();
-    return this.#transport!.describe;
   }
 
   /** Awaits an openapi-fetch call and returns its data, throwing the API problem on failure. */
@@ -93,7 +88,7 @@ export function makeAction(io: CliIO, handler: Handler, commandName?: string) {
   };
 }
 
-/** The command tree as the `poietic-issues` binary hosts it: each action builds today's {@link Runtime}. */
-export function adminTree(io: CliIO, commandName = 'poietic-issues'): Tree {
+/** The command tree as the `poietic-issues-admin` operator tool hosts it: each action builds a local {@link Runtime}. */
+export function adminTree(io: CliIO, commandName = 'poietic-issues-admin'): Tree {
   return { commandName, act: (handler) => makeAction(io, handler, commandName) };
 }

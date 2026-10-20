@@ -30,8 +30,9 @@ ENV NODE_ENV=production \
     POIETIC_ISSUES_AUTO_MIGRATE=1
 WORKDIR /app
 COPY --from=build /out /app
-RUN printf '#!/bin/sh\nexec node /app/dist/poietic-issues.mjs "$@"\n' > /usr/local/bin/poietic-issues \
-  && chmod +x /usr/local/bin/poietic-issues \
+# The operator tool (local mode on the image's database); there is no remote CLI in the image.
+RUN printf '#!/bin/sh\nexec node /app/dist/poietic-issues-admin.mjs "$@"\n' > /usr/local/bin/poietic-issues-admin \
+  && chmod +x /usr/local/bin/poietic-issues-admin \
   && mkdir -p /data && chown node:node /data
 USER node
 VOLUME /data

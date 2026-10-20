@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
-import { agentFromEnv, PoieticAuthError, type PoieticAgent } from '@poietic-tech/auth';
 import { type ApiClient, createClient } from '@poietic-tech/issues-client';
 import { blobStoreFromEnv, ensureBuiltins } from '@poietic-tech/issues-core';
 import { dirname, join } from 'node:path';
@@ -12,8 +11,6 @@ import type { CliIO } from './io.ts';
 
 export interface Transport {
   client: ApiClient;
-  /** Human description, e.g. "http://… (token)" or "local sqlite:… as @ada". */
-  describe: string;
   close(): Promise<void>;
 }
 
@@ -21,7 +18,8 @@ const RETRY_DELAYS_MS = [250, 1000];
 const MUTATING = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
 
 /**
- * Remote fetch with agent-safe retries: every POST carries an Idempotency-Key, and requests that fail at the
+ * Remote fetch with agent-safe retries (for a remote host of the command tree; the operator tool itself is
+ * local only): every POST carries an Idempotency-Key, and requests that fail at the
  * network level (no response) are retried up to twice with the same key — so a retried create never
  * duplicates. HTTP error responses are never retried.
  */
@@ -44,71 +42,18 @@ export function retryingFetch(inner: (r: Request) => Promise<Response> = (r) => 
   };
 }
 
-/**
- * Remote fetch as the agent named by POIETIC_AGENT_TOKEN (ADR 0023), or null when it is unset. Each request carries
- * the identity token the agent token is exchanged for at auth.poietic.tech; the agent token itself goes nowhere else
- * and is never printed.
- */
-export function agentFetch(
-  env: CliIO['env'],
-  opts: { fetchImpl?: typeof fetch } = {},
-): ((request: Request) => Promise<Response>) | null {
-  let agent: PoieticAgent | null;
-  try {
-    agent = agentFromEnv(env, opts);
-  } catch {
-    throw new CliError(
-      'VALIDATION_FAILED',
-      'POIETIC_AGENT_TOKEN is malformed: it must be the whole token, with no spaces',
-    );
-  }
-  if (!agent) return null;
-  return async (request) => {
-    try {
-      return await agent.fetch(request);
-    } catch (error) {
-      if (!(error instanceof PoieticAuthError)) throw error;
-      throw error.status === 401
-        ? new CliError(
-            'UNAUTHENTICATED',
-            'auth.poietic.tech refused POIETIC_AGENT_TOKEN: it is revoked or expired, or its owner may no longer own agents',
-          )
-        : new CliError('UNAVAILABLE', `Could not exchange POIETIC_AGENT_TOKEN (${error.message})`);
-    }
-  };
-}
-
-/** Builds the API client for the resolved mode: remote HTTP, in-process local database, or a test override. */
+/** Builds the API client: the in-process app on the local database in trusted mode, or a test override. */
 export async function openTransport(config: ResolvedConfig, io: CliIO): Promise<Transport> {
   if (io.fetch) {
     return {
       client: createClient({ baseUrl: 'http://tracker.local', fetch: io.fetch }),
-      describe: 'injected transport',
       close: async () => {},
     };
   }
-  if (config.mode === 'remote') {
-    const asAgent = agentFetch(io.env);
-    if (asAgent)
-      return {
-        client: createClient({ baseUrl: config.server!, fetch: retryingFetch(asAgent) }),
-        describe: `${config.server} (agent)`,
-        close: async () => {},
-      };
-    return {
-      client: createClient({
-        baseUrl: config.server!,
-        token: config.token,
-        fetch: retryingFetch(),
-      }),
-      describe: `${config.server} (${config.token ? 'token' : 'no token'})`,
-      close: async () => {},
-    };
-  }
-  const db = await openLocalDatabase(config.database!, true);
+  const db = await openLocalDatabase(config.database, true);
   const actor = config.sources.actor ? config.actor : await defaultLocalActor(db);
   // Attachments land next to a SQLite file (…/data/blobs, the dev server's default) unless configured.
-  const file = /^sqlite:(\/.+)$/.exec(config.database!)?.[1];
+  const file = /^sqlite:(\/.+)$/.exec(config.database)?.[1];
   const blobStore = blobStoreFromEnv(
     io.env,
     file ? join(dirname(file), 'blobs') : join(io.cwd, 'data', 'blobs'),
@@ -126,7 +71,6 @@ export async function openTransport(config: ResolvedConfig, io: CliIO): Promise<
       baseUrl: 'http://tracker.local',
       fetch: (r) => Promise.resolve(app.fetch(r)),
     }),
-    describe: `local ${config.database} as @${actor}`,
     close: () => db.destroy(),
   };
 }
@@ -148,7 +92,7 @@ export async function openLocalDatabase(url: string, requireMigrated: boolean): 
       await db.destroy();
       throw new CliError(
         'UNAVAILABLE',
-        `Database ${url} is not migrated (pending: ${status.pending.join(', ')}). Run \`poietic-issues db migrate\`.`,
+        `Database ${url} is not migrated (pending: ${status.pending.join(', ')}). Run \`poietic-issues-admin db migrate\`.`,
       );
     }
     await ensureBuiltins(db);
@@ -169,7 +113,7 @@ async function defaultLocalActor(db: Db): Promise<string> {
   if (!row)
     throw new CliError(
       'UNAUTHENTICATED',
-      'No admin user in the local database. Run `poietic-issues db seed`, or `poietic-issues user create` with POIETIC_ISSUES_ACTOR set.',
+      'No admin user in the local database. Run `poietic-issues-admin db bootstrap --handle <handle> --name <name>` (or `db seed` for demo data).',
     );
   return row.handle;
 }

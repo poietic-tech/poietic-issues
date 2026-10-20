@@ -44,7 +44,7 @@ export async function prepareDatabase(
     const status = await migrationStatus(db);
     if (!status.upToDate)
       throw new Error(
-        `Database is not migrated (pending: ${status.pending.join(', ')}). Run \`poietic-issues db migrate\`.`,
+        `Database is not migrated (pending: ${status.pending.join(', ')}). Run \`poietic-issues-admin db migrate\`.`,
       );
   }
   await ensureBuiltins(db);
@@ -63,7 +63,7 @@ export async function prepareDatabase(
   }
 }
 
-/** Starts the HTTP server. Used by `node apps/server/src/main.ts`, the bundled server and `poietic-issues serve`. */
+/** Starts the HTTP server. Used by `node apps/server/src/main.ts`, the bundled server and `poietic-issues-admin serve`. */
 export async function startServer(
   config: ServerConfig,
   extensions: AppExtension[] = [],

@@ -1,5 +1,4 @@
 import { existsSync } from 'node:fs';
-import { createClient, unwrap } from '@poietic-tech/issues-client';
 import {
   bootstrapAdmin,
   createContext,
@@ -15,108 +14,24 @@ import {
   parseDatabaseUrl,
 } from '@poietic-tech/issues-db';
 import { Command } from 'commander';
-import { normalizeServer, readUserConfig, resolveConfig, writeUserConfig } from '../config.ts';
+import { resolveConfig } from '../config.ts';
 import { CliError, usage } from '../errors.ts';
 import type { CliIO } from '../io.ts';
-import { makeAction, type Runtime } from '../runtime.ts';
 import { openLocalDatabase } from '../transport.ts';
-import { signedIn } from '../commands/system.ts';
 
-// Commands of the local operator binary only: they reach the user config, the database or the in-process
+// Commands of the poietic-issues-admin operator tool only: they reach the database or the in-process
 // server, so they live outside the command tree that a poietic-tech host loads.
 
 type Opts = Record<string, unknown>;
-
-export function authCommand(io: CliIO): Command {
-  const act = (fn: (rt: Runtime, args: unknown[], o: Opts) => Promise<void>) => makeAction(io, fn);
-  const cmd = new Command('auth').description(
-    'Sign in to a tracker server (stores tokens in your user config)',
-  );
-  cmd
-    .command('login')
-    .description(
-      'Store an API token for a server (verifies it first): auth login --server <url> --token <t> | --with-token',
-    )
-    .option('--with-token', 'read the token from stdin')
-    .action(
-      act(async (rt, _a, o) => {
-        if (!rt.config.server) throw usage('Pass --server <url> (the global option)');
-        const server = normalizeServer(rt.config.server);
-        const token = o.withToken ? (await rt.io.readStdin()).trim() : (rt.config.token ?? '');
-        if (!token) throw usage('Provide --token <token> or --with-token (stdin)');
-        const client = createClient({
-          baseUrl: server,
-          token,
-          ...(rt.io.fetch && { fetch: rt.io.fetch }),
-        });
-        const me = signedIn(unwrap(await client.GET('/me')), 'poietic-issues');
-        const config = readUserConfig(rt.io.env);
-        config.tokens[server] = token;
-        config.defaultServer = server;
-        const path = writeUserConfig(rt.io.env, config);
-        rt.out.item(
-          'user',
-          me,
-          () => `Signed in to ${server} as @${me.handle} (token saved to ${path})\n`,
-        );
-      }),
-    );
-  cmd
-    .command('logout')
-    .description('Forget the stored token for the server (--server or the current default)')
-    .action(
-      act(async (rt) => {
-        if (!rt.config.server) throw usage('Pass --server <url>');
-        const server = normalizeServer(rt.config.server);
-        const config = readUserConfig(rt.io.env);
-        delete config.tokens[server];
-        if (config.defaultServer === server) delete config.defaultServer;
-        writeUserConfig(rt.io.env, config);
-        rt.out.item('raw', { server, loggedOut: true }, () => `Logged out of ${server}\n`);
-      }),
-    );
-  cmd
-    .command('status')
-    .description('Show how the CLI connects and who it acts as')
-    .action(
-      act(async (rt) => {
-        const api = await rt.api();
-        const me = signedIn(await rt.call(api.GET('/me')), 'poietic-issues');
-        const status = {
-          mode: rt.config.mode,
-          transport: await rt.describeTransport(),
-          user: { handle: me.handle, kind: me.kind, role: me.role },
-          project: rt.config.project ?? null,
-          format: rt.config.format,
-          sources: rt.config.sources,
-          projectConfig: rt.config.projectConfigPath ?? null,
-        };
-        rt.out.item('raw', status, () =>
-          [
-            `Mode:      ${status.mode} — ${status.transport}`,
-            `Acting as: @${me.handle} (${me.kind}, ${me.role})`,
-            `Project:   ${status.project ?? '— (set with --project, POIETIC_ISSUES_PROJECT or poietic-issues init)'}`,
-            `Config:    ${status.projectConfig ?? 'no .poietic-issues.json'}`,
-            '',
-          ].join('\n'),
-        );
-      }),
-    );
-  return cmd;
-}
 
 /** `db migrate --down` stops above this one: reverting it would drop every table. */
 const FIRST_MIGRATION = '0001_init';
 
 export function dbCommand(io: CliIO): Command {
-  const cmd = new Command('db').description('Local database administration (local mode only)');
+  const cmd = new Command('db').description('Local database administration');
   /** `mustExist`: refuse a SQLite path with no file, instead of creating an empty database (a typo would look like success). */
   const localDb = async (flags: Opts, mustExist = false) => {
     const config = resolveConfig(flags, io);
-    if (config.mode !== 'local' || !config.database)
-      throw usage(
-        'db commands need a local database: set --database or POIETIC_ISSUES_DATABASE_URL (not --server)',
-      );
     if (mustExist) {
       const parsed = parseDatabaseUrl(config.database);
       if (
@@ -239,8 +154,6 @@ export function serveCommand(io: CliIO): Command {
     .action(async (o: Opts, command: Command) => {
       const flags = command.optsWithGlobals();
       const config = resolveConfig(flags, io);
-      if (config.mode !== 'local')
-        throw usage('serve runs against a database: pass --database (not --server)');
       const { loadConfig, startServer } = await import('@poietic-tech/issues-server');
       const server = await startServer(
         loadConfig({

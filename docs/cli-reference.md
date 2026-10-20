@@ -1,6 +1,6 @@
 # CLI reference
 
-<!-- Generated from `poietic-issues commands --json` by the CLI test suite. Do not edit; run `pnpm vitest run --project cli -u`. -->
+<!-- Generated from `poietic-issues-admin commands --json` by the CLI test suite. Do not edit; run `pnpm vitest run --project cli -u`. -->
 
 See [cli.md](cli.md) for concepts, output formats and configuration.
 
@@ -9,10 +9,8 @@ See [cli.md](cli.md) for concepts, output formats and configuration.
 | Option | Description |
 | --- | --- |
 | `-V, --version` | output the version number |
-| `--server <url>` | poietic-issues server URL (remote mode) |
-| `--token <token>` | API token (remote mode) |
-| `--database <url>` | database URL (local mode), e.g. sqlite:./data/dev.db |
-| `--actor <handle>` | local mode: act as this user |
+| `--database <url>` | database URL, e.g. sqlite:./data/dev.db (default from POIETIC_ISSUES_DATABASE_URL) |
+| `--actor <handle>` | act as this user (default from POIETIC_ISSUES_ACTOR, else the first admin) |
 | `-P, --project <key>` | project key (default from POIETIC_ISSUES_PROJECT or .poietic-issues.json) |
 | `--format <format>` | output format |
 | `--json` | JSON output (same as --format json) |
@@ -830,29 +828,13 @@ Edit a user
 | `--deactivate` | deactivate (admin only) |
 | `--reactivate` | reactivate (admin only) |
 
-### `tracker auth login`
-
-Store an API token for a server (verifies it first): auth login --server <url> --token <t> | --with-token
-
-| Option | Description |
-| --- | --- |
-| `--with-token` | read the token from stdin |
-
-### `tracker auth logout`
-
-Forget the stored token for the server (--server or the current default)
-
-### `tracker auth status`
-
-Show how the CLI connects and who it acts as
-
 ### `tracker whoami`
 
 Show the user the CLI acts as
 
 ### `tracker init`
 
-Write .poietic-issues.json here from the global --server/--database, --project and --actor (never tokens)
+Write .poietic-issues.json here from the global options given (server or database, project, actor; never tokens)
 
 | Option | Description |
 | --- | --- |

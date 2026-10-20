@@ -20,7 +20,7 @@
     "openapi:gen": "pnpm --filter @poietic-tech/issues-server openapi:gen && pnpm --filter @poietic-tech/issues-client gen",
     "openapi:check": "pnpm --filter @poietic-tech/issues-server openapi:check && pnpm --filter @poietic-tech/issues-client gen && git diff --exit-code -- packages/client/src/generated",
     "dev:server": "pnpm --filter @poietic-tech/issues-server dev",
-    "poietic-issues": "node apps/cli/src/bin.ts",
+    "issues-admin": "node apps/cli/src/admin-bin.ts",
     "dev": "node scripts/dev.ts",
     "build:web": "pnpm --filter @poietic-tech/issues-web build",
     "build": "pnpm build:web && tsdown",

@@ -8,11 +8,9 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p .",
-    "poietic-issues": "node src/bin.ts"
+    "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@poietic-tech/auth": "^0.2.1",
     "@poietic-tech/issues-client": "workspace:*",
     "@poietic-tech/issues-core": "workspace:*",
     "@poietic-tech/issues-db": "workspace:*",
@@ -20,8 +18,5 @@
     "@poietic-tech/issues-server": "workspace:*",
     "commander": "^15.0.0",
     "zod": "^4.6.5"
-  },
-  "bin": {
-    "poietic-issues": "./src/bin.ts"
   }
 }

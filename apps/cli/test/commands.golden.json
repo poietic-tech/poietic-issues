@@ -1985,35 +1985,6 @@
       ]
     },
     {
-      "name": "auth login",
-      "aliases": [],
-      "description": "Store an API token for a server (verifies it first): auth login --server <url> --token <t> | --with-token",
-      "arguments": [],
-      "options": [
-        {
-          "flags": "--with-token",
-          "name": "withToken",
-          "description": "read the token from stdin",
-          "required": false,
-          "takesValue": false
-        }
-      ]
-    },
-    {
-      "name": "auth logout",
-      "aliases": [],
-      "description": "Forget the stored token for the server (--server or the current default)",
-      "arguments": [],
-      "options": []
-    },
-    {
-      "name": "auth status",
-      "aliases": [],
-      "description": "Show how the CLI connects and who it acts as",
-      "arguments": [],
-      "options": []
-    },
-    {
       "name": "whoami",
       "aliases": [],
       "description": "Show the user the CLI acts as",
@@ -2023,7 +1994,7 @@
     {
       "name": "init",
       "aliases": [],
-      "description": "Write .poietic-issues.json here from the global --server/--database, --project and --actor (never tokens)",
+      "description": "Write .poietic-issues.json here from the global options given (server or database, project, actor; never tokens)",
       "arguments": [],
       "options": [
         {
@@ -2190,30 +2161,16 @@
       "takesValue": false
     },
     {
-      "flags": "--server <url>",
-      "name": "server",
-      "description": "poietic-issues server URL (remote mode)",
-      "required": false,
-      "takesValue": true
-    },
-    {
-      "flags": "--token <token>",
-      "name": "token",
-      "description": "API token (remote mode)",
-      "required": false,
-      "takesValue": true
-    },
-    {
       "flags": "--database <url>",
       "name": "database",
-      "description": "database URL (local mode), e.g. sqlite:./data/dev.db",
+      "description": "database URL, e.g. sqlite:./data/dev.db (default from POIETIC_ISSUES_DATABASE_URL)",
       "required": false,
       "takesValue": true
     },
     {
       "flags": "--actor <handle>",
       "name": "actor",
-      "description": "local mode: act as this user",
+      "description": "act as this user (default from POIETIC_ISSUES_ACTOR, else the first admin)",
       "required": false,
       "takesValue": true
     },
@@ -2325,11 +2282,8 @@
     }
   },
   "environment": {
-    "POIETIC_ISSUES_SERVER": "Server URL (remote mode)",
-    "POIETIC_ISSUES_TOKEN": "API token for the server",
-    "POIETIC_AGENT_TOKEN": "Remote mode: act as this poietic.tech agent (takes precedence over POIETIC_ISSUES_TOKEN)",
-    "POIETIC_ISSUES_DATABASE_URL": "Database URL (local mode), e.g. sqlite:./data/dev.db",
-    "POIETIC_ISSUES_ACTOR": "Local mode: user handle to act as",
+    "POIETIC_ISSUES_DATABASE_URL": "Database URL, e.g. sqlite:./data/dev.db",
+    "POIETIC_ISSUES_ACTOR": "User handle to act as",
     "POIETIC_ISSUES_PROJECT": "Default project key",
     "POIETIC_ISSUES_FORMAT": "Default output format: table|json|ndjson|ids",
     "POIETIC_ISSUES_FIELDS": "Default --fields projection"

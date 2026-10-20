@@ -27,7 +27,7 @@ import { CliError, EXIT_CODES, usage } from '../errors.ts';
 import { actWithGlobals, keyValues, readJsonArg } from '../tree/args.ts';
 import type { Tree } from '../tree/runtime.ts';
 
-/** Schemas exposed by `poietic-issues schema <name>` (JSON Schema, draft 2020-12). */
+/** Schemas exposed by the `schema <name>` command (JSON Schema, draft 2020-12). */
 const SCHEMAS: Record<string, { schema: z.ZodType; io: 'input' | 'output' }> = {
   issue: { schema: IssueSchema, io: 'output' },
   'issue-create': { schema: CreateIssueInputSchema, io: 'input' },
@@ -63,7 +63,7 @@ export function signedIn(me: Schemas['Me'], commandName: string): Schemas['User'
   if ('anonymous' in me)
     throw new CliError(
       'UNAUTHENTICATED',
-      `Not signed in: set POIETIC_ISSUES_TOKEN or run \`${commandName} auth login\``,
+      `Not signed in: the server answered ${commandName} as an anonymous visitor`,
     );
   return me;
 }
@@ -88,7 +88,7 @@ export function registerInit(parent: Command, tree: Tree): Command {
   return parent
     .command('init')
     .description(
-      `Write ${PROJECT_CONFIG_FILE} here from the global --server/--database, --project and --actor (never tokens)`,
+      `Write ${PROJECT_CONFIG_FILE} here from the global options given (server or database, project, actor; never tokens)`,
     )
     .option('--force', 'overwrite an existing file')
     .action(
@@ -238,12 +238,8 @@ export function describeCommands(program: Command): {
       Object.entries(ERROR_CODES).map(([k, v]) => [k, { status: v.status, exit: v.exit }]),
     ),
     environment: {
-      POIETIC_ISSUES_SERVER: 'Server URL (remote mode)',
-      POIETIC_ISSUES_TOKEN: 'API token for the server',
-      POIETIC_AGENT_TOKEN:
-        'Remote mode: act as this poietic.tech agent (takes precedence over POIETIC_ISSUES_TOKEN)',
-      POIETIC_ISSUES_DATABASE_URL: 'Database URL (local mode), e.g. sqlite:./data/dev.db',
-      POIETIC_ISSUES_ACTOR: 'Local mode: user handle to act as',
+      POIETIC_ISSUES_DATABASE_URL: 'Database URL, e.g. sqlite:./data/dev.db',
+      POIETIC_ISSUES_ACTOR: 'User handle to act as',
       POIETIC_ISSUES_PROJECT: 'Default project key',
       POIETIC_ISSUES_FORMAT: 'Default output format: table|json|ndjson|ids',
       POIETIC_ISSUES_FIELDS: 'Default --fields projection',

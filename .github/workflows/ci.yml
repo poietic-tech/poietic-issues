@@ -127,11 +127,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Start the stack (Postgres + S3 storage)
         run: docker compose up -d --build --wait poietic-issues
-      - name: Bootstrap an admin and use the database through the CLI
+      - name: Bootstrap an admin and use the database through the operator tool
         run: |
-          docker compose exec -T poietic-issues poietic-issues db bootstrap --handle ci --name CI --json
-          docker compose exec -T poietic-issues \
-            sh -c 'poietic-issues --actor ci project create -k CI --name CI -q && poietic-issues --actor ci issue create -t "From CI" --project CI -q && poietic-issues --actor ci issue view CI-1 --json'
+          docker compose exec -T poietic-issues poietic-issues-admin db bootstrap --handle ci --name CI --json
+          docker compose exec -T poietic-issues sh -c 'poietic-issues-admin --actor ci project create -k CI --name CI -q && poietic-issues-admin --actor ci issue create -t "From CI" --project CI -q && poietic-issues-admin --actor ci issue view CI-1 --json' \
+            | tee smoke.out
+          # The two -q commands print the project key and the issue key; the JSON view follows them.
+          test "$(head -n 2 smoke.out | tr '\n' ' ')" = 'CI CI-1 '
+          sed -n '/^{/,$p' smoke.out | jq -e '.title == "From CI"'
           curl -sf http://localhost:3000/readyz
           curl -sf http://localhost:3000/ | grep -q '<!doctype html>'
       - name: Graceful shutdown

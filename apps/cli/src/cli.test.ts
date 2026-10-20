@@ -1,6 +1,4 @@
 import { execFile } from 'node:child_process';
-import { createServer } from 'node:http';
-import type { AddressInfo } from 'node:net';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -11,11 +9,10 @@ import { createTestContext, grant, type TestContext } from '@poietic-tech/issues
 import { latestMigrationName } from '@poietic-tech/issues-db';
 import { testDialect } from '@poietic-tech/issues-db/testing';
 import { createApp } from '@poietic-tech/issues-server';
-import { testSso } from '@poietic-tech/issues-server/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { CliIO } from './io.ts';
 import { renderCliReference } from './reference.ts';
-import { run } from './main.ts';
+import { run } from './admin.ts';
 
 let t: TestContext;
 let appFetch: (r: Request) => Promise<Response>;
@@ -585,13 +582,13 @@ describe(`project access commands without manage (${testDialect()})`, () => {
   });
 });
 
-describe.runIf(testDialect() === 'sqlite')('local and remote modes (real transports)', () => {
+describe.runIf(testDialect() === 'sqlite')('local mode (real transport)', () => {
   it('runs in-process against a local SQLite file', async () => {
     const db = join(dir, 'local.db');
     const env = { POIETIC_ISSUES_DATABASE_URL: `sqlite:${db}` };
     const unmigrated = await cli(['issue', 'list'], { env, fetch: null });
     expect(unmigrated.code).toBe(6);
-    expect(unmigrated.stderr).toMatch(/poietic-issues db migrate/);
+    expect(unmigrated.stderr).toMatch(/poietic-issues-admin db migrate/);
     expect((await cli(['db', 'migrate'], { env, fetch: null })).stdout).toMatch(
       /Applied: 0001_init, 0002_webhook_delivery_details/,
     );
@@ -714,68 +711,8 @@ describe.runIf(testDialect() === 'sqlite')('local and remote modes (real transpo
     expect(migrated.code).toBe(0);
   });
 
-  it('talks to a real server with an identity token, and logs in', async () => {
-    const sso = testSso(t);
-    const app = createApp({ db: t.db, auth: { mode: 'standard', sso: sso.options } });
-    const http = createServer(async (req, res) => {
-      const chunks: Buffer[] = [];
-      for await (const chunk of req) chunks.push(chunk as Buffer);
-      const response = await app.fetch(
-        new Request(`http://127.0.0.1${req.url}`, {
-          method: req.method,
-          headers: req.headers as Record<string, string>,
-          ...(chunks.length > 0 && { body: Buffer.concat(chunks) }),
-        }),
-      );
-      res.writeHead(response.status, Object.fromEntries(response.headers));
-      res.end(Buffer.from(await response.arrayBuffer()));
-    });
-    await new Promise<void>((done) => http.listen(0, '127.0.0.1', done));
-    const url = `http://127.0.0.1:${(http.address() as AddressInfo).port}`;
-    try {
-      const token = await sso.bearer('admin');
-      const env = { POIETIC_ISSUES_SERVER: url, POIETIC_ISSUES_TOKEN: token };
-      const created = await cli(['issue', 'create', '-P', 'CLI', '-t', 'Over HTTP', '--json'], {
-        env,
-        fetch: null,
-      });
-      expect(created.stderr).toBe('');
-      expect(created.code).toBe(0);
-      expect(created.json().creator.handle).toBe('admin');
-      for (const bad of ['bad', 'trk_old']) {
-        const whoami = await cli(['whoami', '-q'], {
-          env: { POIETIC_ISSUES_SERVER: url, POIETIC_ISSUES_TOKEN: bad },
-          fetch: null,
-        });
-        expect(whoami.code, bad).toBe(5);
-      }
-      // Without a token the server answers as an anonymous visitor; the CLI reports "not signed in".
-      const anonymous = await cli(['whoami', '--json'], {
-        env: { POIETIC_ISSUES_SERVER: url },
-        fetch: null,
-      });
-      expect(anonymous.code).toBe(5);
-      expect(anonymous.stderr).toMatch(/not signed in/i);
-
-      const login = await cli(['auth', 'login', '--server', url, '--with-token'], {
-        stdin: token,
-        fetch: null,
-      });
-      expect(login.code).toBe(0);
-      const status = await cli(['auth', 'status', '--json'], { fetch: null });
-      expect(status.json()).toMatchObject({ mode: 'remote', user: { handle: 'admin' } });
-    } finally {
-      await new Promise((done) => http.close(done));
-    }
-    const down = await cli(['whoami'], {
-      env: { POIETIC_ISSUES_SERVER: 'http://127.0.0.1:9', POIETIC_ISSUES_TOKEN: 'x' },
-      fetch: null,
-    });
-    expect(down.code).toBe(6);
-  }, 30_000);
-
   it('works as a spawned binary', async () => {
-    const bin = fileURLToPath(new URL('./bin.ts', import.meta.url));
+    const bin = fileURLToPath(new URL('./admin-bin.ts', import.meta.url));
     const exec = promisify(execFile);
     const version = await exec(process.execPath, [bin, '--version']);
     expect(version.stdout.trim()).toBe('0.1.0');
@@ -789,4 +726,37 @@ describe.runIf(testDialect() === 'sqlite')('local and remote modes (real transpo
     expect(failure).toMatchObject({ code: 3 });
     expect(JSON.parse((failure as { stderr: string }).stderr).code).toBe('NOT_FOUND');
   }, 30_000);
+});
+
+describe('the operator tool poietic-issues-admin', () => {
+  it('has no remote mode: --server and --token are unknown options', async () => {
+    for (const args of [
+      ['--server', 'https://x', 'issue', 'list'],
+      ['--token', 't', 'issue', 'list'],
+    ]) {
+      const res = await cli(args);
+      expect(res.code, args[0]).toBe(2);
+      expect(res.stderr, args[0]).toMatch(/unknown option/);
+    }
+  });
+
+  it('has no auth command', async () => {
+    const res = await cli(['auth', 'status']);
+    expect(res.code).toBe(2);
+    expect(res.stderr).toMatch(/unknown command/);
+  });
+
+  it('still runs the tree through the injected fetch', async () => {
+    const res = await cli(['issue', 'create', '-t', 'Through the admin tool', '--json']);
+    expect(res.stderr).toBe('');
+    expect(res.code).toBe(0);
+    expect(res.json()).toMatchObject({ title: 'Through the admin tool' });
+  });
+
+  it('names itself poietic-issues-admin', async () => {
+    const help = await cli(['--help']);
+    expect(help.code).toBe(0);
+    expect(help.stdout).toMatch(/^Usage: poietic-issues-admin /);
+    expect(help.stdout).not.toMatch(/--server|--token|\bauth\b/);
+  });
 });

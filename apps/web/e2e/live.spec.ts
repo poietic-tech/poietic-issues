@@ -48,7 +48,7 @@ test('a board card moves live when another client changes its status', async ({ 
   await expect(todo.locator(`[data-key="${key}"]`)).toHaveCount(0);
 });
 
-test('a CLI write in local mode (another process, same database) appears in the browser', async ({
+test('an operator-tool write (another process, same database) appears in the browser', async ({
   page,
 }) => {
   test.skip(
@@ -57,7 +57,7 @@ test('a CLI write in local mode (another process, same database) appears in the 
   );
   await page.goto('/p/ENG/board');
   await expect(page.getByTestId('live-indicator')).toHaveAttribute('data-connected', 'true');
-  const bin = fileURLToPath(new URL('../../cli/src/bin.ts', import.meta.url));
+  const bin = fileURLToPath(new URL('../../cli/src/admin-bin.ts', import.meta.url));
   const db = fileURLToPath(new URL('../test-results/e2e.db', import.meta.url));
   const { stdout } = await promisify(execFile)(
     process.execPath,
