@@ -11,6 +11,7 @@ release the module from `issues-v*` tags.
 **Architecture:** The command definitions become one tree. It registers onto any commander `Command` through
 `parent.command(...)` and `cmd.createOption(...)`, so the tree never imports commander at run time. It talks to
 a small runtime interface. Two hosts provide that interface:
+
 - the module, over `ModuleContext` and `caller.fetch`;
 - the admin tool, over the in-process app in trusted mode.
 
@@ -61,12 +62,15 @@ and this plan argues from it.
 ### Task 1: Server tests authenticate with identity tokens, not `trk_`
 
 **Files:**
+
 - Create: `apps/server/src/testing.ts`
 - Modify: `apps/server/src/api.test.ts`, `access.test.ts`, `attachments.test.ts`, `stream.test.ts`,
   `webhooks.test.ts`, `deploy/cloudflare/src/forward.test.ts`
 
 **Interfaces:**
+
 - Produces:
+
   ```ts
   testSso(t: TestContext): {
     options: SsoOptions;
@@ -79,15 +83,16 @@ and this plan argues from it.
     or db helper if one exists) and returns the bearer value.
 
 - [ ] **Step 1:** In each listed test, replace `createToken(...)` and `Bearer ${token}` with
-  `createApp({ ..., sso: options })` and `Bearer ${await bearer('admin')}` (or `'member'`). Assertions stay as they
-  are.
+      `createApp({ ..., sso: options })` and `Bearer ${await bearer('admin')}` (or `'member'`). Assertions stay as they
+      are.
 - [ ] **Step 2:** Run `pnpm vitest run --project server` and `TEST_DB=postgres pnpm vitest run --project server`.
-  Expected: PASS with no assertion changes. `trk_` is not yet removed.
+      Expected: PASS with no assertion changes. `trk_` is not yet removed.
 - [ ] **Step 3:** Commit `test(server): authenticate API tests with identity tokens`.
 
 ### Task 2: Retire `trk_` in db, core, server, client and web
 
 **Files:**
+
 - Create: `packages/db/src/migrations/0007_drop_api_tokens.ts`. Register it wherever migrations are listed.
 - Modify:
   - `packages/db/src/types.ts`
@@ -104,6 +109,7 @@ and this plan argues from it.
 - Test: `packages/db` migration test (follow the existing migration-test pattern), and `apps/server/src/sso.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - `bootstrapAdmin(db, input): Promise<{ user: User }>`, with no `token`.
   - `seedDemoData(ctx): Promise<void>`, or `{ users }` if callers need it, with no tokens.
@@ -123,11 +129,11 @@ and this plan argues from it.
     `trk_` branch and its docstring in the middleware.
   - Write migration 0007: `dropTable('api_tokens')`, plus its indexes if the dialect needs that.
   - In the web, remove the token form, `tokenLogin` and the "token create" hint. "`poietic-issues user edit …
-    --reactivate`" becomes "`poietic-tech issues user edit … --reactivate`".
+--reactivate`" becomes "`poietic-tech issues user edit … --reactivate`".
   - In the demo, remove the `/auth/token-login` handler.
 - [ ] **Step 4:** Run `pnpm openapi:gen`, then `pnpm check`, `pnpm test:pg` (with `pnpm pg start`) and `pnpm e2e`.
-  Expected: all pass. `git grep -n 'createToken\|authenticateToken\|token-login\|api_tokens'` outside migrations
-  0001 and 0007 and `docs/adr` returns nothing.
+      Expected: all pass. `git grep -n 'createToken\|authenticateToken\|token-login\|api_tokens'` outside migrations
+      0001 and 0007 and `docs/adr` returns nothing.
 - [ ] **Step 5:** Commit `feat!: retire trk_ API tokens`.
 
 ### Task 3: One command tree with no runtime commander import
@@ -135,6 +141,7 @@ and this plan argues from it.
 The behaviour stays the same. The current CLI keeps passing its tests unchanged.
 
 **Files:**
+
 - Create: `apps/cli/src/tree/runtime.ts` (the interfaces) and `apps/cli/src/tree/index.ts`
   (`registerTree`)
 - Move or modify: `apps/cli/src/commands/*.ts`, so each exports `register<Name>(parent, tree)` in place of
@@ -143,6 +150,7 @@ The behaviour stays the same. The current CLI keeps passing its tests unchanged.
 - Test: `apps/cli/src/tree/imports.test.ts`
 
 **Interfaces:**
+
 - Produces, in `tree/runtime.ts`:
   ```ts
   export interface Sink {
@@ -161,7 +169,13 @@ The behaviour stays the same. The current CLI keeps passing its tests unchanged.
     readonly io: Pick<CliIO, 'env' | 'cwd' | 'readStdin' | 'stderr'>;
   }
   export interface Tree {
-    act(handler: (rt: CommandRuntime, args: unknown[], opts: Record<string, unknown>) => Promise<void>): (...all: unknown[]) => Promise<void>;
+    act(
+      handler: (
+        rt: CommandRuntime,
+        args: unknown[],
+        opts: Record<string, unknown>,
+      ) => Promise<void>,
+    ): (...all: unknown[]) => Promise<void>;
     /** Names the tree uses in messages, e.g. "poietic-tech issues" or "poietic-issues-admin". */
     readonly commandName: string;
   }
@@ -175,11 +189,12 @@ The behaviour stays the same. The current CLI keeps passing its tests unchanged.
 - Direct `io.stdout` and `stdoutBytes` calls in commands become `rt.out.raw` and `rt.out.rawBytes`.
 
 - [ ] **Step 1: failing test** `imports.test.ts`. For every file under `apps/cli/src/tree/` and
-  `apps/cli/src/commands/`:
+      `apps/cli/src/commands/`:
   - no line matches `/^import (?!type)[^;]*from 'commander'/`;
   - no file imports `@poietic-tech/issues-core`, `-db` or `-server`.
 
   Expected: FAIL today.
+
 - [ ] **Step 2:** Convert each command file.
   - `new Command('x')` becomes `parent.command('x')`.
   - `new Option(...)` becomes `cmd.createOption(...)`.
@@ -187,13 +202,15 @@ The behaviour stays the same. The current CLI keeps passing its tests unchanged.
 
   `main.ts` builds the root `Command` as today and calls `registerTree(program, adminTree)`, where `adminTree.act`
   constructs today's `Runtime`.
+
 - [ ] **Step 3:** Run `pnpm vitest run --project cli`. Expected: PASS, with `cli.test.ts` and the golden file
-  unchanged. Run `pnpm check`.
+      unchanged. Run `pnpm check`.
 - [ ] **Step 4:** Commit `refactor(cli): register commands onto any commander root through a runtime interface`.
 
 ### Task 4: The operator tool `poietic-issues-admin`, local mode only
 
 **Files:**
+
 - Create: `apps/cli/src/admin.ts` (root program and `run`) and `apps/cli/src/admin-bin.ts`
 - Delete or shrink: the remote parts of `apps/cli/src/config.ts` and `transport.ts` (keep the `retryingFetch`
   export for Task 5), `bin.ts`, and the `auth` command in `system.ts`
@@ -208,6 +225,7 @@ The behaviour stays the same. The current CLI keeps passing its tests unchanged.
 - Test: `apps/cli/src/cli.test.ts` (now drives `admin.ts` `run`), `config.test.ts`
 
 **Interfaces:**
+
 - Consumes: `registerTree` and `Tree` from Task 3.
 - Produces:
   - `run(argv: string[], io: CliIO): Promise<number>` in `admin.ts`.
@@ -232,14 +250,15 @@ The behaviour stays the same. The current CLI keeps passing its tests unchanged.
     Read back with `poietic-issues-admin --actor ada project view <KEY> --json` inside `tr-b`. Keep every
     fail-closed case it has.
 - [ ] **Step 3:** Run `pnpm check` and `pnpm build` (expect `dist/poietic-issues-admin.mjs` and no
-  `dist/poietic-issues.mjs`), then `docker compose up -d --build --wait poietic-issues` and the smoke commands
-  above. Expected: pass. Run `bash deploy/cloudflare/test/restore.sh` if Docker allows; otherwise say so in the
-  report.
+      `dist/poietic-issues.mjs`), then `docker compose up -d --build --wait poietic-issues` and the smoke commands
+      above. Expected: pass. Run `bash deploy/cloudflare/test/restore.sh` if Docker allows; otherwise say so in the
+      report.
 - [ ] **Step 4:** Commit `feat(cli)!: local mode moves to the poietic-issues-admin operator tool`.
 
 ### Task 5: The `poietic-tech issues` module
 
 **Files:**
+
 - Create in `apps/cli/src/module/`:
   - `index.ts` (the default export `{ api: 1, setup }`)
   - `runtime.ts` (`ModuleRuntime implements CommandRuntime`)
@@ -256,6 +275,7 @@ The behaviour stays the same. The current CLI keeps passing its tests unchanged.
   `docs/cli-reference.md`, `system.ts` (`commands` describes the module root)
 
 **Interfaces:**
+
 - Consumes: `registerTree`, `Tree`, `CommandRuntime`, `Sink`, the existing `COLUMNS`, `identifier` and `project`
   from `output.ts`, `retryingFetch`, and `toCliError`.
 - Produces:
@@ -277,7 +297,7 @@ The behaviour stays the same. The current CLI keeps passing its tests unchanged.
     Anything already thrown by the host (the caller's errors) is rethrown untouched.
 
 - [ ] **Step 1: failing tests in `module.test.ts`.** Each runs `setup(fakeCtx)` on
-  `new Command('poietic-tech').command('issues')`.
+      `new Command('poietic-tech').command('issues')`.
   - `fakeCtx.caller()` returns `{ fetch }`, routed to the in-process app in trusted mode (as `cli.test.ts`
     builds it). It counts calls. `fakeCtx.output` records calls. `fakeCtx.fail` throws `{ code, message, status }`.
   - **Cases:**
@@ -302,7 +322,7 @@ The behaviour stays the same. The current CLI keeps passing its tests unchanged.
       `idempotency-key` on both attempts (Review focus 5).
     - The `issues` command's options are exactly `-P, --project` and `--fields`.
 - [ ] **Step 2: failing test `bundle.test.ts`.** It runs after `pnpm --filter @poietic-tech/issues build:module`
-  and reads `apps/cli/dist/poietic-tech.js`.
+      and reads `apps/cli/dist/poietic-tech.js`.
   - The file has no `from"commander"` or `from "commander"`, no `new CommanderError`, and no `better-sqlite3`,
     `kysely` or `hono` strings.
   - `import()` of the file gives a default with `api === 1` and a `setup` function.
@@ -312,19 +332,21 @@ The behaviour stays the same. The current CLI keeps passing its tests unchanged.
   - `outDir: dist`, `format: esm`, `platform: node`, `target: node22`;
   - bundle everything except `commander` and `@poietic-tech/cli`.
 - [ ] **Step 4:** Regenerate the golden file and the reference with `pnpm vitest run --project cli -u`. Check by
-  reading that every heading is `poietic-tech issues …` and that the exit-code section lists the host's codes
-  (0, 1, 2, 3, 4, 5, 8) as the module maps them.
+      reading that every heading is `poietic-tech issues …` and that the exit-code section lists the host's codes
+      (0, 1, 2, 3, 4, 5, 8) as the module maps them.
 - [ ] **Step 5:** Run `pnpm check` and `pnpm --filter @poietic-tech/issues build:module`, then the bundle test.
-  Expected: PASS.
+      Expected: PASS.
 - [ ] **Step 6:** Commit `feat(cli): publish the CLI as the poietic-tech issues module`.
 
 ### Task 6: Release workflow and host smoke test
 
 **Files:**
+
 - Create: `apps/cli/scripts/smoke.sh`, `.github/workflows/release-issues.yml`
 - Modify: `.github/workflows/ci.yml` (job `module-smoke` runs `build:module` then `smoke.sh`), `docs/releases.md`
 
 **Interfaces:**
+
 - `smoke.sh` takes no arguments and exits non-zero on any failure. It:
   1. sets up a temp prefix and a temp HOME;
   2. runs `npm pack` in `apps/cli`;
@@ -350,13 +372,14 @@ The behaviour stays the same. The current CLI keeps passing its tests unchanged.
   - `pnpm --filter @poietic-tech/issues build:module`, then the bundle test, then `bash apps/cli/scripts/smoke.sh`;
   - `npm publish --access public --provenance`, with `working-directory: apps/cli`.
 - [ ] **Step 3:** Add the `module-smoke` job to `ci.yml`, then run `actionlint` if it is available (otherwise
-  say so). Update `docs/releases.md` with the steps (bump the version, merge, tag `issues-vX.Y.Z`, watch the run)
-  and the owner one-time steps from the spec.
+      say so). Update `docs/releases.md` with the steps (bump the version, merge, tag `issues-vX.Y.Z`, watch the run)
+      and the owner one-time steps from the spec.
 - [ ] **Step 4:** Commit `ci: release @poietic-tech/issues from issues-v* tags`.
 
 ### Task 7: Docs, ADR 0028 and the README
 
 **Files:**
+
 - Create: `docs/adr/0028-sso-only-and-the-poietic-tech-module.md` (in the format of ADR 0023), `apps/cli/README.md`
 - Modify:
   - `docs/adr/0023-agent-identities.md`: one "Superseded in part by 0028" line, with nothing rewritten
@@ -367,9 +390,9 @@ The behaviour stays the same. The current CLI keeps passing its tests unchanged.
 - Test: `apps/cli/test/no-trk.test.ts`
 
 - [ ] **Step 1: failing test `no-trk.test.ts`.** It runs `git grep -n -e 'trk_' -e 'POIETIC_ISSUES_TOKEN' -e
-  'poietic-issues token'` (through `execFile`) excluding `docs/adr`, `docs/superpowers` and this test file, and
-  expects no output.
+'poietic-issues token'` (through `execFile`) excluding `docs/adr`, `docs/superpowers` and this test file, and
+      expects no output.
 - [ ] **Step 2:** Write the docs. `apps/cli/README.md` covers exactly what the spec's README bullet lists.
-  `AGENTS.md` swaps `pnpm poietic-issues …` for `pnpm issues-admin …` and mentions `build:module`.
+      `AGENTS.md` swaps `pnpm poietic-issues …` for `pnpm issues-admin …` and mentions `build:module`.
 - [ ] **Step 3:** Run `pnpm check`. Expected: PASS, including `no-trk.test.ts`.
 - [ ] **Step 4:** Commit `docs: SSO-only access and the poietic-tech issues module (ADR 0028)`.

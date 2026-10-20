@@ -15,6 +15,7 @@ config file and its own output and exit-code conventions. The CLI is unpublished
 install it.
 
 The owner's direction:
+
 - Remove the `trk_` concept entirely and put everything behind SSO.
 - Publish the CLI.
 - Align it with the `poietic-tech` style.
@@ -83,6 +84,7 @@ no longer a goal.
 
 The command definitions (issue, comment, link, attachment, project, status, label, field, view, event, webhook,
 user, schema, api, commands, init, whoami) are written once, against a small runtime interface:
+
 - the typed API client;
 - an output sink;
 - the project resolver;
@@ -94,7 +96,7 @@ Two hosts use the tree.
 
 - **package.json:**
   - Not private. Version `0.1.0`. `"files": ["dist", "README.md", "LICENSE"]`.
-  - `"engines": {"node": ">=22.12"}`, the repo's floor. The bundle targets node22 and the release smoke runs on `.nvmrc`. *(Builder's call: the host allows Node 20, but nothing in this repo is tested on 20.)*
+  - `"engines": {"node": ">=22.12"}`, the repo's floor. The bundle targets node22 and the release smoke runs on `.nvmrc`. _(Builder's call: the host allows Node 20, but nothing in this repo is tested on 20.)_
   - `"peerDependencies": {"@poietic-tech/cli": "^0.1.1"}`.
   - The manifest:
     `"poietic-tech": {"command": "issues", "entry": "./dist/poietic-tech.js", "api": 1, "summary": "Issue tracker at issues.poietic.tech"}`.
@@ -104,7 +106,7 @@ Two hosts use the tree.
 - **Entry.** (The host README's example imports `defineModule` at run time. This design deliberately does not.)
   `dist/poietic-tech.js` is built by tsdown and default-exports `{ api: 1, setup }`, typed with a
   type-only import from `@poietic-tech/cli/module`.
-  - *Builder's call:* importing `defineModule` at run time would load a second copy of the host package beside
+  - _Builder's call:_ importing `defineModule` at run time would load a second copy of the host package beside
     the one already running.
 - **No commander at run time.**
   - Every command, subcommand and option is created from the host's objects: `ctx.program.command(...)`,
@@ -143,8 +145,9 @@ Two hosts use the tree.
     - `commands` (its JSON reference, which keeps its existing shape and golden file);
     - `fields describe` (text).
 
-    `ModuleOutput` has no raw or streaming channel, and the module cannot see the chosen format. *(Builder's call.
-    A `ctx.output.raw` in the host is a follow-up.)*
+    `ModuleOutput` has no raw or streaming channel, and the module cannot see the chosen format. _(Builder's call.
+    A `ctx.output.raw` in the host is a follow-up.)_
+
   - JSON shapes follow the host (`{"data": [...]}` for lists). This changes the CLI's old JSON shape, and is
     accepted because the CLI was never published.
   - **Known limitation:** the host's table rendering puts each value on one line, so `issues issue view` shows an
@@ -152,24 +155,24 @@ Two hosts use the tree.
     poietic-dot-tech and does not block this work.
 - **Errors** go through `ctx.fail(code, message, { status })`, mapped by meaning onto the host's table:
 
-  | Issues code | Host code | Exit |
-  |---|---|---|
-  | `VALIDATION_FAILED`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `INVALID_RELATION` | `bad_request` | 2 |
-  | `UNAUTHENTICATED` | `not_logged_in` | 3 |
-  | `NOT_FOUND` | `not_found` | 4 |
-  | `FORBIDDEN`, `PENDING_APPROVAL` | `not_allowed` | 5 |
-  | `CONFLICT`, `VERSION_MISMATCH`, `IDEMPOTENCY_IN_PROGRESS`, `IDEMPOTENCY_KEY_REUSED` | its own lowercased code, status 409 | 2 |
-  | `UNAVAILABLE`, any other 429 or 5xx | `server_error` | 8 |
-  | `INTERNAL` | `internal` | 1 |
-  | Network failure | `network` | 8 |
-  | Module usage errors (no project, bad server) | `bad_usage` | 2 |
-
+  | Issues code                                                                            | Host code                           | Exit |
+  | -------------------------------------------------------------------------------------- | ----------------------------------- | ---- |
+  | `VALIDATION_FAILED`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `INVALID_RELATION` | `bad_request`                       | 2    |
+  | `UNAUTHENTICATED`                                                                      | `not_logged_in`                     | 3    |
+  | `NOT_FOUND`                                                                            | `not_found`                         | 4    |
+  | `FORBIDDEN`, `PENDING_APPROVAL`                                                        | `not_allowed`                       | 5    |
+  | `CONFLICT`, `VERSION_MISMATCH`, `IDEMPOTENCY_IN_PROGRESS`, `IDEMPOTENCY_KEY_REUSED`    | its own lowercased code, status 409 | 2    |
+  | `UNAVAILABLE`, any other 429 or 5xx                                                    | `server_error`                      | 8    |
+  | `INTERNAL`                                                                             | `internal`                          | 1    |
+  | Network failure                                                                        | `network`                           | 8    |
+  | Module usage errors (no project, bad server)                                           | `bad_usage`                         | 2    |
   - The conflict row keeps a distinct machine code (`conflict`, `version_mismatch`, …), so agents can still tell
-    a conflict from a usage error. *Builder's call:* the host has no conflict row, and adding one is a host
+    a conflict from a usage error. _Builder's call:_ the host has no conflict row, and adding one is a host
     change.
   - Field-level errors are appended to the message, one `path: message` per line.
   - Every row has a test, using codes the server actually sends. `RATE_LIMITED` exists in the schema, but no
     code emits it, so it falls under "any other 429".
+
 - **Dropped from the module:**
   - `token`, `auth` and `db` (the module has no database). `serve` moves to the operator tool.
   - The user config file `~/.config/poietic-issues/config.json`: it is ignored, and the docs say to delete it.
