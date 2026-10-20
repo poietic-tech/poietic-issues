@@ -72,7 +72,7 @@ export function toHostError(e: CliError): HostError {
 }
 
 /** The host's exit code for each code the module fails with (the host's `EXIT_ROWS`). */
-const HOST_EXIT: Record<string, number> = {
+export const HOST_EXIT: Record<string, number> = {
   internal: 1,
   bad_usage: 2,
   bad_request: 2,

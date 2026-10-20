@@ -83,7 +83,7 @@ The exit codes are the host's table (`poietic-tech help exit-codes`). The module
 | 1    | Internal error                      | `internal`                                                                                                                        |
 | 2    | Usage, invalid request, or conflict | `bad_usage`, `bad_request`, and the conflicts `conflict`, `version_mismatch`, `idempotency_in_progress`, `idempotency_key_reused` |
 | 3    | Not logged in                       | `not_logged_in`                                                                                                                   |
-| 4    | Not found                           | `not_found`                                                                                                                       |
+| 4    | Not found                           | `not_found`, and the host's `no_such_agent` (`POIETIC_IDENTITY` names an unknown agent)                                           |
 | 5    | Not allowed                         | `not_allowed` (forbidden, or an account pending approval)                                                                         |
 | 8    | Network or server failure           | `network`, `server_error` (including 429 and 5xx)                                                                                 |
 

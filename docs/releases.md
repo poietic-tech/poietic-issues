@@ -41,7 +41,9 @@ access, since it installs `@poietic-tech/cli` from npm.
 2. On npmjs.com, add a trusted publisher: `poietic-tech` / `poietic-issues` /
    `release-issues.yml` / environment `npm`.
 3. In the GitHub repo `poietic-tech/poietic-issues`, create the environment
-   `npm` with the tag rule `issues-v*`.
+   `npm` with the tag rule `issues-v*`, and protect it with required reviewers.
+   Also add a tag ruleset restricting who can create `issues-v*` tags. The
+   guards in the workflow stop mistakes, not malice.
 4. Create the `github-ci` agent, set the org secret `POIETIC_AGENT_TOKEN`, and
    delete the old `POIETIC_ISSUES_*` token secret.
 5. Delete `~/.config/poietic-issues/config.json`. Install the module, and use

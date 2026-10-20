@@ -94,7 +94,7 @@ export function registerInit(parent: Command, tree: Tree): Command {
         if (existsSync(path) && !o.force) throw usage(`${path} exists (use --force to overwrite)`);
         const config = tree.init.entries(o, rt.io.env);
         writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`);
-        rt.out.raw(`Wrote ${path}\n`);
+        rt.out.note(`Wrote ${path}`);
       }),
     );
 }

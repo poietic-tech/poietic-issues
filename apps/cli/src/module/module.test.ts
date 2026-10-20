@@ -291,6 +291,16 @@ describe(`the poietic-tech issues module (${testDialect()})`, () => {
     await expect(failure).rejects.toBe(hostError);
   });
 
+  it('propagates a host-shaped error thrown by caller().fetch itself, with exactly one fetch (no retry)', async () => {
+    const hostError = {
+      code: 'not_logged_in',
+      message: 'Not logged in. Run `poietic-tech login`.',
+    };
+    const h = harness({ fetch: () => Promise.reject(hostError) });
+    await expect(h.run(['issue', 'list'])).rejects.toBe(hostError);
+    expect(h.calls.fetch).toBe(1);
+  });
+
   it('refuses a server that is not https on *.poietic.tech before any credential access (review focus 2)', async () => {
     for (const server of [
       'http://localhost:3000',

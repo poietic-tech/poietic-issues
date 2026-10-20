@@ -24,7 +24,7 @@ export POIETIC_TECH_FORMAT=json                      # machine output everywhere
 
 Create agents with `poietic-tech agents create` (or at auth.poietic.tech/account/agents). On its first request, the server creates the agent as a `kind: agent` member owned by you. You must have signed in to the tracker at least once, and the agent is active when your account is. Like any member, it needs a role on each private project it works in: `poietic-tech issues project members add @agent --role editor -P <KEY>`. Without a membership, a private project returns exit code 4 (not found), and a public one is read-only. See [ADR 0021](adr/0021-project-visibility-and-roles.md) and [ADR 0023](adr/0023-agent-identities.md).
 
-`poietic-tech issues whoami` shows the tracker account in effect (handle, role, kind, owner, project access). Without a login the module reads as anonymous: public projects can be read, private projects are not found, and writes fail with exit code 3 (not logged in). A missing login therefore looks like missing access, so check `whoami` first. A token that is invalid, expired or revoked is rejected outright. A revoked or expired `POIETIC_AGENT_TOKEN` is a login failure (exit 3). A token with invalid characters (spaces, a newline) is an internal error (exit 1).
+`poietic-tech issues whoami` shows the tracker account in effect (handle, role, kind, owner, project access). Every command, reads included, needs a login: with none (no `poietic-tech login` session, no `POIETIC_AGENT_TOKEN`), the host fails the request with exit code 3 (not logged in) before anything reaches the server, so run `whoami` first to see which account is in effect. A token that is invalid, expired or revoked is rejected outright. A revoked or expired `POIETIC_AGENT_TOKEN` is a login failure (exit 3). A `POIETIC_AGENT_TOKEN` with an interior newline is an internal error (exit 1); surrounding whitespace is trimmed.
 
 The server is `https://issues.poietic.tech` unless `POIETIC_ISSUES_SERVER` or the `server` in `.poietic-issues.json` says otherwise. It must be https on a `*.poietic.tech` host, because that is the only place the identity token may be sent.
 
@@ -91,11 +91,11 @@ poietic-tech issues issue edit ENG-42 --status "In Review"
 
 Branch on the exit code (`poietic-tech help exit-codes`), not the message text. Conflicts keep a distinct machine code at exit 2, so tell them apart with `--json` (the error's `code`):
 
-| Exit | Do                                                                                                                                           |
-| ---- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2    | `bad_request` or `bad_usage`: fix the input (the message lists `path: message` lines). Don't retry unchanged.                                |
-| 2    | `version_mismatch` or `conflict`: someone else changed it, or it already exists. Refetch, re-decide, retry. `idempotency_*` is a client bug. |
-| 3    | Not logged in: run `poietic-tech login`, or set `POIETIC_IDENTITY` / `POIETIC_AGENT_TOKEN`. Stop and report in a harness.                    |
-| 4    | The reference is wrong, or the project is private and you are not a member; list or search to find the right one.                            |
-| 5    | Permissions (`not_allowed`, or the agent is pending approval). Stop and report.                                                              |
-| 8    | Transient (network, server down). Retrying later is safe: mutations carry an idempotency key.                                                |
+| Exit | Do                                                                                                                                                                                             |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2    | `bad_request` or `bad_usage`: fix the input (the message lists `path: message` lines). Don't retry unchanged.                                                                                  |
+| 2    | `version_mismatch` or `conflict`: someone else changed it, or it already exists. Refetch, re-decide, retry. `idempotency_*` is a client bug.                                                   |
+| 3    | Not logged in: run `poietic-tech login`, or set `POIETIC_IDENTITY` / `POIETIC_AGENT_TOKEN`. Stop and report in a harness.                                                                      |
+| 4    | The reference is wrong, or the project is private and you are not a member; list or search to find the right one. Also `no_such_agent`: `POIETIC_IDENTITY` names an agent that does not exist. |
+| 5    | Permissions (`not_allowed`, or the agent is pending approval). Stop and report.                                                                                                                |
+| 8    | Transient (network, server down). Retrying later is safe: mutations carry an idempotency key.                                                                                                  |

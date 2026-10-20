@@ -96,10 +96,10 @@ So an operator who runs `poietic-issues-admin issue create` against the same dat
 Webhooks push events to other services. They are managed by admins: through the web app (**Workspace → Webhooks**), `poietic-tech issues webhook …`, or the API (`/webhooks`).
 
 ```sh
-poietic-issues webhook create https://ci.example.com/hooks/tracker --events 'issue.*,comment.created' --scope ENG
-poietic-issues webhook test whk_…          # sends a signed webhook.ping now
-poietic-issues webhook deliveries whk_…    # the delivery log, newest first
-poietic-issues webhook redeliver whd_…
+poietic-tech issues webhook create https://ci.example.com/hooks/tracker --events 'issue.*,comment.created' --scope ENG
+poietic-tech issues webhook test whk_…          # sends a signed webhook.ping now
+poietic-tech issues webhook deliveries whk_…    # the delivery log, newest first
+poietic-tech issues webhook redeliver whd_…
 ```
 
 **Subscriptions.**

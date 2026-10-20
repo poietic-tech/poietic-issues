@@ -4,7 +4,7 @@ import { newId, type User } from '@poietic-tech/issues-schema';
 import { conflict } from '../errors.ts';
 import { createUserUnchecked } from './users.ts';
 
-/** Built-in link types. Keys are part of the API contract (`poietic-issues link add ENG-1 blocks ENG-2`). */
+/** Built-in link types. Keys are part of the API contract (`poietic-tech issues link add ENG-1 blocks ENG-2`). */
 export const BUILTIN_LINK_TYPES = [
   { key: 'blocks', name: 'Blocks', outward: 'blocks', inward: 'is blocked by', symmetric: false },
   { key: 'relates', name: 'Relates', outward: 'relates to', inward: 'relates to', symmetric: true },

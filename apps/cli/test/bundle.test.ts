@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { run } from '@poietic-tech/cli';
+import { HOST_EXIT, MODULE_REFERENCE } from '../src/module/errors.ts';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 // The published module: dist/poietic-tech.js, built by `pnpm --filter @poietic-tech/issues build:module`.
@@ -51,6 +52,43 @@ describe('the built module', () => {
     for (const field of ['dependencies', 'peerDependencies'])
       for (const spec of Object.values((pkg[field] ?? {}) as Record<string, string>))
         expect(spec).not.toMatch(/^(workspace|file):/);
+  });
+
+  it('claims exit codes that match the real host table', async () => {
+    const claimed = MODULE_REFERENCE.exitCodes as Record<string, string>;
+    let out = '';
+    const code = await run(['help', 'exit-codes'], {
+      stdout: (c) => (out += c),
+      stderr: () => {},
+      env: { HOME: temp, XDG_CONFIG_HOME: join(temp, 'config') },
+      cwd: temp,
+      stdoutIsTTY: false,
+      stderrIsTTY: false,
+      now: () => Date.now(),
+      sleep: async () => {},
+      openBrowser: () => {},
+      signal: new AbortController().signal,
+      hostname: 'test',
+      platform: 'linux',
+      hostDir: join(temp, 'node_modules', '@poietic-tech', 'cli'),
+      execPath: join(temp, 'bin', 'node'),
+    });
+    expect(code).toBe(0);
+    const rows = new Map<number, string[]>();
+    for (const line of out.split('\n')) {
+      const m = /^(\d+)\s+.*?(?:\(([^)]*)\))?$/.exec(line.trim());
+      if (m)
+        rows.set(
+          Number(m[1]),
+          (m[2] ?? '')
+            .split(',')
+            .map((c) => c.trim())
+            .filter(Boolean),
+        );
+    }
+    // Every exit code the module documents exists in the host, and every code it maps lands where the host puts it.
+    for (const exit of Object.keys(claimed)) expect(rows.has(Number(exit))).toBe(true);
+    for (const [code, exit] of Object.entries(HOST_EXIT)) expect(rows.get(exit)).toContain(code);
   });
 
   it('is discovered, loaded and run by the real poietic-tech host', async () => {
