@@ -45,12 +45,16 @@ export type Problem = Schemas['Problem'];
 export class ApiError extends Error {
   readonly status: number;
   readonly problem: Problem;
+  /** False when the answer was not a problem document (a proxy's HTML page, say): `problem` is made up from
+   *  the status, so only the status is the server's word. */
+  readonly isProblem: boolean;
 
-  constructor(problem: Problem) {
+  constructor(problem: Problem, opts: { isProblem?: boolean } = {}) {
     super(problem.detail ?? problem.title);
     this.name = 'ApiError';
     this.status = problem.status;
     this.problem = problem;
+    this.isProblem = opts.isProblem ?? true;
   }
 
   get code(): Problem['code'] {
@@ -72,16 +76,19 @@ export function toApiError(error: unknown, response: Response): ApiError {
   if (body && typeof body === 'object' && typeof body.code === 'string')
     return new ApiError(body as Problem);
   const status = response.status;
-  return new ApiError({
-    type: 'urn:tracker:error:INTERNAL',
-    title: response.statusText || 'Request failed',
-    status,
-    code:
-      status >= 500
-        ? status === 503 || status === 502
-          ? 'UNAVAILABLE'
-          : 'INTERNAL'
-        : 'VALIDATION_FAILED',
-    detail: typeof error === 'string' ? error.slice(0, 500) : `HTTP ${status}`,
-  });
+  return new ApiError(
+    {
+      type: 'urn:tracker:error:INTERNAL',
+      title: response.statusText || 'Request failed',
+      status,
+      code:
+        status >= 500
+          ? status === 503 || status === 502
+            ? 'UNAVAILABLE'
+            : 'INTERNAL'
+          : 'VALIDATION_FAILED',
+      detail: typeof error === 'string' ? error.slice(0, 500) : `HTTP ${status}`,
+    },
+    { isProblem: false },
+  );
 }

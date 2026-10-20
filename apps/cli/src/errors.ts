@@ -24,12 +24,14 @@ export class CliError extends Error {
   readonly status: number | undefined;
   /** No answer came: the server could not be reached. */
   readonly network: boolean;
+  /** The server answered, but not with a problem document: only `status` is its word, not `code`. */
+  readonly bare: boolean;
 
   constructor(
     code: ErrorCode,
     message: string,
     errors?: Array<{ path: string; message: string }>,
-    opts: { status?: number; network?: boolean } = {},
+    opts: { status?: number; network?: boolean; bare?: boolean } = {},
   ) {
     super(message);
     this.code = code;
@@ -37,6 +39,7 @@ export class CliError extends Error {
     this.errors = errors;
     this.status = opts.status;
     this.network = opts.network ?? false;
+    this.bare = opts.bare ?? false;
   }
 }
 
@@ -65,7 +68,10 @@ export function usage(message: string): CliError {
 export function toCliError(error: unknown): CliError {
   if (error instanceof CliError) return error;
   if (error instanceof ApiError)
-    return new CliError(error.code, error.message, error.problem.errors, { status: error.status });
+    return new CliError(error.code, error.message, error.problem.errors, {
+      status: error.status,
+      bare: !error.isProblem,
+    });
   const e = error as { code?: string; cause?: { code?: string }; message?: string; name?: string };
   if (typeof e?.code === 'string' && Object.hasOwn(ERROR_CODES, e.code))
     return new CliError(e.code as ErrorCode, e.message ?? String(error));

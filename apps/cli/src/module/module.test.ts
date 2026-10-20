@@ -236,6 +236,35 @@ describe(`the poietic-tech issues module (${testDialect()})`, () => {
       });
     });
 
+    it.each([
+      [429, 'server_error'],
+      [500, 'server_error'],
+      [502, 'server_error'],
+      [504, 'server_error'],
+      [401, 'not_logged_in'],
+      [403, 'not_allowed'],
+      [404, 'not_found'],
+      [400, 'bad_request'],
+      [418, 'bad_request'],
+    ])('an answer that is not a problem document maps by status: %i → %s', async (code, host) => {
+      const fetch = async () =>
+        new Response('<html>Rate limited</html>', {
+          status: code,
+          headers: { 'content-type': 'text/html' },
+        });
+      await expect(harness({ fetch }).run(['issue', 'list'])).rejects.toMatchObject({
+        code: host,
+        status: code,
+      });
+    });
+
+    it('a real INTERNAL problem (500) stays internal', async () => {
+      const fetch = async () => problem(500, 'INTERNAL', 'Internal error');
+      await expect(harness({ fetch }).run(['issue', 'list'])).rejects.toMatchObject({
+        code: 'internal',
+      });
+    });
+
     it('a network failure → network', async () => {
       const fetch = async (): Promise<Response> => {
         throw new TypeError('fetch failed');

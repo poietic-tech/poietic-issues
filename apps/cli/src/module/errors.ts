@@ -34,6 +34,16 @@ const BY_CODE: Partial<Record<ErrorCode, string>> = {
 const isServerFailure = (status: number | undefined) =>
   status !== undefined && (status === 429 || status >= 500);
 
+/** The host code a bare HTTP status stands for (as the host's own `codeByStatus`). */
+function codeByStatus(status: number): string {
+  if (status === 401) return 'not_logged_in';
+  if (status === 403) return 'not_allowed';
+  if (status === 404) return 'not_found';
+  if (isServerFailure(status)) return 'server_error';
+  if (status >= 400 && status < 500) return 'bad_request';
+  return 'internal';
+}
+
 /**
  * Maps a CLI error onto the host's exit-code table:
  *
@@ -41,7 +51,9 @@ const isServerFailure = (status: number | undefined) =>
  * - the CLI's own usage errors (no project, a bad server, a bad flag) are `bad_usage`, the server's validation
  *   failures `bad_request`;
  * - conflicts keep a distinct code (`version_mismatch`, …) with status 409;
- * - `UNAVAILABLE`, and any other 429 or 5xx answer, is `server_error`.
+ * - `UNAVAILABLE`, and any other 429 or 5xx answer, is `server_error`;
+ * - an answer that is not a problem document maps by its status alone (401, 403, 404, 429 and 5xx as the host
+ *   maps them, any other 4xx `bad_request`).
  *
  * Field errors are appended to the message, one `path: message` per line.
  */
@@ -51,15 +63,9 @@ export function toHostError(e: CliError): HostError {
   if (e.network) return { code: 'network', message };
   if (e.code === 'VALIDATION_FAILED' && e.status === undefined)
     return { code: 'bad_usage', message };
+  // An answer that is not a problem document (a proxy's HTML 429, say) is judged by its status alone.
+  if (e.bare && e.status !== undefined) return { code: codeByStatus(e.status), message, ...status };
   if (CONFLICTS.has(e.code)) return { code: e.code.toLowerCase(), message, status: 409 };
-  // A 5xx other than a server's own INTERNAL (a proxy's 504, say) is the server failing, not this CLI.
-  if (
-    e.code === 'INTERNAL' &&
-    e.status !== undefined &&
-    e.status !== 500 &&
-    isServerFailure(e.status)
-  )
-    return { code: 'server_error', message, ...status };
   const named = BY_CODE[e.code];
   if (named) return { code: named, message, ...status };
   return { code: isServerFailure(e.status) ? 'server_error' : 'internal', message, ...status };
