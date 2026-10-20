@@ -8,7 +8,6 @@ import {
   CreateLinkInputSchema,
   CreateProjectInputSchema,
   CreateViewInputSchema,
-  ERROR_CODES,
   EventSchema,
   inputSchema,
   IssueFilterSchema,
@@ -23,9 +22,9 @@ import {
 import type { Command, Option } from 'commander';
 import { z } from 'zod';
 import { PROJECT_CONFIG_FILE } from '../config.ts';
-import { CliError, EXIT_CODES, usage } from '../errors.ts';
+import { CliError, usage } from '../errors.ts';
 import { actWithGlobals, keyValues, readJsonArg } from '../tree/args.ts';
-import type { Tree } from '../tree/runtime.ts';
+import type { Reference, Tree } from '../tree/runtime.ts';
 
 /** Schemas exposed by the `schema <name>` command (JSON Schema, draft 2020-12). */
 const SCHEMAS: Record<string, { schema: z.ZodType; io: 'input' | 'output' }> = {
@@ -63,7 +62,7 @@ export function signedIn(me: Schemas['Me'], commandName: string): Schemas['User'
   if ('anonymous' in me)
     throw new CliError(
       'UNAUTHENTICATED',
-      `Not signed in: the server answered ${commandName} as an anonymous visitor`,
+      `Not signed in: the server answered \`${commandName} whoami\` as it answers an anonymous visitor`,
     );
   return me;
 }
@@ -87,19 +86,13 @@ export function registerWhoami(parent: Command, tree: Tree): Command {
 export function registerInit(parent: Command, tree: Tree): Command {
   return parent
     .command('init')
-    .description(
-      `Write ${PROJECT_CONFIG_FILE} here from the global options given (server or database, project, actor; never tokens)`,
-    )
+    .description(`Write ${PROJECT_CONFIG_FILE} here: ${tree.init.describe} (never tokens)`)
     .option('--force', 'overwrite an existing file')
     .action(
       actWithGlobals(tree, async (rt, _a, _o, o) => {
         const path = join(rt.io.cwd, PROJECT_CONFIG_FILE);
         if (existsSync(path) && !o.force) throw usage(`${path} exists (use --force to overwrite)`);
-        const config = Object.fromEntries(
-          (['server', 'database', 'project', 'actor'] as const)
-            .filter((k) => o[k] !== undefined)
-            .map((k) => [k, o[k]]),
-        );
+        const config = tree.init.entries(o, rt.io.env);
         writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`);
         rt.out.raw(`Wrote ${path}\n`);
       }),
@@ -202,13 +195,13 @@ function describeOption(opt: Option) {
 }
 
 /** Flattened description of every leaf command — the agent's one-call map of the CLI. */
-export function describeCommands(program: Command): {
+export function describeCommands(
+  program: Command,
+  reference: Reference,
+): {
   commands: CommandInfo[];
   globalOptions: ReturnType<typeof describeOption>[];
-  exitCodes: typeof EXIT_CODES;
-  errorCodes: Record<string, { status: number; exit: number }>;
-  environment: Record<string, string>;
-} {
+} & Reference {
   const commands: CommandInfo[] = [];
   const walk = (cmd: Command, prefix: string[]) => {
     for (const sub of cmd.commands) {
@@ -233,36 +226,23 @@ export function describeCommands(program: Command): {
   return {
     commands,
     globalOptions: program.options.map(describeOption),
-    exitCodes: EXIT_CODES,
-    errorCodes: Object.fromEntries(
-      Object.entries(ERROR_CODES).map(([k, v]) => [k, { status: v.status, exit: v.exit }]),
-    ),
-    environment: {
-      POIETIC_ISSUES_DATABASE_URL: 'Database URL, e.g. sqlite:./data/dev.db',
-      POIETIC_ISSUES_ACTOR: 'User handle to act as',
-      POIETIC_ISSUES_PROJECT: 'Default project key',
-      POIETIC_ISSUES_FORMAT: 'Default output format: table|json|ndjson|ids',
-      POIETIC_ISSUES_FIELDS: 'Default --fields projection',
-    },
+    ...reference,
   };
 }
 
-/** `commands`: describes `root()` (the command tree it is registered in, with its global options). */
+/**
+ * `commands`: describes `root()` (the command tree it is registered in, with its global options) as JSON,
+ * whatever the output format: the host owns the format, and this reference has one shape.
+ */
 export function registerCommands(parent: Command, tree: Tree, root: () => Command): Command {
+  const reference = tree.reference;
+  if (!reference) throw new Error('The `commands` command needs the tree’s reference');
   return parent
     .command('commands')
-    .description('Describe every command, option, exit code and error code (use --json for agents)')
+    .description('Describe every command, option, exit code and error code as JSON (for agents)')
     .action(
-      actWithGlobals(tree, async (rt, _a, _o, flags) => {
-        const info = describeCommands(root());
-        if (flags.json || flags.format === 'json' || rt.io.env.POIETIC_ISSUES_FORMAT === 'json') {
-          rt.out.raw(`${JSON.stringify(info, null, 2)}\n`);
-          return;
-        }
-        const width = Math.max(...info.commands.map((c) => c.name.length));
-        rt.out.raw(
-          `${info.commands.map((c) => `${c.name.padEnd(width)}  ${c.description}`).join('\n')}\n`,
-        );
+      tree.act(async (rt) => {
+        rt.out.raw(`${JSON.stringify(describeCommands(root(), reference), null, 2)}\n`);
       }),
     );
 }

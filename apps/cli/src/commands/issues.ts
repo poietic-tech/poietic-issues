@@ -51,7 +51,7 @@ function issueFieldOptions(cmd: Command, mode: 'create' | 'edit'): Command {
       .option('--remove-label <labels>', 'remove labels', collect)
       .option(
         '--if-version <n>',
-        'fail with exit 4 unless the issue is at this version',
+        'fail with a version_mismatch conflict unless the issue is at this version',
         parseIntStrict('--if-version'),
       );
   return cmd;

@@ -18,10 +18,11 @@ export type Kind =
   | 'view'
   | 'user'
   | 'event'
+  | 'field'
   | 'raw';
 
 export type Row = Record<string, unknown>;
-type Column = [header: string, get: (row: Row) => unknown];
+export type Column = [header: string, get: (row: Row) => unknown];
 
 const PRIORITY = ['—', 'Urgent', 'High', 'Medium', 'Low'];
 
@@ -34,7 +35,8 @@ const date = (v: unknown) => (typeof v === 'string' ? v.slice(0, 10) : '—');
 const names = (v: unknown) =>
   ((v as Array<{ name: string }> | undefined) ?? []).map((l) => l.name).join(', ') || '—';
 
-const COLUMNS: Record<Exclude<Kind, 'raw'>, Column[]> = {
+/** The table columns of each kind of resource. */
+export const COLUMNS: Record<Exclude<Kind, 'raw'>, Column[]> = {
   issue: [
     ['KEY', (r) => r.key],
     ['STATUS', (r) => (r.status as { name: string }).name],
@@ -137,6 +139,19 @@ const COLUMNS: Record<Exclude<Kind, 'raw'>, Column[]> = {
     ['SUBJECT', (r) => eventSubject(r)],
     ['AT', (r) => String(r.createdAt).replace('T', ' ').slice(0, 19)],
   ],
+  field: [
+    ['KEY', (r) => r.key],
+    ['NAME', (r) => r.name],
+    ['TYPE', (r) => r.type],
+    [
+      'OPTIONS',
+      (r) =>
+        ((r.options as Array<{ value: string; archivedAt: string | null }> | undefined) ?? [])
+          .map((o) => `${o.value}${o.archivedAt ? ' (archived)' : ''}`)
+          .join(', '),
+    ],
+    ['ARCHIVED', (r) => (r.archivedAt ? date(r.archivedAt) : '')],
+  ],
 };
 
 function eventSubject(e: Row): string {
@@ -155,8 +170,9 @@ function eventSubject(e: Row): string {
   return data.project?.key ?? data.status?.name ?? data.label?.name ?? data.user?.handle ?? '';
 }
 
-function identifier(kind: Kind, row: Row): string {
-  if (kind === 'issue' || kind === 'project' || kind === 'linkType')
+/** What a row stands for in the ids format: an issue's key, an event's seq, a member's handle, else its id. */
+export function identifier(kind: Kind, row: Row): string {
+  if (kind === 'issue' || kind === 'project' || kind === 'linkType' || kind === 'field')
     return String(row.key ?? row.id);
   if (kind === 'event') return String(row.seq);
   if (kind === 'member') return String((row.user as { handle: string }).handle);
@@ -244,8 +260,12 @@ export class Output {
     }
   }
 
-  /** A list of resources (a page object or a plain array). */
-  list(kind: Kind, value: unknown[] | { data: unknown[]; nextCursor?: string | null }): void {
+  /** A list of resources (a page object or a plain array); `human` renders a non-empty table instead. */
+  list(
+    kind: Kind,
+    value: unknown[] | { data: unknown[]; nextCursor?: string | null },
+    human?: (rows: Row[]) => string,
+  ): void {
     const page = Array.isArray(value) ? { data: value, nextCursor: null } : value;
     const rows = page.data as Row[];
     switch (this.format) {
@@ -268,6 +288,7 @@ export class Output {
         return this.write(rows.map((r) => identifier(kind, r)).join('\n'));
       case 'table': {
         if (rows.length === 0) return this.#io.stderr('No results.\n');
+        if (human && !this.#fields?.length) return this.write(human(rows));
         const columns: Column[] = this.#fields?.length
           ? this.#fields.map((f) => [f.toUpperCase(), (r: Row) => project(kind, r, [f])[f]])
           : kind === 'raw'

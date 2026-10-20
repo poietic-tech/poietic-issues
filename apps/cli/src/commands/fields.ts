@@ -55,11 +55,7 @@ export function registerField(parent: Command, tree: Tree): Command {
             }),
           )
         ).data;
-        if (rt.out.format === 'table') {
-          if (!fields.length) return rt.io.stderr('No custom fields.\n');
-          return rt.out.raw(fields.map(describe).join(''));
-        }
-        rt.out.list('raw', fields);
+        rt.out.list('field', fields, (rows) => (rows as Field[]).map(describe).join(''));
       }),
     );
   cmd
@@ -98,7 +94,7 @@ export function registerField(parent: Command, tree: Tree): Command {
             body,
           }),
         );
-        rt.out.item('raw', field, () => describe(field));
+        rt.out.item('field', field, () => describe(field));
       }),
     );
   cmd
@@ -124,7 +120,7 @@ export function registerField(parent: Command, tree: Tree): Command {
         const updated = await rt.call(
           api.PATCH('/fields/{id}', { params: { path: { id: field.id } }, body }),
         );
-        rt.out.item('raw', updated, () => describe(updated));
+        rt.out.item('field', updated, () => describe(updated));
       }),
     );
   cmd
@@ -158,7 +154,7 @@ export function registerField(parent: Command, tree: Tree): Command {
               body: { value, ...(o.color !== undefined && { color: String(o.color) }) },
             }),
           );
-        rt.out.item('raw', field, () => describe(field));
+        rt.out.item('field', field, () => describe(field));
       }),
     );
   cmd
@@ -185,7 +181,7 @@ export function registerField(parent: Command, tree: Tree): Command {
         const updated = await rt.call(
           api.PATCH('/field-options/{id}', { params: { path: { id: option.id } }, body }),
         );
-        rt.out.item('raw', updated, () => describe(updated));
+        rt.out.item('field', updated, () => describe(updated));
       }),
     );
   return cmd;

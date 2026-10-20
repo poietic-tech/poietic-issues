@@ -20,7 +20,7 @@ export function buildProgram(io: CliIO): Command {
       'Operator tool for poietic-issues: the command tree over a local database (trusted mode), plus db and\n' +
         'serve. Never published; remote callers use `poietic-tech issues`.\n\n' +
         'Machine use: add --json (or set POIETIC_ISSUES_FORMAT=json); errors go to stderr as problem JSON with stable\n' +
-        `codes; exit codes are documented (\`${ADMIN_NAME} commands --json\`). Nothing ever prompts.`,
+        'codes; exit codes are documented in docs/cli.md. Nothing ever prompts.',
     )
     .version(CLI_VERSION, '-V, --version')
     .addOption(
@@ -75,7 +75,7 @@ export function buildProgram(io: CliIO): Command {
   registerTree(program, tree, ['whoami', 'init']);
   program.addCommand(dbCommand(io));
   program.addCommand(serveCommand(io));
-  registerTree(program, tree, ['schema', 'api', 'commands']);
+  registerTree(program, tree, ['schema', 'api']);
   for (const cmd of program.commands) configureRecursively(cmd, io);
   return program;
 }

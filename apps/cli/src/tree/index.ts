@@ -24,7 +24,7 @@ import {
 import { registerWebhook } from '../commands/webhooks.ts';
 import type { Tree } from './runtime.ts';
 
-export type { CommandRuntime, Sink, Tree } from './runtime.ts';
+export type { CommandRuntime, Reference, Sink, Tree } from './runtime.ts';
 
 /** The record commands, in help order. */
 const RECORD_COMMANDS = {
@@ -49,16 +49,17 @@ const RECORD_COMMANDS = {
 export type TreeCommand = keyof typeof RECORD_COMMANDS | 'commands';
 
 /**
- * Registers the command tree onto `parent`, a commander command owned by the host (the `poietic-issues` root
+ * Registers the command tree onto `parent`, a commander command owned by the host (the `poietic-issues-admin` root
  * or a host CLI's `issues` command). Every command is created through `parent`'s own commander objects.
  *
  * `only` names the commands to register, in that order (default: every record command). `commands`, the
- * machine reference that describes `parent` and everything under it, is registered only when named.
+ * machine reference that describes `parent` and everything under it, is registered only when named, and needs
+ * the tree's `reference`.
  */
 export function registerTree(parent: Command, tree: Tree, only?: readonly string[]): void {
   for (const name of only ?? Object.keys(RECORD_COMMANDS)) {
     if (name === 'commands') registerCommands(parent, tree, () => parent);
-    else if (name in RECORD_COMMANDS)
+    else if (Object.hasOwn(RECORD_COMMANDS, name))
       RECORD_COMMANDS[name as keyof typeof RECORD_COMMANDS](parent, tree);
     else throw new Error(`Unknown command "${name}"`);
   }

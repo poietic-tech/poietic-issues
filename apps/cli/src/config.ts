@@ -9,10 +9,11 @@ export const PROJECT_CONFIG_FILE = '.poietic-issues.json';
 const LEGACY_PROJECT_CONFIG_FILE = '.tracker.json';
 
 /**
- * Per-directory config (commit it): which database, default project and actor. Never holds tokens. Other keys
- * (such as a remote host's `server`) are ignored here.
+ * Per-directory config (commit it): the default project, the issues server (the module) or the database and
+ * actor (the operator tool). Never holds tokens. Each host ignores the keys it has no use for.
  */
 const ProjectConfigSchema = z.object({
+  server: z.string().optional(),
   database: z.string().optional(),
   project: z.string().optional(),
   actor: z.string().optional(),

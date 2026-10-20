@@ -28,11 +28,10 @@ export class Runtime implements CommandRuntime {
     }
     const output = () => (this.#output ??= new Output(io, this.config.format, this.config.fields));
     this.out = {
-      get format() {
-        return output().format;
-      },
       item: (kind, value, human) => output().item(kind, value, human),
-      list: (kind, value) => output().list(kind, value),
+      list: (kind, value, human) => output().list(kind, value, human),
+      // The secret is a field of the resource, so the resource prints as any other, the human form naming it.
+      secret: (kind, value, secret) => output().item(kind, value, secret.human),
       note: (text) => output().note(text),
       raw: (text) => io.stdout(text),
       rawBytes: (bytes) =>
@@ -90,5 +89,17 @@ export function makeAction(io: CliIO, handler: Handler, commandName?: string) {
 
 /** The command tree as the `poietic-issues-admin` operator tool hosts it: each action builds a local {@link Runtime}. */
 export function adminTree(io: CliIO, commandName = 'poietic-issues-admin'): Tree {
-  return { commandName, act: (handler) => makeAction(io, handler, commandName) };
+  return {
+    commandName,
+    act: (handler) => makeAction(io, handler, commandName),
+    init: {
+      describe: 'the --database, --project and --actor given',
+      entries: (globals) =>
+        Object.fromEntries(
+          (['database', 'project', 'actor'] as const)
+            .filter((k) => globals[k] !== undefined)
+            .map((k) => [k, globals[k]]),
+        ),
+    },
+  };
 }

@@ -11,8 +11,8 @@ import { testDialect } from '@poietic-tech/issues-db/testing';
 import { createApp } from '@poietic-tech/issues-server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { CliIO } from './io.ts';
-import { renderCliReference } from './reference.ts';
-import { run } from './admin.ts';
+import type { Command } from 'commander';
+import { buildProgram, run } from './admin.ts';
 
 let t: TestContext;
 let appFetch: (r: Request) => Promise<Response>;
@@ -41,6 +41,18 @@ async function cli(
   };
   const code = await run(args, io);
   return { code, stdout, stderr, json: () => JSON.parse(stdout) };
+}
+
+/** An IO that writes nowhere, for building the program without running it. */
+function processLessIO(): CliIO {
+  return {
+    stdout: () => {},
+    stderr: () => {},
+    env: {},
+    cwd: dir,
+    readStdin: async () => '',
+    isTTY: false,
+  };
 }
 
 beforeAll(async () => {
@@ -226,29 +238,25 @@ describe(`tracker CLI (${testDialect()})`, () => {
     expect(history.json().data.map((e: { type: string }) => e.type)).toContain('comment.created');
   });
 
-  it('describes itself for agents', async () => {
-    const res = await cli(['commands', '--json']);
-    const info = res.json();
-    const names = info.commands.map((c: { name: string }) => c.name);
-    expect(names).toEqual(
-      expect.arrayContaining([
-        'issue create',
-        'issue list',
-        'link add',
-        'event tail',
-        'schema',
-        'api',
-      ]),
-    );
-    expect(info.exitCodes['3']).toBe('Not found');
-    expect(info.errorCodes.VERSION_MISMATCH).toEqual({ status: 412, exit: 4 });
-    // Golden file: changes to the command surface must be deliberate (update with `vitest -u`).
-    await expect(`${JSON.stringify(info, null, 2)}\n`).toMatchFileSnapshot(
-      '../test/commands.golden.json',
-    );
-    // The CLI reference in docs/ is generated from the same description (update with `vitest -u`).
-    await expect(renderCliReference(info)).toMatchFileSnapshot('../../../docs/cli-reference.md');
+  it('never shadows a global option in a subcommand (commander would swallow it)', () => {
+    const program = buildProgram({ ...processLessIO(), env: {} });
+    const flags = (s: string) => s.split(/[ ,|]+/).filter((f) => f.startsWith('-'));
+    const globals = new Set(program.options.flatMap((o) => flags(o.flags)));
+    const clashes: string[] = [];
+    const walk = (cmd: Command, path: string[]) => {
+      for (const sub of cmd.commands) {
+        const name = [...path, sub.name()];
+        for (const o of sub.options)
+          for (const f of flags(o.flags))
+            if (globals.has(f)) clashes.push(`${name.join(' ')} ${f}`);
+        walk(sub, name);
+      }
+    };
+    walk(program, []);
+    expect(clashes).toEqual([]);
+  });
 
+  it('prints schemas and help', async () => {
     const schema = await cli(['schema', 'issue-create']);
     expect(JSON.parse(schema.stdout).required).toEqual(['title']);
     const live = await cli(['project', 'schema']);
@@ -256,23 +264,6 @@ describe(`tracker CLI (${testDialect()})`, () => {
     const help = await cli(['issue', 'create', '--help']);
     expect(help.code).toBe(0);
     expect(help.stdout).toContain('--body-file <path>');
-  });
-
-  it('never shadows a global option in a subcommand (commander would swallow it)', async () => {
-    const info = (await cli(['commands', '--json'])).json();
-    const globals = new Set(
-      info.globalOptions.flatMap((o: { flags: string }) =>
-        o.flags.split(/[ ,|]+/).filter((f: string) => f.startsWith('-')),
-      ),
-    );
-    for (const command of info.commands)
-      for (const option of command.options)
-        for (const flag of option.flags.split(/[ ,|]+/).filter((f: string) => f.startsWith('-')))
-          expect({ command: command.name, flag, clash: globals.has(flag) }).toEqual({
-            command: command.name,
-            flag,
-            clash: false,
-          });
   });
 
   it('defines custom fields and sets/filters them', async () => {

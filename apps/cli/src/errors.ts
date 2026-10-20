@@ -20,13 +20,41 @@ export class CliError extends Error {
   readonly code: ErrorCode;
   readonly exitCode: number;
   readonly errors: Array<{ path: string; message: string }> | undefined;
+  /** The HTTP status of the server's answer; absent for an error the CLI raised itself. */
+  readonly status: number | undefined;
+  /** No answer came: the server could not be reached. */
+  readonly network: boolean;
 
-  constructor(code: ErrorCode, message: string, errors?: Array<{ path: string; message: string }>) {
+  constructor(
+    code: ErrorCode,
+    message: string,
+    errors?: Array<{ path: string; message: string }>,
+    opts: { status?: number; network?: boolean } = {},
+  ) {
     super(message);
     this.code = code;
     this.exitCode = ERROR_CODES[code].exit;
     this.errors = errors;
+    this.status = opts.status;
+    this.network = opts.network ?? false;
   }
+}
+
+const NETWORK_CODES = ['ECONNREFUSED', 'ENOTFOUND', 'ECONNRESET', 'ETIMEDOUT'];
+
+/** A failure to reach the server at all (no response), as fetch reports one. */
+export function isNetworkError(error: unknown): boolean {
+  const e = error as {
+    code?: unknown;
+    cause?: { code?: unknown };
+    message?: unknown;
+    name?: unknown;
+  };
+  if (e === null || typeof e !== 'object') return false;
+  if (e.name === 'TypeError' && typeof e.message === 'string' && /fetch failed/i.test(e.message))
+    return true;
+  const code = e.cause?.code ?? e.code;
+  return typeof code === 'string' && NETWORK_CODES.includes(code);
 }
 
 export function usage(message: string): CliError {
@@ -37,14 +65,18 @@ export function usage(message: string): CliError {
 export function toCliError(error: unknown): CliError {
   if (error instanceof CliError) return error;
   if (error instanceof ApiError)
-    return new CliError(error.code, error.message, error.problem.errors);
+    return new CliError(error.code, error.message, error.problem.errors, { status: error.status });
   const e = error as { code?: string; cause?: { code?: string }; message?: string; name?: string };
-  if (typeof e?.code === 'string' && e.code in ERROR_CODES)
+  if (typeof e?.code === 'string' && Object.hasOwn(ERROR_CODES, e.code))
     return new CliError(e.code as ErrorCode, e.message ?? String(error));
-  const netCode = e?.cause?.code ?? e?.code;
-  if (e?.name === 'TypeError' && /fetch failed/i.test(e.message ?? ''))
-    return new CliError('UNAVAILABLE', `Cannot reach the server (${netCode ?? 'network error'})`);
-  if (netCode && ['ECONNREFUSED', 'ENOTFOUND', 'ECONNRESET', 'ETIMEDOUT'].includes(netCode))
-    return new CliError('UNAVAILABLE', `Cannot reach the server (${netCode})`);
+  if (isNetworkError(error)) {
+    const netCode = e.cause?.code ?? e.code;
+    return new CliError(
+      'UNAVAILABLE',
+      `Cannot reach the server (${netCode ?? 'network error'})`,
+      undefined,
+      { network: true },
+    );
+  }
   return new CliError('INTERNAL', e?.message ?? String(error));
 }
