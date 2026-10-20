@@ -830,34 +830,6 @@ Edit a user
 | `--deactivate` | deactivate (admin only) |
 | `--reactivate` | reactivate (admin only) |
 
-### `tracker token list`
-
-List API tokens (never shows secrets)
-
-Aliases: `ls`
-
-| Option | Description |
-| --- | --- |
-| `-u, --user <user>` | whose tokens (admin for others) (default: `me`) |
-
-### `tracker token create`
-
-Create an API token; prints the secret once (-q prints only the secret)
-
-| Option | Description |
-| --- | --- |
-| `-n, --name <name>` | what the token is for **(required)** |
-| `-u, --user <user>` | for which user (admin for others) (default: `me`) |
-| `--expires <iso>` | expiry timestamp, e.g. 2027-01-01T00:00:00Z |
-
-### `tracker token revoke <id>`
-
-Revoke a token
-
-| Argument | Description |
-| --- | --- |
-| `id` | token id |
-
 ### `tracker auth login`
 
 Store an API token for a server (verifies it first): auth login --server <url> --token <t> | --with-token
@@ -900,7 +872,7 @@ Show applied and pending migrations
 
 ### `tracker db bootstrap`
 
-Create the first admin of a fresh installation (migrating if needed) and print their API token
+Create the first admin of a fresh installation (migrating if needed)
 
 | Option | Description |
 | --- | --- |
@@ -910,7 +882,7 @@ Create the first admin of a fresh installation (migrating if needed) and print t
 
 ### `tracker db seed`
 
-Create demo users (ada admin, grace, margaret, claude agent), public ENG with a linked repo, private OPS and sample issues; prints API tokens
+Create demo users (ada admin, grace, margaret, claude agent), public ENG with a linked repo, private OPS and sample issues
 
 ### `tracker serve`
 

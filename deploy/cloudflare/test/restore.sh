@@ -76,9 +76,8 @@ expect_fail_closed() {
 }
 
 run tr-a
-TOKEN=$(docker exec tr-a poietic-issues db bootstrap --handle ada --name Ada | grep -oE 'trk_[A-Za-z0-9]+' | head -1)
-curl -fs -X POST http://127.0.0.1:3999/api/v1/projects -H "authorization: Bearer $TOKEN" \
-  -H 'content-type: application/json' -d '{"key":"RST","name":"Restore test"}' >/dev/null
+docker exec tr-a poietic-issues db bootstrap --handle ada --name Ada >/dev/null
+docker exec tr-a poietic-issues --actor ada project create -k RST --name "Restore test" -q >/dev/null
 docker stop -t 60 tr-a >/dev/null   # SIGTERM → tracker exits → Litestream final sync
 code=$(docker inspect -f '{{.State.ExitCode}}' tr-a)
 [ "$code" = 0 ] || { docker logs tr-a; echo "FAIL: tr-a exited $code after SIGTERM"; exit 1; }
@@ -90,6 +89,6 @@ expect_fail_closed "wrong secret key" -e LITESTREAM_SECRET_ACCESS_KEY=wrong-secr
 expect_fail_closed "closed endpoint" -e LITESTREAM_ENDPOINT=http://seaweedfs:1
 
 run tr-b                            # fresh disk: must restore from the replica (and the failed starts left it intact)
-curl -fs http://127.0.0.1:3999/api/v1/projects/RST -H "authorization: Bearer $TOKEN" | grep -q '"key":"RST"' \
+docker exec tr-b poietic-issues --actor ada project view RST -q | grep -qx RST \
   || { docker logs tr-b; echo "FAIL: project not restored"; exit 1; }
 echo "PASS: data survived container replacement"

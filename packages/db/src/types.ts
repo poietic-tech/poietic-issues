@@ -31,19 +31,6 @@ export interface UsersTable {
   owner_id: string | null;
 }
 
-export interface ApiTokensTable {
-  id: string;
-  user_id: string;
-  name: string;
-  token_hash: string;
-  prefix: string;
-  scopes: JsonText;
-  created_at: Timestamp;
-  last_used_at: Timestamp | null;
-  expires_at: Timestamp | null;
-  revoked_at: Timestamp | null;
-}
-
 export interface SessionsTable {
   /** sha256 of the cookie value. */
   id: string;
@@ -311,7 +298,6 @@ export interface SystemStateTable {
 
 export interface Database {
   users: UsersTable;
-  api_tokens: ApiTokensTable;
   sessions: SessionsTable;
   user_identities: UserIdentitiesTable;
   projects: ProjectsTable;

@@ -1,13 +1,6 @@
 import type { Command } from 'commander';
 import type { CliIO } from '../io.ts';
-import {
-  labelCommand,
-  projectCommand,
-  statusCommand,
-  tokenCommand,
-  userCommand,
-  viewCommand,
-} from './admin.ts';
+import { labelCommand, projectCommand, statusCommand, userCommand, viewCommand } from './admin.ts';
 import { attachmentCommand, commentCommand, eventCommand, linkCommand } from './collab.ts';
 import { issueCommand } from './issues.ts';
 import { fieldCommand } from './fields.ts';
@@ -38,7 +31,6 @@ export function adminCommands(io: CliIO, program: () => Command): Command[] {
     eventCommand(io),
     webhookCommand(io),
     userCommand(io),
-    tokenCommand(io),
     authCommand(io),
     whoamiCommand(io),
     initCommand(io),

@@ -1,4 +1,4 @@
-import { testDialect } from '@poietic-tech/issues-db/testing';
+import { createTestDb, testDialect } from '@poietic-tech/issues-db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   bulkUpdateIssues,
@@ -8,8 +8,7 @@ import {
   createLink,
   createProject,
   createStatus,
-  createToken,
-  authenticateToken,
+  bootstrapAdmin,
   deleteComment,
   deleteIssue,
   deleteLink,
@@ -25,7 +24,6 @@ import {
   listViews,
   moveIssue,
   restoreIssue,
-  revokeToken,
   updateComment,
   updateIssue,
   updateLabel,
@@ -524,15 +522,17 @@ describe(`statuses, views, tokens (${testDialect()})`, () => {
     expect(updated.config.board.cardFields).toEqual(['key', 'dueDate', 'estimate']);
   });
 
-  it('issues, authenticates and revokes API tokens', async () => {
-    const created = await createToken(t.agent, 'me', { name: 'ci' });
-    expect(created.token).toMatch(/^trk_[0-9A-Za-z]{40}$/);
-    expect((await authenticateToken(t.ctx, created.token))?.handle).toBe('bot');
-    expect(await authenticateToken(t.ctx, 'trk_wrong')).toBeNull();
-    await expect(createToken(t.agent, 'admin', { name: 'steal' })).rejects.toMatchObject({
-      code: 'FORBIDDEN',
-    });
-    await revokeToken(t.agent, created.id);
-    expect(await authenticateToken(t.ctx, created.token)).toBeNull();
+  it('bootstraps the first admin without minting a credential, once', async () => {
+    const db = await createTestDb();
+    try {
+      const result = await bootstrapAdmin(db, { handle: 'first', name: 'First' });
+      expect(Object.keys(result)).toEqual(['user']);
+      expect(result.user).toMatchObject({ handle: 'first', role: 'admin', kind: 'human' });
+      await expect(bootstrapAdmin(db, { handle: 'second', name: 'Second' })).rejects.toMatchObject({
+        code: 'CONFLICT',
+      });
+    } finally {
+      await db.destroy();
+    }
   });
 });

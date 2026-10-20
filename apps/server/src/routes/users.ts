@@ -1,19 +1,13 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import {
-  createToken,
   createUser,
   getUser,
-  listTokens,
   listUsers,
-  revokeToken,
   SYSTEM_ACTOR,
   updateUser,
   withActor,
 } from '@poietic-tech/issues-core';
 import {
-  ApiTokenSchema,
-  CreatedApiTokenSchema,
-  CreateTokenInputSchema,
   CreateUserInputSchema,
   UpdateUserInputSchema,
   UserSchema,
@@ -88,54 +82,5 @@ export function registerUserRoutes(app: TrackerApp, deps: ResolvedDeps) {
     }),
     async (c) =>
       c.json(await updateUser(c.get('ctx'), c.req.valid('param').user, c.req.valid('json')), 200),
-  );
-
-  app.openapi(
-    createRoute({
-      method: 'get',
-      path: '/users/{user}/tokens',
-      tags,
-      summary: "List a user's API tokens",
-      request: { params: userParam },
-      responses: {
-        200: json(z.object({ data: z.array(ApiTokenSchema) }), 'Tokens'),
-        ...errorResponses('FORBIDDEN', 'NOT_FOUND'),
-      },
-    }),
-    async (c) => c.json({ data: await listTokens(c.get('ctx'), c.req.valid('param').user) }, 200),
-  );
-
-  app.openapi(
-    createRoute({
-      method: 'post',
-      path: '/users/{user}/tokens',
-      tags,
-      summary: 'Create an API token',
-      description: 'The secret `token` is returned only in this response.',
-      request: { params: userParam, body: jsonBody(CreateTokenInputSchema) },
-      responses: {
-        201: json(CreatedApiTokenSchema, 'Created'),
-        ...errorResponses('FORBIDDEN', 'NOT_FOUND'),
-      },
-    }),
-    async (c) =>
-      c.json(await createToken(c.get('ctx'), c.req.valid('param').user, c.req.valid('json')), 201),
-  );
-
-  app.openapi(
-    createRoute({
-      method: 'delete',
-      path: '/tokens/{id}',
-      tags,
-      summary: 'Revoke an API token',
-      request: {
-        params: z.object({ id: refParam('id', 'Token id.', 'tok_01h455vb4pex5vsknk084sn02q') }),
-      },
-      responses: {
-        200: json(ApiTokenSchema, 'Revoked'),
-        ...errorResponses('FORBIDDEN', 'NOT_FOUND'),
-      },
-    }),
-    async (c) => c.json(await revokeToken(c.get('ctx'), c.req.valid('param').id), 200),
   );
 }

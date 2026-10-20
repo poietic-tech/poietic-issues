@@ -1,4 +1,3 @@
-import { createToken } from '@poietic-tech/issues-core';
 import { createTestContext, type TestContext } from '@poietic-tech/issues-core/testing';
 import { testDialect } from '@poietic-tech/issues-db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -113,19 +112,14 @@ describe(`anonymous HTTP access (${testDialect()})`, () => {
     expect(admin.myAccess).toBe('manage');
   });
 
-  it('does not reveal whether a user exists through their tokens', async () => {
-    for (const user of ['admin', 'member', 'nobody-here']) {
-      const res = await app.request(`${BASE}/api/v1/users/${user}/tokens`);
-      expect(res.status, user).toBe(401);
+  it('still rejects an invalid bearer token instead of falling back to anonymous', async () => {
+    for (const value of ['trk_nope', 'bad']) {
+      const res = await app.request(`${BASE}/api/v1/projects`, {
+        headers: { authorization: `Bearer ${value}` },
+      });
+      expect(res.status, value).toBe(401);
       expect(((await res.json()) as { code: string }).code).toBe('UNAUTHENTICATED');
     }
-  });
-
-  it('still rejects an invalid bearer token instead of falling back to anonymous', async () => {
-    const res = await app.request(`${BASE}/api/v1/projects`, {
-      headers: { authorization: 'Bearer trk_nope' },
-    });
-    expect(res.status).toBe(401);
   });
 
   it('keeps the sign-in endpoints working for signed-out callers', async () => {
@@ -142,16 +136,6 @@ describe(`anonymous HTTP access (${testDialect()})`, () => {
     });
     expect(dev.status).toBe(200);
     expect(((await dev.json()) as { handle: string }).handle).toBe('member');
-
-    const tokenLogin = await app.request(`${BASE}/api/v1/auth/token-login`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', origin: BASE },
-      body: JSON.stringify({
-        token: (await createToken(t.member, 'member', { name: 'login' })).token,
-      }),
-    });
-    expect(tokenLogin.status).toBe(200);
-    expect(((await tokenLogin.json()) as { handle: string }).handle).toBe('member');
   });
 });
 
@@ -303,45 +287,15 @@ describe(`member and repo routes (${testDialect()})`, () => {
 });
 
 describe(`"me" as a user path parameter (${testDialect()})`, () => {
-  it('resolves to the caller on user and token routes', async () => {
+  it('resolves to the caller on user routes', async () => {
     const me = await as(memberToken, 'GET', '/users/me');
     expect(me.status).toBe(200);
     expect(((await me.json()) as { handle: string }).handle).toBe('member');
     const atMe = await as(adminToken, 'GET', '/users/@me');
     expect(((await atMe.json()) as { handle: string }).handle).toBe('admin');
-
-    const list = await as(memberToken, 'GET', '/users/me/tokens');
-    expect(list.status).toBe(200);
-    const before = ((await list.json()) as { data: { id: string }[] }).data;
-    expect(before.length).toBeGreaterThan(0);
-
-    const created = await as(memberToken, 'POST', '/users/me/tokens', { name: 'via me' });
-    expect(created.status).toBe(201);
-    const token = (await created.json()) as { id: string; token: string };
-    // The new token belongs to the caller, so it signs in as the member.
-    const check = await as(token.token, 'GET', '/users/me');
-    expect(((await check.json()) as { handle: string }).handle).toBe('member');
-    const after = (
-      (await (await as(memberToken, 'GET', '/users/me/tokens')).json()) as {
-        data: { id: string }[];
-      }
-    ).data;
-    expect(after.map((x) => x.id)).toContain(token.id);
-    expect((await as(memberToken, 'DELETE', `/tokens/${token.id}`)).status).toBe(200);
   });
 
-  it('is not a way around sign-in or around other users', async () => {
+  it('is not a way around sign-in', async () => {
     expect((await as(undefined, 'GET', '/users/me')).status).toBe(401);
-    expect((await as(undefined, 'GET', '/users/me/tokens')).status).toBe(401);
-    expect((await as(undefined, 'POST', '/users/me/tokens', { name: 'x' })).status).toBe(401);
-    // "me" is the member, so a member can't use it to reach the admin's tokens.
-    const mine = (await (await as(memberToken, 'GET', '/users/me/tokens')).json()) as {
-      data: { id: string }[];
-    };
-    const admins = (await (await as(adminToken, 'GET', '/users/admin/tokens')).json()) as {
-      data: { id: string }[];
-    };
-    expect(mine.data.some((x) => admins.data.some((a) => a.id === x.id))).toBe(false);
-    expect((await as(memberToken, 'GET', '/users/admin/tokens')).status).toBe(403);
   });
 });

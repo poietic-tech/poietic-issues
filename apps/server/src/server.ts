@@ -55,9 +55,8 @@ export async function prepareDatabase(
       .where('kind', '!=', 'system')
       .executeTakeFirstOrThrow();
     if (Number(users.n) === 0) {
-      const seeded = await seedDemoData(createContext(db, SYSTEM_ACTOR));
+      await seedDemoData(createContext(db, SYSTEM_ACTOR));
       logger.info(
-        { adminToken: seeded.adminToken, agentToken: seeded.agentToken },
         'seeded demo data (users: ada [admin], grace, margaret, claude [agent]; public ENG with a linked repo, private OPS)',
       );
     }

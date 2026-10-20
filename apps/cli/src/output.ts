@@ -17,7 +17,6 @@ export type Kind =
   | 'label'
   | 'view'
   | 'user'
-  | 'token'
   | 'event'
   | 'raw';
 
@@ -130,13 +129,6 @@ const COLUMNS: Record<Exclude<Kind, 'raw'>, Column[]> = {
     ['OWNER', (r) => handle(r.owner)],
     ['ROLE', (r) => r.role],
     ['ID', (r) => r.id],
-  ],
-  token: [
-    ['ID', (r) => r.id],
-    ['NAME', (r) => r.name],
-    ['PREFIX', (r) => r.prefix],
-    ['LAST USED', (r) => date(r.lastUsedAt)],
-    ['REVOKED', (r) => (r.revokedAt ? date(r.revokedAt) : '')],
   ],
   event: [
     ['SEQ', (r) => r.seq],

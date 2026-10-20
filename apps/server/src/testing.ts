@@ -5,8 +5,9 @@ import type { SsoClaims } from './sso/verifier.ts';
 const ISS = 'https://auth.example.test';
 
 /**
- * Tests authenticate with identity tokens through a fake verifier: the token is the subject. Liveness and the
- * directory are stubbed so they always succeed. `bearer(handle)` links the existing test user to a subject and returns
+ * Tests authenticate with identity tokens through a fake verifier: the token is the subject, except that `bad` and
+ * any `trk_…` value fail to verify, as they do with the real verifier (neither is a JWT). Liveness and the directory
+ * are stubbed so they always succeed. `bearer(handle)` links the existing test user to a subject and returns
  * the bearer value to send.
  */
 export function testSso(t: TestContext): {
@@ -21,19 +22,21 @@ export function testSso(t: TestContext): {
     adminRole: 'admin',
     verifier: {
       verify: async (token) =>
-        ({
-          iss: ISS,
-          aud: 'x',
-          sub: token,
-          name: `Person ${token}`,
-          role: 'user',
-          groups: [],
-          kind: 'human',
-          owner: null,
-          sid: 's1',
-          iat: 0,
-          exp: Math.floor(Date.now() / 1000) + 3600,
-        }) satisfies SsoClaims,
+        token === 'bad' || token.startsWith('trk_')
+          ? null
+          : ({
+              iss: ISS,
+              aud: 'x',
+              sub: token,
+              name: `Person ${token}`,
+              role: 'user',
+              groups: [],
+              kind: 'human',
+              owner: null,
+              sid: 's1',
+              iat: 0,
+              exp: Math.floor(Date.now() / 1000) + 3600,
+            } satisfies SsoClaims),
     },
     liveness: { isLive: async () => true },
     directory: { refresh: async () => {} },

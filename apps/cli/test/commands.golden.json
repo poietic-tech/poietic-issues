@@ -1985,68 +1985,6 @@
       ]
     },
     {
-      "name": "token list",
-      "aliases": [
-        "ls"
-      ],
-      "description": "List API tokens (never shows secrets)",
-      "arguments": [],
-      "options": [
-        {
-          "flags": "-u, --user <user>",
-          "name": "user",
-          "description": "whose tokens (admin for others)",
-          "required": false,
-          "takesValue": true,
-          "default": "me"
-        }
-      ]
-    },
-    {
-      "name": "token create",
-      "aliases": [],
-      "description": "Create an API token; prints the secret once (-q prints only the secret)",
-      "arguments": [],
-      "options": [
-        {
-          "flags": "-n, --name <name>",
-          "name": "name",
-          "description": "what the token is for",
-          "required": true,
-          "takesValue": true
-        },
-        {
-          "flags": "-u, --user <user>",
-          "name": "user",
-          "description": "for which user (admin for others)",
-          "required": false,
-          "takesValue": true,
-          "default": "me"
-        },
-        {
-          "flags": "--expires <iso>",
-          "name": "expires",
-          "description": "expiry timestamp, e.g. 2027-01-01T00:00:00Z",
-          "required": false,
-          "takesValue": true
-        }
-      ]
-    },
-    {
-      "name": "token revoke",
-      "aliases": [],
-      "description": "Revoke a token",
-      "arguments": [
-        {
-          "name": "id",
-          "required": true,
-          "variadic": false,
-          "description": "token id"
-        }
-      ],
-      "options": []
-    },
-    {
       "name": "auth login",
       "aliases": [],
       "description": "Store an API token for a server (verifies it first): auth login --server <url> --token <t> | --with-token",
@@ -2122,7 +2060,7 @@
     {
       "name": "db bootstrap",
       "aliases": [],
-      "description": "Create the first admin of a fresh installation (migrating if needed) and print their API token",
+      "description": "Create the first admin of a fresh installation (migrating if needed)",
       "arguments": [],
       "options": [
         {
@@ -2151,7 +2089,7 @@
     {
       "name": "db seed",
       "aliases": [],
-      "description": "Create demo users (ada admin, grace, margaret, claude agent), public ENG with a linked repo, private OPS and sample issues; prints API tokens",
+      "description": "Create demo users (ada admin, grace, margaret, claude agent), public ENG with a linked repo, private OPS and sample issues",
       "arguments": [],
       "options": []
     },

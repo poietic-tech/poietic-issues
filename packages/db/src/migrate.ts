@@ -7,6 +7,7 @@ import { migration0003 } from './migrations/0003_user_identities.ts';
 import { migration0004 } from './migrations/0004_project_access.ts';
 import { migration0005 } from './migrations/0005_user_owner.ts';
 import { migration0006 } from './migrations/0006_end_sso_users_sessions.ts';
+import { migration0007 } from './migrations/0007_drop_api_tokens.ts';
 
 /**
  * All migrations, in order. Migrations are registered in code (not discovered from the filesystem)
@@ -20,6 +21,7 @@ function allMigrations(dialect: Dialect): Record<string, Migration> {
     '0004_project_access': migration0004(dialect),
     '0005_user_owner': migration0005(dialect),
     '0006_end_sso_users_sessions': migration0006(dialect),
+    '0007_drop_api_tokens': migration0007(dialect),
   };
 }
 

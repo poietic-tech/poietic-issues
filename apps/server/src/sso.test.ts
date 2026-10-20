@@ -17,7 +17,7 @@ afterAll(() => t.destroy());
 
 /**
  * A fake verifier: the token is the subject; "admin-*" subjects carry role admin; "agent:<owner>:<n>" is an agent
- * owned by subject <owner>; "member-*" subjects are in the group "crew"; "bad" fails; "down" throws.
+ * owned by subject <owner>; "member-*" subjects are in the group "crew"; "bad" and "trk_abc" fail; "down" throws.
  */
 function sso(): SsoOptions {
   return {
@@ -30,7 +30,7 @@ function sso(): SsoOptions {
     verifier: {
       verify: async (token) => {
         if (token === 'down') throw new Error('JWKS unavailable');
-        return token === 'bad'
+        return token === 'bad' || token === 'trk_abc'
           ? null
           : ({
               iss: ISS,
@@ -317,10 +317,30 @@ describe(`SSO sign-in (${testDialect()})`, () => {
       expect(res.status).toBe(401);
     });
 
-    it('treats trk_ values as API tokens, never as identity tokens', async () => {
-      const app = createApp({ db: t.db, auth: { mode: 'standard', sso: sso() } });
-      // The fake verifier would accept this value as a subject; it must never reach it.
-      expect((await app.request(`${BASE}/api/v1/me`, bearer('trk_admin-own4'))).status).toBe(401);
+    it('sends every bearer value to the verifier, trk_ ones included', async () => {
+      const seen: string[] = [];
+      const options = sso();
+      const verify = options.verifier.verify;
+      options.verifier = { verify: (token) => (seen.push(token), verify(token)) };
+      const app = createApp({ db: t.db, auth: { mode: 'standard', sso: options } });
+      // This fake accepts the value as a new human's subject (the real verifier rejects it: it is not a JWT), so the
+      // request gets as far as sign-in, which holds the new user for approval.
+      const res = await app.request(`${BASE}/api/v1/me`, bearer('trk_someone'));
+      expect(seen).toEqual(['trk_someone']);
+      expect(res.status).toBe(403);
+      expect(await code(res)).toBe('PENDING_APPROVAL');
+    });
+
+    it('answers an old trk_ bearer that does not verify with a 401, even with a valid session cookie', async () => {
+      const signIn = createApp({ db: t.db, auth: { mode: 'standard', sso: sso() } });
+      const session = (await post(signIn, 'admin-own5')).headers.get('set-cookie')!.split(';')[0]!;
+      for (const options of [sso(), undefined]) {
+        const app = createApp({ db: t.db, auth: { mode: 'standard', sso: options } });
+        const res = await app.request(`${BASE}/api/v1/me`, bearer('trk_abc', { cookie: session }));
+        expect(res.status).toBe(401);
+        expect(res.headers.get('content-type')).toBe('application/problem+json');
+        expect(await code(res)).toBe('UNAUTHENTICATED');
+      }
     });
 
     describe('session liveness on every request', () => {

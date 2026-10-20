@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { btn, input } from '$lib/styles.ts';
+  import { btn } from '$lib/styles.ts';
   import { asset } from '$app/paths';
   import { current, href, navigate, safeNext, shareUrl } from '$lib/nav.ts';
 
@@ -12,7 +12,6 @@
 
   const qc = useQueryClient();
   const config = createQuery(() => ({ queryKey: keys.authConfig, queryFn: fetchers.authConfig }));
-  let token = $state('');
   let error = $state('');
   let busy = $state(false);
 
@@ -23,21 +22,6 @@
     // Signed-out browsing may have cached what an anonymous visitor sees (empty lists, not-found projects).
     qc.clear();
     await navigate(next);
-  }
-
-  async function tokenLogin(event: SubmitEvent) {
-    event.preventDefault();
-    busy = true;
-    error = '';
-    try {
-      await call(api.POST('/auth/token-login', { body: { token: token.trim() } }));
-      forgetSsoSession();
-      await finish();
-    } catch (e) {
-      error = errorMessage(e);
-    } finally {
-      busy = false;
-    }
   }
 
   async function devLogin(user: string) {
@@ -117,7 +101,7 @@
         <p class="mt-1 text-sm text-fg-muted">{pending}</p>
         <p class="mt-2 text-xs text-fg-subtle">
           An admin can approve you with
-          <code class="font-mono">poietic-issues user edit &lt;handle&gt; --reactivate</code>.
+          <code class="font-mono">poietic-tech issues user edit &lt;handle&gt; --reactivate</code>.
         </p>
       </div>
     {:else if config.data?.sso}
@@ -159,33 +143,8 @@
         This demo runs entirely in your browser, including the API and its SQLite database. Changes
         stay on this device. To start over, use Reset data at the bottom right.
       </p>
-    {:else}
-      <form onsubmit={tokenLogin} class="space-y-3">
-        {#if (config.data?.devLogin && config.data.users?.length) || config.data?.sso}
-          <div class="flex items-center gap-2 text-xs text-fg-subtle" aria-hidden="true">
-            <span class="h-px flex-1 bg-border"></span>or use a token<span
-              class="h-px flex-1 bg-border"
-            ></span>
-          </div>
-        {/if}
-        <label class="block">
-          <span class="mb-1 block text-xs font-medium text-fg-muted">API token</span>
-          <input
-            bind:value={token}
-            type="password"
-            autocomplete="off"
-            placeholder="trk_…"
-            class="{input} w-full font-mono"
-          />
-        </label>
-        <button type="submit" disabled={busy || !token.trim()} class="{btn.primary} w-full"
-          >Sign in</button
-        >
-        <p class="text-xs text-fg-subtle">
-          Ask an admin for a token, or create one with
-          <code class="font-mono">poietic-issues token create --name web</code>.
-        </p>
-      </form>
+    {:else if config.data && !config.data.sso && !(config.data.devLogin && config.data.users?.length)}
+      <p class="text-sm text-fg-muted">This server has no sign-in configured.</p>
     {/if}
     {#if error}<p class="mt-3 text-sm text-danger" role="alert">{error}</p>{/if}
     <!-- Public projects can be read signed out: a visitor who came here by mistake goes back to where they were. -->

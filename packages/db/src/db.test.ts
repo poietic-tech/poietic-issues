@@ -299,6 +299,10 @@ describe(`migrations (${dialect})`, () => {
   it('migrate down removes everything and migrate up restores it', async () => {
     const db = await createTestDb();
     try {
+      expect(await migrateDown(db)).toEqual(['0007_drop_api_tokens']);
+      expect(
+        (await sql`select count(*) as n from api_tokens`.execute(db.kysely)).rows,
+      ).toHaveLength(1);
       expect(await migrateDown(db)).toEqual(['0006_end_sso_users_sessions']);
       expect(await migrateDown(db)).toEqual(['0005_user_owner']);
       await expect(sql`select owner_id from users`.execute(db.kysely)).rejects.toThrow();
@@ -319,6 +323,7 @@ describe(`migrations (${dialect})`, () => {
         '0004_project_access',
         '0005_user_owner',
         '0006_end_sso_users_sessions',
+        '0007_drop_api_tokens',
       ]);
       expect(await migrateToLatest(db)).toEqual([
         '0001_init',
@@ -327,6 +332,7 @@ describe(`migrations (${dialect})`, () => {
         '0004_project_access',
         '0005_user_owner',
         '0006_end_sso_users_sessions',
+        '0007_drop_api_tokens',
       ]);
       expect((await migrationStatus(db)).upToDate).toBe(true);
     } finally {
@@ -337,6 +343,7 @@ describe(`migrations (${dialect})`, () => {
   it('0004 makes active non-admin users editors of existing projects', async () => {
     const db = await createTestDb();
     try {
+      await migrateDown(db);
       await migrateDown(db);
       await migrateDown(db);
       await migrateDown(db); // back to 0003
@@ -381,6 +388,7 @@ describe(`migrations (${dialect})`, () => {
     try {
       await migrateDown(db);
       await migrateDown(db);
+      await migrateDown(db);
       await migrateDown(db); // back to 0003
       const ts = '2026-01-01T00:00:00.000Z';
       // Even a system user whose role is `member` (the built-in one is an admin) must be skipped.
@@ -408,6 +416,7 @@ describe(`migration 0006 (${dialect})`, () => {
   it('ends the sessions of users with an SSO identity, and keeps the rest', async () => {
     const db = await createTestDb();
     try {
+      await migrateDown(db);
       await migrateDown(db); // back to 0005
       const ts = '2026-01-01T00:00:00.000Z';
       const later = '2026-02-01T00:00:00.000Z';
@@ -425,11 +434,25 @@ describe(`migration 0006 (${dialect})`, () => {
       ] as const)
         await sql`insert into sessions (id, user_id, created_at, expires_at)
           values (${id}, ${user}, ${ts}, ${later})`.execute(db.kysely);
-      expect(await migrateToLatest(db)).toEqual(['0006_end_sso_users_sessions']);
+      expect(await migrateToLatest(db)).toEqual([
+        '0006_end_sso_users_sessions',
+        '0007_drop_api_tokens',
+      ]);
       const rows = await sql<{ id: string }>`select id from sessions order by id`.execute(
         db.kysely,
       );
       expect(rows.rows).toEqual([{ id: 'ses_c' }]);
+    } finally {
+      await db.destroy();
+    }
+  });
+});
+
+describe(`migration 0007 (${dialect})`, () => {
+  it('drops api_tokens', async () => {
+    const db = await createTestDb();
+    try {
+      await expect(sql`select count(*) from api_tokens`.execute(db.kysely)).rejects.toThrow();
     } finally {
       await db.destroy();
     }

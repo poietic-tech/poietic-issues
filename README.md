@@ -50,10 +50,10 @@ This runs the **production-shaped stack** (Postgres, S3-compatible storage and t
 
 ```sh
 docker compose up -d --build --wait poietic-issues
-docker compose exec poietic-issues poietic-issues db bootstrap --handle you --name "Your Name"   # prints an API token
+docker compose exec poietic-issues poietic-issues db bootstrap --handle you --name "Your Name"
 ```
 
-Sign in with the printed token; production auth has no demo users. Stop the stack with `docker compose down`, or add `-v` to delete its data too. [deployment.md](docs/deployment.md) covers configuration and hardening.
+Production auth has no demo users: people sign in through SSO (see [deployment.md](docs/deployment.md)). Stop the stack with `docker compose down`, or add `-v` to delete its data too. [deployment.md](docs/deployment.md) covers configuration and hardening.
 
 The **browser demo** runs the web app, the API and SQLite all in the page, so any static host can serve it:
 

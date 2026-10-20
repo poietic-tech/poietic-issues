@@ -18,12 +18,12 @@ describe('pre-rename config locations (ADR 0020)', () => {
     mkdirSync(join(env.XDG_CONFIG_HOME, 'tracker'));
     writeFileSync(
       join(env.XDG_CONFIG_HOME, 'tracker', 'config.json'),
-      JSON.stringify({ tokens: { 'http://old': 'trk_x' } }),
+      JSON.stringify({ tokens: { 'http://old': 'identity.jwt.x' } }),
     );
     const config = readUserConfig(env);
-    expect(config.tokens).toEqual({ 'http://old': 'trk_x' });
+    expect(config.tokens).toEqual({ 'http://old': 'identity.jwt.x' });
     expect(writeUserConfig(env, config)).toBe(userConfigPath(env));
     expect(userConfigPath(env)).toBe(join(env.XDG_CONFIG_HOME, 'poietic-issues', 'config.json'));
-    expect(readUserConfig(env).tokens).toEqual({ 'http://old': 'trk_x' });
+    expect(readUserConfig(env).tokens).toEqual({ 'http://old': 'identity.jwt.x' });
   });
 });

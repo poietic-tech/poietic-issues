@@ -282,9 +282,7 @@ export function dbCommand(io: CliIO): Command {
     });
   cmd
     .command('bootstrap')
-    .description(
-      'Create the first admin of a fresh installation (migrating if needed) and print their API token',
-    )
+    .description('Create the first admin of a fresh installation (migrating if needed)')
     .requiredOption('--handle <handle>', 'admin handle, e.g. ada')
     .requiredOption('--name <name>', 'display name')
     .option('--email <email>', 'email address')
@@ -293,16 +291,13 @@ export function dbCommand(io: CliIO): Command {
       try {
         await migrateToLatest(db);
         await ensureBuiltins(db);
-        const { user, token } = await bootstrapAdmin(db, {
+        const { user } = await bootstrapAdmin(db, {
           handle: String(o.handle),
           name: String(o.name),
           email: o.email === undefined ? undefined : String(o.email),
         });
-        if (config.format === 'table')
-          io.stdout(
-            `Created admin @${user.handle}.\nAPI token (store it now; it is not shown again):\n${token}\n`,
-          );
-        else io.stdout(`${JSON.stringify({ user, token }, null, 2)}\n`);
+        if (config.format === 'table') io.stdout(`Created admin @${user.handle}.\n`);
+        else io.stdout(`${JSON.stringify({ user }, null, 2)}\n`);
       } finally {
         await db.destroy();
       }
@@ -310,7 +305,7 @@ export function dbCommand(io: CliIO): Command {
   cmd
     .command('seed')
     .description(
-      'Create demo users (ada admin, grace, margaret, claude agent), public ENG with a linked repo, private OPS and sample issues; prints API tokens',
+      'Create demo users (ada admin, grace, margaret, claude agent), public ENG with a linked repo, private OPS and sample issues',
     )
     .action(async (_o: Opts, command: Command) => {
       const { config, db } = await localDb(command.optsWithGlobals());
@@ -324,12 +319,10 @@ export function dbCommand(io: CliIO): Command {
           .execute();
         if (users.length > 0)
           throw new CliError('CONFLICT', 'Database already has users; seed only an empty database');
-        const tokens = await seedDemoData(createContext(db, SYSTEM_ACTOR));
+        const { users: seeded } = await seedDemoData(createContext(db, SYSTEM_ACTOR));
         if (config.format === 'table')
-          io.stdout(
-            `Seeded demo data.\n  admin token (ada):    ${tokens.adminToken}\n  agent token (claude): ${tokens.agentToken}\n`,
-          );
-        else io.stdout(`${JSON.stringify(tokens, null, 2)}\n`);
+          io.stdout(`Seeded demo data (users: ${seeded.map((h) => `@${h}`).join(', ')}).\n`);
+        else io.stdout(`${JSON.stringify({ users: seeded }, null, 2)}\n`);
       } finally {
         await db.destroy();
       }

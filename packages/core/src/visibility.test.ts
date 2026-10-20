@@ -533,21 +533,6 @@ describe(`project visibility (${testDialect()})`, () => {
     expect((adminEvents[0]!.data.user as { email: string }).email).toBe('o@x.io');
   });
 
-  it('requires sign-in for tokens before resolving the user', async () => {
-    const { createToken, listTokens, revokeToken } = await import('./services/auth.ts');
-    const anon = withActor(t.ctx, ANONYMOUS_ACTOR);
-    const own = await createToken(t.member, 'me', { name: 'mine' });
-    for (const user of ['admin', 'member', 'nobody-here']) {
-      await expect(listTokens(anon, user), user).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
-      await expect(createToken(anon, user, { name: 'x' }), user).rejects.toMatchObject({
-        code: 'UNAUTHENTICATED',
-      });
-    }
-    for (const id of [own.id, 'tok_nope']) {
-      await expect(revokeToken(anon, id), id).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
-    }
-  });
-
   it('lists only users who can write in the issue input schema, and none to anonymous readers', async () => {
     const { issueInputJsonSchema } = await import('./services/schema.ts');
     const { addRepo } = await import('./services/repos.ts');

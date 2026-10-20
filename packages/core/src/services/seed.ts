@@ -1,5 +1,4 @@
 import { SYSTEM_ACTOR, type ServiceContext, withActor } from '../context.ts';
-import { createToken } from './auth.ts';
 import { createComment } from './comments.ts';
 import { createCustomField } from './custom-fields.ts';
 import { createIssue, moveIssue, updateIssue } from './issues.ts';
@@ -10,20 +9,13 @@ import { createProject } from './projects.ts';
 import { addRepo } from './repos.ts';
 import { createUserUnchecked, toActor } from './users.ts';
 
-export interface SeedResult {
-  /** API token for the `claude` agent user (dev convenience; printed by `poietic-issues db seed`). */
-  agentToken: string;
-  /** API token for the `ada` admin user. */
-  adminToken: string;
-}
-
 /**
  * Creates demo data for development: an admin (`ada`), members (`grace`, `margaret`), an agent (`claude`),
  * a public `ENG` project (one linked repo; labels, issues in every column, sub-issues, links and comments)
  * and a private `OPS` project where margaret manages, grace edits and claude only views.
- * Not idempotent — run it on an empty database.
+ * Not idempotent — run it on an empty database. Returns the handles of the users it created; it mints no credentials.
  */
-export async function seedDemoData(ctx: ServiceContext): Promise<SeedResult> {
+export async function seedDemoData(ctx: ServiceContext): Promise<{ users: string[] }> {
   const sys = withActor(ctx, SYSTEM_ACTOR);
   const ada = await createUserUnchecked(sys, {
     handle: 'ada',
@@ -169,8 +161,5 @@ export async function seedDemoData(ctx: ServiceContext): Promise<SeedResult> {
     status: 'In Progress',
   });
 
-  const agentToken = (await createToken(asClaude, 'claude', { name: 'dev seed' })).token;
-  const adminToken = (await createToken(asAda, 'ada', { name: 'dev seed' })).token;
-  void grace;
-  return { agentToken, adminToken };
+  return { users: [ada, grace, margaret, claude].map((u) => u.handle) };
 }

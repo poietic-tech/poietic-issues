@@ -1,4 +1,6 @@
 import { execFile } from 'node:child_process';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -9,6 +11,7 @@ import { createTestContext, grant, type TestContext } from '@poietic-tech/issues
 import { latestMigrationName } from '@poietic-tech/issues-db';
 import { testDialect } from '@poietic-tech/issues-db/testing';
 import { createApp } from '@poietic-tech/issues-server';
+import { testSso } from '@poietic-tech/issues-server/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { CliIO } from './io.ts';
 import { renderCliReference } from './reference.ts';
@@ -598,7 +601,7 @@ describe.runIf(testDialect() === 'sqlite')('local and remote modes (real transpo
       fetch: null,
     });
     expect(boot.json()).toMatchObject({ user: { handle: 'root', role: 'admin' } });
-    expect(boot.json().token).toMatch(/^trk_/);
+    expect(boot.json()).not.toHaveProperty('token');
     const again = await cli(['db', 'bootstrap', '--handle', 'x', '--name', 'X'], {
       env: fresh,
       fetch: null,
@@ -606,7 +609,7 @@ describe.runIf(testDialect() === 'sqlite')('local and remote modes (real transpo
     expect(again.code).toBe(4);
     expect((await cli(['whoami', '-q'], { env: fresh, fetch: null })).stdout).toMatch(/usr_/);
     const seeded = await cli(['db', 'seed', '--json'], { env, fetch: null });
-    expect(seeded.json().agentToken).toMatch(/^trk_/);
+    expect(seeded.json()).toEqual({ users: ['ada', 'grace', 'margaret', 'claude'] });
     const list = await cli(['issue', 'list', '--project', 'ENG', '-q', '--sort', 'key'], {
       env,
       fetch: null,
@@ -711,64 +714,58 @@ describe.runIf(testDialect() === 'sqlite')('local and remote modes (real transpo
     expect(migrated.code).toBe(0);
   });
 
-  it('talks to a real server with a token, and logs in', async () => {
-    const { loadConfig, startServer } = await import('@poietic-tech/issues-server');
-    const server = await startServer(
-      loadConfig({
-        POIETIC_ISSUES_DATABASE_URL: `sqlite:${join(dir, 'remote.db')}`,
-        POIETIC_ISSUES_PORT: '0',
-        POIETIC_ISSUES_SEED: '1',
-      }),
-    );
+  it('talks to a real server with an identity token, and logs in', async () => {
+    const sso = testSso(t);
+    const app = createApp({ db: t.db, auth: { mode: 'standard', sso: sso.options } });
+    const http = createServer(async (req, res) => {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(chunk as Buffer);
+      const response = await app.fetch(
+        new Request(`http://127.0.0.1${req.url}`, {
+          method: req.method,
+          headers: req.headers as Record<string, string>,
+          ...(chunks.length > 0 && { body: Buffer.concat(chunks) }),
+        }),
+      );
+      res.writeHead(response.status, Object.fromEntries(response.headers));
+      res.end(Buffer.from(await response.arrayBuffer()));
+    });
+    await new Promise<void>((done) => http.listen(0, '127.0.0.1', done));
+    const url = `http://127.0.0.1:${(http.address() as AddressInfo).port}`;
     try {
-      const token = (
-        await (
-          await import('@poietic-tech/issues-core')
-        ).createToken(
-          {
-            ...t.ctx,
-            db: server.db,
-            actor: (await (
-              await import('@poietic-tech/issues-core')
-            ).actorForUser({ db: server.db, actor: t.admin }, 'ada'))!,
-          },
-          'ada',
-          { name: 'cli-test' },
-        )
-      ).token;
-      const env = { POIETIC_ISSUES_SERVER: server.url, POIETIC_ISSUES_TOKEN: token };
-      const created = await cli(['issue', 'create', '-P', 'ENG', '-t', 'Over HTTP', '--json'], {
+      const token = await sso.bearer('admin');
+      const env = { POIETIC_ISSUES_SERVER: url, POIETIC_ISSUES_TOKEN: token };
+      const created = await cli(['issue', 'create', '-P', 'CLI', '-t', 'Over HTTP', '--json'], {
         env,
         fetch: null,
       });
       expect(created.stderr).toBe('');
       expect(created.code).toBe(0);
-      expect(created.json().creator.handle).toBe('ada');
-      expect(
-        (
-          await cli(['whoami', '-q'], {
-            env: { POIETIC_ISSUES_SERVER: server.url, POIETIC_ISSUES_TOKEN: 'trk_bad' },
-            fetch: null,
-          })
-        ).code,
-      ).toBe(5);
+      expect(created.json().creator.handle).toBe('admin');
+      for (const bad of ['bad', 'trk_old']) {
+        const whoami = await cli(['whoami', '-q'], {
+          env: { POIETIC_ISSUES_SERVER: url, POIETIC_ISSUES_TOKEN: bad },
+          fetch: null,
+        });
+        expect(whoami.code, bad).toBe(5);
+      }
       // Without a token the server answers as an anonymous visitor; the CLI reports "not signed in".
       const anonymous = await cli(['whoami', '--json'], {
-        env: { POIETIC_ISSUES_SERVER: server.url },
+        env: { POIETIC_ISSUES_SERVER: url },
         fetch: null,
       });
       expect(anonymous.code).toBe(5);
       expect(anonymous.stderr).toMatch(/not signed in/i);
 
-      const login = await cli(['auth', 'login', '--server', server.url, '--with-token'], {
+      const login = await cli(['auth', 'login', '--server', url, '--with-token'], {
         stdin: token,
         fetch: null,
       });
       expect(login.code).toBe(0);
       const status = await cli(['auth', 'status', '--json'], { fetch: null });
-      expect(status.json()).toMatchObject({ mode: 'remote', user: { handle: 'ada' } });
+      expect(status.json()).toMatchObject({ mode: 'remote', user: { handle: 'admin' } });
     } finally {
-      await server.close();
+      await new Promise((done) => http.close(done));
     }
     const down = await cli(['whoami'], {
       env: { POIETIC_ISSUES_SERVER: 'http://127.0.0.1:9', POIETIC_ISSUES_TOKEN: 'x' },

@@ -2,11 +2,9 @@ import {
   actorForUser,
   ANONYMOUS_ACTOR,
   authenticateSession,
-  authenticateToken,
   DomainError,
   signInWithSso,
   SYSTEM_ACTOR,
-  TOKEN_PREFIX,
   toActor,
   type Actor,
   type ServiceContext,
@@ -39,15 +37,15 @@ export const requestId = createMiddleware<AppEnv>(async (c, next) => {
 });
 
 /**
- * Resolves the actor from a bearer token, a session cookie, or (trusted mode) configuration, and builds the
+ * Resolves the actor from a bearer identity token, a session cookie, or (trusted mode) configuration, and builds the
  * per-request ServiceContext. Without credentials (or with a stale session cookie) the context acts as the
  * anonymous actor, which can read public projects only (ADR 0021). Cookie-authenticated unsafe requests must
  * be same-origin (CSRF protection); bearer requests carry no ambient credentials and are exempt.
  *
- * A bearer value is an API token when it starts with `trk_`. With SSO configured, any other value is an identity
- * token from the issuer (an agent's, usually; ADR 0023). Either way the header decides on its own: an invalid
- * bearer is a 401 and never falls back to the session cookie. With a liveness check configured, an identity-token
- * request is also refused (401) once the issuer says the token's session has ended.
+ * A bearer value is always an identity token from the SSO issuer (an agent's, usually; ADR 0023): it is verified when
+ * SSO is configured and is a 401 otherwise. The header decides on its own: an invalid bearer is a 401 and never falls
+ * back to the session cookie. With a liveness check configured, an identity-token request is also refused (401) once
+ * the issuer says the token's session has ended.
  */
 export function authenticate(deps: ResolvedDeps) {
   return createMiddleware<AppEnv>(async (c, next) => {
@@ -72,7 +70,7 @@ export function authenticate(deps: ResolvedDeps) {
       if (header) {
         const value = /^Bearer\s+(\S+)$/i.exec(header)?.[1];
         const sso = deps.auth.sso;
-        if (value && sso && !value.startsWith(TOKEN_PREFIX)) {
+        if (value && sso) {
           const identity = await identityActor(
             { db, clock, ids: deps.ids ?? newId, requestId: c.get('requestId') },
             sso,
@@ -87,9 +85,6 @@ export function authenticate(deps: ResolvedDeps) {
             if (!(await stillLive()))
               return problem(c, 'UNAUTHENTICATED', 'The session behind this token has ended');
           }
-        } else {
-          actor = value ? await authenticateToken({ db, clock }, value) : null;
-          via = 'bearer';
         }
         if (!actor) return problem(c, 'UNAUTHENTICATED', 'Invalid, expired or revoked token');
       } else {

@@ -1,6 +1,5 @@
 import { type Database, fromJson, type Selectable, toBool } from '@poietic-tech/issues-db';
 import type {
-  ApiToken,
   Comment,
   Label,
   LinkType,
@@ -46,20 +45,6 @@ export function toUserSummary(
   owner: UserOwner | null,
 ): UserSummary {
   return { id: u.id, handle: u.handle, name: u.name, kind: u.kind, avatarUrl: u.avatarUrl, owner };
-}
-
-export function toApiToken(r: Row<'api_tokens'>): ApiToken {
-  return {
-    id: r.id,
-    userId: r.user_id,
-    name: r.name,
-    prefix: r.prefix,
-    scopes: fromJson<string[]>(r.scopes, []),
-    createdAt: r.created_at,
-    lastUsedAt: r.last_used_at,
-    expiresAt: r.expires_at,
-    revokedAt: r.revoked_at,
-  };
 }
 
 export function toProject(r: Row<'projects'>, repos: ProjectRepo[] = []): Project {

@@ -10,7 +10,7 @@ export type Schemas = components['schemas'];
 export interface ClientOptions {
   /** Server origin, e.g. `http://127.0.0.1:3000`. The `/api/v1` prefix is added automatically. */
   baseUrl: string;
-  /** API token (`trk_…`), sent as `Authorization: Bearer`. */
+  /** Bearer credential (an SSO identity token), sent as `Authorization: Bearer`. */
   token?: string | undefined;
   /** Custom fetch — e.g. `app.fetch` for in-process calls, or a browser fetch with credentials. */
   fetch?: (request: Request) => Promise<Response>;
