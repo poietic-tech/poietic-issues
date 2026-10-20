@@ -143,3 +143,17 @@ jobs:
           test "$(docker inspect "$(docker compose ps -aq poietic-issues)" --format '{{.State.ExitCode}}')" = 0
       - if: failure()
         run: docker compose logs
+
+  module-smoke:
+    name: Module smoke (poietic-tech host)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @poietic-tech/issues build:module
+      - run: bash apps/cli/scripts/smoke.sh

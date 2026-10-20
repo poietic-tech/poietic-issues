@@ -1,0 +1,57 @@
+name: release-issues
+
+# Publishes @poietic-tech/issues (apps/cli) to npm on a tag `issues-v<semver>`.
+#
+# Publishing is npm trusted publishing: npm trusts this workflow's GitHub OIDC
+# token, so no long-lived npm token exists anywhere.
+
+on:
+  push:
+    tags: ['issues-v*']
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm 11.5.1 or later; npm@11 resolves to that.
+      - run: npm install -g npm@11
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      # Includes the bundle test, which builds the module and loads it through
+      # the real host.
+      - run: pnpm vitest run --project cli
+      # Anyone with write access can tag any commit; only commits on main publish.
+      - name: Tag is on main
+        run: git fetch --no-tags origin main && git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      # The tag and package.json must agree, or a mistyped tag publishes
+      # whatever version happens to be on the branch.
+      - name: Tag matches package version
+        run: test "issues-v$(node -p 'require("./apps/cli/package.json").version')" = "$GITHUB_REF_NAME"
+      # Consumers cannot resolve workspace: or file: specifiers.
+      - name: No workspace or file dependencies
+        run: |
+          node -e '
+            const p = require("./apps/cli/package.json");
+            const bad = ["dependencies", "peerDependencies"].flatMap((k) =>
+              Object.entries(p[k] ?? {}).filter(([, v]) => /^(workspace|file):/.test(v)).map(([n, v]) => `${k}: ${n}@${v}`));
+            if (bad.length) { console.error(bad.join("\n")); process.exit(1); }
+          '
+      - run: pnpm --filter @poietic-tech/issues build:module
+      - run: bash apps/cli/scripts/smoke.sh
+      - run: npm publish --access public --provenance
+        working-directory: apps/cli
