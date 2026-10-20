@@ -12,19 +12,20 @@ pnpm test:pg          # same suites against Postgres (run `pnpm pg start` first)
 pnpm format           # apply Prettier
 pnpm pg start|stop|reset|status|url   # throwaway local Postgres (local binaries, else Docker)
 pnpm e2e              # build the web app, run Playwright (E2E_DATABASE_URL=postgres://… for Postgres)
-pnpm build            # web app + dist/server.mjs + dist/poietic-issues.mjs (tsdown bundles)
+pnpm build            # web app + dist/server.mjs + dist/poietic-issues-admin.mjs (tsdown bundles)
+pnpm --filter @poietic-tech/issues build:module   # the published module bundle: apps/cli/dist/poietic-tech.js (tested by apps/cli/test/bundle.test.ts)
 pnpm build:demo       # self-contained browser demo in apps/web/build-demo/ (pnpm e2e:demo tests it)
 docker compose up -d --build --wait poietic-issues   # production shape: Postgres + S3 storage
 pnpm openapi:gen      # regenerate docs/openapi.json + client types after API changes
 pnpm vitest run --project cli -u      # refresh CLI golden files + docs/cli-reference.md after CLI changes
-pnpm poietic-issues … # run the CLI from source
+pnpm issues-admin …   # run the operator tool (local mode, trusted) from source; remote use is `poietic-tech issues …`
 ```
 
 Run a single package's tests with `pnpm vitest run --project <name>`, for example `--project db`.
 
 ## Architecture rules
 
-- **Business logic lives in `packages/core`.** It does not live in HTTP route handlers, the CLI or the web app. The server, the CLI's local mode and future integrations all call the same services.
+- **Business logic lives in `packages/core`.** It does not live in HTTP route handlers, the CLI or the web app. The server, the operator tool's local mode and future integrations all call the same services.
 - **`packages/schema` is isomorphic.** It must not import Node-only modules, Hono or database code, because the web app bundles it.
 - **Internal links go through `$lib/nav.ts`** (`href`, `navigate`, `current`) in the web app, so they work with both the path router and the demo's hash router.
 - **Portable SQL only.** All code must work on both SQLite and Postgres:

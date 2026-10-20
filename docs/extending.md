@@ -11,7 +11,7 @@ Short recipes for common changes. Each keeps the rules in [AGENTS.md](../AGENTS.
 5. **Regenerate** the API contract and client with `pnpm openapi:gen`.
 6. **Web.** Add a cell/card renderer in `IssueCard`/`IssueList` and an editor in `IssueProperties`.
 
-Most per-team fields don't need any of this. Use custom fields (`poietic-issues field create`) instead.
+Most per-team fields don't need any of this. Use custom fields (`poietic-tech issues field create`) instead.
 
 ## Add a custom field type
 

@@ -68,7 +68,7 @@ pnpm test:pg
 
 - **Development.** `pnpm dev` runs the API (`:3000`) and Vite (`127.0.0.1:5943`, or the next free port). Vite proxies `/api` to the API, so the browser sees one origin and the session cookie works. Set `POIETIC_ISSUES_API_URL` to point Vite at another server.
   - `pnpm dev` loads a repo-root `.env` if there is one.
-  - It resolves a relative SQLite path and the blob directory against the repo root, so the server and the CLI's local mode share `data/dev.db` and `data/blobs`.
+  - It resolves a relative SQLite path and the blob directory against the repo root, so the server and the operator tool (`pnpm issues-admin`) share `data/dev.db` and `data/blobs`.
 - **Production.** `pnpm build:web` writes `apps/web/build/`. The API server serves it when `POIETIC_ISSUES_WEB_DIR` points there, with an SPA fallback for deep links.
 - **Data layer.**
   - The web app only talks to the API through `@poietic-tech/issues-client`.

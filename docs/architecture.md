@@ -4,7 +4,7 @@
 flowchart LR
   subgraph clients
     web[apps/web<br/>SvelteKit SPA]
-    cli[apps/cli<br/>tracker CLI]
+    cli[apps/cli<br/>poietic-tech issues module<br/>and operator tool]
     ext[agents / scripts]
   end
   subgraph server[apps/server]
@@ -16,27 +16,27 @@ flowchart LR
 
   web -- "@poietic-tech/issues-client (HTTP)" --> http
   ext -- HTTP + bearer --> http
-  cli -- "remote: HTTP" --> http
-  cli -. "local: app.fetch in-process" .-> http
+  cli -- "module: HTTP + identity token" --> http
+  cli -. "operator tool: app.fetch in-process" .-> http
   http --> core --> db
   schema -.-> web & cli & http & core
 ```
 
 ## Layers
 
-| Package      | Responsibility                                                                                   | Must not                                                                            |
-| ------------ | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
-| `schema`     | Isomorphic Zod schemas, the field registry, `IssueFilter`, view config, event and error catalogs | import Node, database or server code                                                |
-| `db`         | Dialect factory, migrations, `withWriteTx`, value codecs                                         | contain business rules                                                              |
-| `core`       | All business rules: validation, permissions, numbering, ranks, events                            | know about HTTP                                                                     |
-| `server`     | HTTP transport: auth, problem+json, ETags, idempotency, OpenAPI                                  | contain business rules                                                              |
-| `client`     | Typed HTTP client generated from `docs/openapi.json`                                             |                                                                                     |
-| `cli`, `web` | User interfaces over `client`                                                                    | talk to the database directly (the CLI's local mode still goes through `app.fetch`) |
+| Package      | Responsibility                                                                                   | Must not                                                                         |
+| ------------ | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| `schema`     | Isomorphic Zod schemas, the field registry, `IssueFilter`, view config, event and error catalogs | import Node, database or server code                                             |
+| `db`         | Dialect factory, migrations, `withWriteTx`, value codecs                                         | contain business rules                                                           |
+| `core`       | All business rules: validation, permissions, numbering, ranks, events                            | know about HTTP                                                                  |
+| `server`     | HTTP transport: auth, problem+json, ETags, idempotency, OpenAPI                                  | contain business rules                                                           |
+| `client`     | Typed HTTP client generated from `docs/openapi.json`                                             |                                                                                  |
+| `cli`, `web` | User interfaces over `client`                                                                    | talk to the database directly (the operator tool still goes through `app.fetch`) |
 
 ## Request lifecycle
 
 1. **Request context.** `requestId` middleware assigns `X-Request-Id`.
-2. **Authentication.** `authenticate` resolves the actor (bearer token, session cookie, or the trusted local actor) and builds a `ServiceContext { db, actor, clock, ids, requestId }`.
+2. **Authentication.** `authenticate` resolves the actor (identity-token bearer, session cookie, or the trusted local actor) and builds a `ServiceContext { db, actor, clock, ids, requestId }`.
 3. **Idempotency.** For POSTs with `Idempotency-Key`, the `idempotency` middleware claims the key or replays the stored response.
 4. **Validation.** The route validates input with Zod (`defaultHook` → problem+json) and calls a core service.
 5. **Write transaction.** The service runs in `withWriteTx` ([ADR 0003](adr/0003-write-transactions.md)). It validates and resolves refs, writes, and appends an event, all in one transaction.

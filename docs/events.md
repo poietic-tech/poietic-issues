@@ -2,12 +2,12 @@
 
 Every change is appended to the `events` table in the same transaction as the change ([ADR 0004](adr/0004-event-log-bus-and-outbox.md)). That one log feeds:
 
-| Consumer                   | How                                                                                                 |
-| -------------------------- | --------------------------------------------------------------------------------------------------- |
-| Issue activity             | `GET /issues/{issue}/activity`                                                                      |
-| Agents and scripts polling | `GET /events?after=<seq>` · `poietic-issues event list --after <seq>` · `poietic-issues event tail` |
-| The web app (live)         | `GET /events/stream` (Server-Sent Events)                                                           |
-| Webhooks                   | outbound HTTP POSTs to subscribed URLs (see below)                                                  |
+| Consumer                   | How                                                                                                           |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Issue activity             | `GET /issues/{issue}/activity`                                                                                |
+| Agents and scripts polling | `GET /events?after=<seq>` · `poietic-tech issues event list --after <seq>` · `poietic-tech issues event tail` |
+| The web app (live)         | `GET /events/stream` (Server-Sent Events)                                                                     |
+| Webhooks                   | outbound HTTP POSTs to subscribed URLs (see below)                                                            |
 
 ## Event shape
 
@@ -79,7 +79,7 @@ Each server process runs an `EventTailer` that follows the event log. It wakes:
 2. on Postgres `NOTIFY poietic_issues_events`, which is sent inside every event-writing transaction and so reaches replicas;
 3. on a 300 ms poll, which also picks up writes from other processes on SQLite, such as the CLI in local mode.
 
-So an agent that runs `poietic-issues issue create` against the same database shows up on everyone's board within a fraction of a second, even without talking to the server.
+So an operator who runs `poietic-issues-admin issue create` against the same database shows up on everyone's board within a fraction of a second, even without talking to the server.
 
 ### How the web app applies events
 
@@ -93,7 +93,7 @@ So an agent that runs `poietic-issues issue create` against the same database sh
 
 ## Webhooks
 
-Webhooks push events to other services. They are managed by admins: through the web app (**Workspace → Webhooks**), `poietic-issues webhook …`, or the API (`/webhooks`).
+Webhooks push events to other services. They are managed by admins: through the web app (**Workspace → Webhooks**), `poietic-tech issues webhook …`, or the API (`/webhooks`).
 
 ```sh
 poietic-issues webhook create https://ci.example.com/hooks/tracker --events 'issue.*,comment.created' --scope ENG
@@ -148,7 +148,7 @@ function verify(secret: string, headers: Headers, rawBody: string): boolean {
 }
 ```
 
-`verifyWebhook(secret, headers, body)` from `@poietic-tech/issues-core` does the same. Rotating the secret (`poietic-issues webhook rotate-secret`) takes effect on the next attempt.
+`verifyWebhook(secret, headers, body)` from `@poietic-tech/issues-core` does the same. Rotating the secret (`poietic-tech issues webhook rotate-secret`) takes effect on the next attempt.
 
 ### Retries and failure handling
 
@@ -157,7 +157,7 @@ Any 2xx response within 10 seconds counts as delivered. Everything else is retri
 - **Failures:** non-2xx responses, timeouts, connection errors and refused addresses.
 - **Retry schedule:** after 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours.
 - **Giving up:** after 6 attempts in total the delivery is marked `dead`.
-- **Auto-disable:** after 5 dead deliveries in a row the webhook is disabled. Re-enabling it (`poietic-issues webhook edit whk_… --enable`) resumes its queued deliveries.
+- **Auto-disable:** after 5 dead deliveries in a row the webhook is disabled. Re-enabling it (`poietic-tech issues webhook edit whk_… --enable`) resumes its queued deliveries.
 - **Redelivery:** `redeliver` queues any delivery again with a fresh set of retries.
 
 ### How delivery works

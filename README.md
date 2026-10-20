@@ -4,7 +4,7 @@ A custom issue tracker built for teams where **humans and AI agents work side by
 
 - **An extensible domain model.** Projects, issues, comments, typed links, sub-issues, labels, custom fields, attachments and saved views sit on top of an append-only event log.
 - **A typesafe, documented API.** Zod schemas are the single source of truth, and the committed OpenAPI 3.1 contract is generated from them.
-- **An agent-grade CLI (`poietic-issues`).** It has stable JSON output, documented exit codes and never prompts, and it can describe its own commands (`poietic-issues commands --json`).
+- **An agent-grade CLI, `poietic-tech issues`.** It is a module of the `poietic-tech` command (`npm i -g @poietic-tech/cli @poietic-tech/issues`), signed in with the shared poietic.tech login. It has stable JSON output, documented exit codes and never prompts, and it can describe its own commands (`poietic-tech issues commands`).
 - **A Svelte web UI** with a list view, a kanban board with customizable cards, and live updates over SSE.
 - **Integrations and storage:** signed webhooks, and file attachments on local disk or any S3-compatible store.
 - **SQLite for development, Postgres for production**, from one codebase. Every test suite runs against both. Production is a single Docker image.
@@ -34,15 +34,23 @@ POIETIC_ISSUES_DATABASE_URL=$(pnpm --silent pg url) pnpm dev
 
 ## Use the CLI
 
-Local mode needs no server. It runs the API in-process on the same `data/dev.db` that `pnpm dev` uses:
+Remote use is the published module. Install it next to the host, sign in once, and point a repository at its project:
 
 ```sh
-pnpm poietic-issues db migrate && pnpm poietic-issues db seed      # not needed if `pnpm dev` has already run
-pnpm poietic-issues issue list -P ENG
-pnpm poietic-issues commands --json                         # the full command surface, for agents
+npm i -g @poietic-tech/cli @poietic-tech/issues    # a global install of the module alone does not put poietic-tech on PATH
+poietic-tech login
+poietic-tech issues init --project ENG
+poietic-tech issues issue list
 ```
 
-The CLI can also talk to a running server; see [cli.md](docs/cli.md).
+It talks to https://issues.poietic.tech; see [cli.md](docs/cli.md) and, for agents, [agents.md](docs/agents.md).
+
+Local mode needs no server and is for development and operators: `poietic-issues-admin` (`pnpm issues-admin …` in this repository) runs the same commands in-process on the `data/dev.db` that `pnpm dev` uses:
+
+```sh
+pnpm issues-admin db migrate && pnpm issues-admin db seed   # not needed if `pnpm dev` has already run
+pnpm issues-admin issue list -P ENG
+```
 
 ## Other ways to run it
 
@@ -50,10 +58,10 @@ This runs the **production-shaped stack** (Postgres, S3-compatible storage and t
 
 ```sh
 docker compose up -d --build --wait poietic-issues
-docker compose exec poietic-issues poietic-issues db bootstrap --handle you --name "Your Name"
+docker compose exec poietic-issues poietic-issues-admin db bootstrap --handle you --name "Your Name"
 ```
 
-Production auth has no demo users: people sign in through SSO (see [deployment.md](docs/deployment.md)). Stop the stack with `docker compose down`, or add `-v` to delete its data too. [deployment.md](docs/deployment.md) covers configuration and hardening.
+That stack has no SSO and no dev login, so the bootstrapped admin cannot sign in to the web UI, and no remote caller can use the API (without SSO every bearer value is a 401). Use it to try the image, and run operator tasks inside the container with `poietic-issues-admin`, for example `docker compose exec poietic-issues poietic-issues-admin issue list -P ENG`. Production auth has no demo users: people sign in through SSO (see [deployment.md](docs/deployment.md)). Stop the stack with `docker compose down`, or add `-v` to delete its data too. [deployment.md](docs/deployment.md) covers configuration and hardening.
 
 The **browser demo** runs the web app, the API and SQLite all in the page, so any static host can serve it:
 
@@ -83,16 +91,16 @@ CI also runs the tests on Postgres, the Playwright end-to-end suite on both data
 
 ## Repository layout
 
-| Path              | Purpose                                                                                                                |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `packages/schema` | Isomorphic Zod schemas and types shared by server, CLI and web                                                         |
-| `packages/db`     | Kysely database layer: dialect factory (SQLite/Postgres), migrations, write transactions                               |
-| `packages/core`   | Transport-agnostic domain services; all business rules live here                                                       |
-| `packages/client` | Typed API client generated from the OpenAPI document                                                                   |
-| `apps/server`     | Hono HTTP API (`/api/v1`), SSE, OpenAPI docs; serves the web app in production                                         |
-| `apps/cli`        | The `poietic-issues` CLI (`@poietic-tech/issues`), which talks to a server or runs in-process against a local database |
-| `apps/web`        | SvelteKit single-page app (served by the API server in production)                                                     |
-| `docs/`           | Architecture, API/CLI guides, and [architecture decision records](docs/adr/)                                           |
+| Path              | Purpose                                                                                                                     |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `packages/schema` | Isomorphic Zod schemas and types shared by server, CLI and web                                                              |
+| `packages/db`     | Kysely database layer: dialect factory (SQLite/Postgres), migrations, write transactions                                    |
+| `packages/core`   | Transport-agnostic domain services; all business rules live here                                                            |
+| `packages/client` | Typed API client generated from the OpenAPI document                                                                        |
+| `apps/server`     | Hono HTTP API (`/api/v1`), SSE, OpenAPI docs; serves the web app in production                                              |
+| `apps/cli`        | The `poietic-tech issues` module (`@poietic-tech/issues`, remote only) and the operator tool `poietic-issues-admin` (local) |
+| `apps/web`        | SvelteKit single-page app (served by the API server in production)                                                          |
+| `docs/`           | Architecture, API/CLI guides, and [architecture decision records](docs/adr/)                                                |
 
 ## License
 

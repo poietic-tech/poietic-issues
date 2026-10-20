@@ -31,6 +31,8 @@ erDiagram
 
 ## Tables
 
+There is no table of API tokens: migration `0007_drop_api_tokens` dropped `api_tokens` ([ADR 0028](adr/0028-sso-only-and-the-poietic-tech-module.md)). Credentials live at auth.poietic.tech, and the tracker holds only the identities it links (`user_identities`) and browser `sessions`.
+
 | Table                                   | Purpose and key invariants                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `users`                                 | Actors: `kind` is `human`, `agent` or `system`; `role` is `admin` or `member`. `handle` is unique and stored lowercase. Users are deactivated, never deleted.                                                                                                                                                                                                                                                                                  |

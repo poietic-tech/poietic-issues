@@ -8,17 +8,18 @@ The tracker ships as **one process**: the HTTP API, the web app and the webhook 
 
 ```sh
 docker compose up -d --build --wait poietic-issues
-docker compose exec poietic-issues poietic-issues db bootstrap --handle you --name "Your Name"
+docker compose exec poietic-issues poietic-issues-admin db bootstrap --handle you --name "Your Name"
 ```
 
-`bootstrap` creates the first admin and prints an API token. Open http://localhost:3000, paste it into **API token** and sign in. Everything else, such as projects, users and more tokens, is managed from there or with the CLI:
+`bootstrap` creates the first admin user and mints no credential. This stack has **no SSO and no dev login**, so that admin cannot sign in to the web UI at http://localhost:3000, and nothing can call its API from outside the container: every bearer value is a 401 without SSO. The compose stack is for trying the image and for operator tasks. Run those with `poietic-issues-admin` inside the container, which works on the container's database in trusted mode:
 
 ```sh
-export POIETIC_ISSUES_SERVER=http://localhost:3000 POIETIC_ISSUES_TOKEN=trk_…
-poietic-issues project create -k ENG --name Engineering
-poietic-issues user create --handle claude --name Claude --kind agent
-poietic-issues token create --user claude --name ci      # token for an agent
+docker compose exec poietic-issues poietic-issues-admin project create -k ENG --name Engineering
+docker compose exec poietic-issues poietic-issues-admin user create --handle claude --name Claude --kind agent
+docker compose exec poietic-issues poietic-issues-admin issue list -P ENG
 ```
+
+For a working sign-in, run the stack with SSO configured (see [Single sign-on](#single-sign-on)), or develop with `pnpm dev`, whose dev auth mode signs in as any seeded user.
 
 The compose file is a starting point, not a hardened production setup: it uses fixed passwords and plain HTTP. Put TLS in front of it (see [Reverse proxy](#reverse-proxy)) and change the credentials.
 
@@ -26,11 +27,11 @@ The compose file is a starting point, not a hardened production setup: it uses f
 
 `docker build -t tracker .` produces a Node 22 slim image. It contains:
 
-- `dist/server.mjs` and `dist/poietic-issues.mjs`: single-file bundles made by `pnpm build` ([ADR 0014](adr/0014-packaging.md)).
+- `dist/server.mjs` and `dist/poietic-issues-admin.mjs`: single-file bundles made by `pnpm build` ([ADR 0014](adr/0014-packaging.md)).
 - `web/`: the built SPA.
 - The native SQLite driver.
 
-The image runs as the `node` user, keeps state in `/data` (a volume), listens on port 3000, and has a `HEALTHCHECK` on `/readyz`. The `poietic-issues` CLI is on the `PATH`, so admin tasks run with `docker exec … tracker …` in local mode against the same database.
+The image runs as the `node` user, keeps state in `/data` (a volume), listens on port 3000, and has a `HEALTHCHECK` on `/readyz`. The operator tool `poietic-issues-admin` is on the `PATH`, so admin tasks run with `docker exec … tracker poietic-issues-admin …` in local mode against the same database. The published `poietic-tech issues` module is not in the image.
 
 Its defaults:
 
@@ -54,7 +55,7 @@ All settings are environment variables, validated at startup. An invalid value s
 | `POIETIC_ISSUES_DATABASE_URL`                                                   | `sqlite:./data/dev.db`          | `postgres://user:pass@host:5432/db` or `sqlite:/path/file.db`.                                                                                                                                           |
 | `POIETIC_ISSUES_HOST` / `POIETIC_ISSUES_PORT`                                   | `127.0.0.1` / `0.0.0.0`; `3000` | Listen address.                                                                                                                                                                                          |
 | `POIETIC_ISSUES_AUTH_MODE`                                                      | `dev` / `standard`              | `dev` adds a user picker to the sign-in page (anyone can act as anyone). Refused in production.                                                                                                          |
-| `POIETIC_ISSUES_AUTO_MIGRATE`                                                   | `1` / `0` (`1` in the image)    | Apply pending migrations at startup. Otherwise the server refuses to start until `poietic-issues db migrate` has run.                                                                                    |
+| `POIETIC_ISSUES_AUTO_MIGRATE`                                                   | `1` / `0` (`1` in the image)    | Apply pending migrations at startup. Otherwise the server refuses to start until `poietic-issues-admin db migrate` has run.                                                                              |
 | `POIETIC_ISSUES_SEED`                                                           | `1` / `0`                       | Seed demo users and projects into an empty database.                                                                                                                                                     |
 | `POIETIC_ISSUES_WEB_DIR`                                                        | —                               | Directory of the built web app to serve at `/`.                                                                                                                                                          |
 | `POIETIC_ISSUES_SECURE_COOKIES`                                                 | `0` / `1`                       | `Secure` session cookies (requires HTTPS).                                                                                                                                                               |
@@ -89,12 +90,12 @@ All settings are environment variables, validated at startup. An invalid value s
 
 - **Postgres 14+** is the production database. The server needs a normal user that owns its schema. Timestamps are `timestamptz`, and all times are UTC.
 - **Migrations** are files compiled into the bundle. They run at startup when `POIETIC_ISSUES_AUTO_MIGRATE=1`. Kysely's migrator takes a lock, so replicas starting together are safe.
-- **Explicit migrations.** To run migrations as a separate release step instead, set `POIETIC_ISSUES_AUTO_MIGRATE=0` and run `poietic-issues db migrate` with `POIETIC_ISSUES_DATABASE_URL` set, e.g. `docker run --rm -e POIETIC_ISSUES_DATABASE_URL=… tracker poietic-issues db migrate`.
-- **Status.** `poietic-issues db status` shows applied and pending migrations.
-- **Back up before upgrading.** Once a release's migrations have run, older releases that migrate at startup (`POIETIC_ISSUES_AUTO_MIGRATE=1`, the image default) cannot start on that database: the migrator stops with `corrupted migrations: previously executed migration <name> is missing`. With `POIETIC_ISSUES_AUTO_MIGRATE=0` an older release does start, against a schema it doesn't know; that is unsupported. Take a backup (below) before deploying a release that adds a migration, and check that it opens with `poietic-issues db status --database <url-of-the-copy>`.
+- **Explicit migrations.** To run migrations as a separate release step instead, set `POIETIC_ISSUES_AUTO_MIGRATE=0` and run `poietic-issues-admin db migrate` with `POIETIC_ISSUES_DATABASE_URL` set, e.g. `docker run --rm -e POIETIC_ISSUES_DATABASE_URL=… tracker poietic-issues-admin db migrate`.
+- **Status.** `poietic-issues-admin db status` shows applied and pending migrations.
+- **Back up before upgrading.** Once a release's migrations have run, older releases that migrate at startup (`POIETIC_ISSUES_AUTO_MIGRATE=1`, the image default) cannot start on that database: the migrator stops with `corrupted migrations: previously executed migration <name> is missing`. With `POIETIC_ISSUES_AUTO_MIGRATE=0` an older release does start, against a schema it doesn't know; that is unsupported. Take a backup (below) before deploying a release that adds a migration, and check that it opens with `poietic-issues-admin db status --database <url-of-the-copy>`.
 - **Rolling back.** Prefer fixing forward. To run the previous release again, its database must not have the newer migrations. Either restore the pre-upgrade backup, losing every write since, or revert the schema in place:
   1. Stop the server.
-  2. With the **new** release's CLI, run `poietic-issues db migrate --down` once per migration to undo. Each run reverts the newest applied migration; older releases don't know the migration, so they can't revert it. It never reverts the first migration, and it refuses a SQLite path with no database file. Check with `poietic-issues db status`: the reverted migrations are listed under `Pending`.
+  2. With the **new** release's CLI, run `poietic-issues-admin db migrate --down` once per migration to undo. Each run reverts the newest applied migration; older releases don't know the migration, so they can't revert it. It never reverts the first migration, and it refuses a SQLite path with no database file. Check with `poietic-issues-admin db status`: the reverted migrations are listed under `Pending`.
   3. Start the previous release.
 
   Reverting drops whatever the migration added. Reverting 0004 drops project visibility, memberships, linked repos and issues' repo links; migrating forward again re-runs its backfill (every project private, every active non-admin an editor).
@@ -135,8 +136,8 @@ Set `POIETIC_ISSUES_SSO_ISSUER` and the related configuration variables to enabl
 New users signed in via SSO start deactivated (the sign-in answers with the `PENDING_APPROVAL` error code) until an admin approves them, unless their SSO role matches `POIETIC_ISSUES_SSO_ADMIN_ROLE` (default `admin`) or they are in the group named by `POIETIC_ISSUES_SSO_MEMBER_GROUP` (issues.poietic.tech uses `issues-users`). Both are checked only when a user is first created: someone who signed in before joining the group stays pending until approved, and leaving the group later changes nothing ([ADR 0026](adr/0026-sso-member-group.md)). With `POIETIC_ISSUES_SSO_DIRECTORY_KEY` set (issues.poietic.tech uses the GitHub `production` secret `POIETIC_AUTH_SERVICE_KEY`), auth.poietic.tech owns who people are: listing users refreshes every linked user's name and avatar from its directory, at most every five minutes, and adds member-group people who have never signed in, so they can be assigned before their first visit. If the directory is unreachable, the local users are served as they are ([ADR 0027](adr/0027-sso-directory.md)). To list and approve pending users:
 
 ```sh
-poietic-issues user list --include-deactivated  # find pending users
-poietic-issues user edit <handle> --reactivate   # approve them
+poietic-tech issues user list --include-deactivated  # find pending users
+poietic-tech issues user edit <handle> --reactivate   # approve them
 ```
 
 The route returns `503 UNAVAILABLE` when the issuer's JWKS (signing keys) cannot be fetched.
@@ -190,11 +191,11 @@ Store the file somewhere other than R2. Copy the attachments bucket at the same 
 
 **Upgrades and rollback:** The image migrates at startup (`POIETIC_ISSUES_AUTO_MIGRATE=1`), so a deploy that adds a migration changes the live database as soon as the new container starts. From then on the previous image cannot start: the tracker exits with `corrupted migrations: previously executed migration … is missing`, and the container restarts in a loop. Redeploying the previous image alone does not help, because every cold start restores the migrated database from the replica.
 
-- **Before merging a release with a migration**, take a snapshot with the backup recipe above, named for the release (e.g. `tracker-pre-0004.db`), and check it with `poietic-issues db status --database sqlite:tracker-pre-0004.db`.
+- **Before merging a release with a migration**, take a snapshot with the backup recipe above, named for the release (e.g. `tracker-pre-0004.db`), and check it with `poietic-issues-admin db status --database sqlite:tracker-pre-0004.db`.
 - **Fix forward** if the release misbehaves. This is the default: push a fix to `main`, and the schema stays as it is.
 - **Go back to the previous release** only if fixing forward is not possible. The container restores whatever the replica holds, so publish a database without the migration as a new replica first:
-  1. Choose the database. Either take the current data (`litestream restore -o tracker-now.db "s3://poietic-issues-db/tracker?…"`, the same URL as the backup recipe) and revert the migration with the new release's CLI, from a checkout of it: `pnpm poietic-issues db migrate --down --database sqlite:tracker-now.db`. This keeps the writes, but drops what the migration added. Or use the pre-deploy snapshot, which loses every write since the deploy.
-  2. Replicate the file once to an empty bucket with the same R2 credential: `litestream replicate -once tracker-now.db "s3://<new-bucket>/tracker?endpoint=https://<account-id>.r2.cloudflarestorage.com&region=auto&forcePathStyle=true"`. Keep the path `tracker`: the container's `litestream.yml` restores from it. Then check the result, because this step decides what the container serves: restore it with `litestream restore -o check.db …` (same URL) and run `poietic-issues db status --database sqlite:check.db`. The reverted migration must be listed under `Pending`, and the data must be there (e.g. `poietic-issues issue list -P <KEY> --database sqlite:check.db`). An empty or wrong bucket boots an **empty tracker**, since a reachable empty replica counts as a first boot. The bucket and the credential's access to it are managed in poietic-tech/poietic-dot-tech.
+  1. Choose the database. Either take the current data (`litestream restore -o tracker-now.db "s3://poietic-issues-db/tracker?…"`, the same URL as the backup recipe) and revert the migration with the new release's CLI, from a checkout of it: `pnpm issues-admin db migrate --down --database sqlite:tracker-now.db`. This keeps the writes, but drops what the migration added. Or use the pre-deploy snapshot, which loses every write since the deploy.
+  2. Replicate the file once to an empty bucket with the same R2 credential: `litestream replicate -once tracker-now.db "s3://<new-bucket>/tracker?endpoint=https://<account-id>.r2.cloudflarestorage.com&region=auto&forcePathStyle=true"`. Keep the path `tracker`: the container's `litestream.yml` restores from it. Then check the result, because this step decides what the container serves: restore it with `litestream restore -o check.db …` (same URL) and run `poietic-issues-admin db status --database sqlite:check.db`. The reverted migration must be listed under `Pending`, and the data must be there (e.g. `poietic-issues-admin issue list -P <KEY> --database sqlite:check.db`). An empty or wrong bucket boots an **empty tracker**, since a reachable empty replica counts as a first boot. The bucket and the credential's access to it are managed in poietic-tech/poietic-dot-tech.
   3. On `main`, revert the release and point `DB_BUCKET` in `wrangler.jsonc` at the new bucket in the same commit. The deploy workflow ships it, and the fresh container restores from the new bucket.
 
   The old bucket is left untouched, so this can be undone. The backup recipe above names `poietic-issues-db`; after a rollback, use the new bucket in it. These steps were checked with Litestream 0.5.17 against an S3-compatible store (revert, replicate once, restore, and the previous release reading the result). Writes made between step 1 and the deploy are lost, so keep that window short. Never delete or overwrite the live replica in place, because the running container keeps replicating to it.
@@ -209,12 +210,12 @@ The workflow sets the R2 credentials as Worker secrets, deploys, and smoke-check
 
 **Environment changes:** The new Worker goes live before the container rollout replaces the image, so for a short window the old image can run with the new Worker's environment. Any change to the container's environment contract (`deploy/cloudflare/src/container-env.ts`) must therefore work with both the previous and the new image for one deploy. For example, send both the old and the new variable names for a release, then drop the old ones. See [ADR 0019](adr/0019-cloudflare-containers-with-litestream.md#consequences) for the 2026-10-08 incident.
 
-**Admin:** There is no `docker exec` on a remote container. Use the CLI in remote mode:
+**Admin:** There is no `docker exec` on a remote container. Use the module as an admin:
 
 ```sh
-export POIETIC_ISSUES_SERVER=https://issues.poietic.tech POIETIC_ISSUES_TOKEN=<admin-token>
-poietic-issues user list
-poietic-issues user edit <handle> --reactivate   # approve pending SSO users
+poietic-tech login                                # as an admin
+poietic-tech issues user list
+poietic-tech issues user edit <handle> --reactivate   # approve pending SSO users
 ```
 
 **Local test:** `deploy/cloudflare/test/restore.sh` builds the container image and uses SeaweedFS to simulate S3 storage, proving on `linux/amd64` that data survives a container replacement and that a fresh container with an unreachable replica (wrong secret key, closed endpoint) exits without serving.
