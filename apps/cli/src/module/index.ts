@@ -20,7 +20,6 @@ const isHostCliError = (e: unknown): boolean =>
 
 function processModuleIO(): ModuleIO {
   return {
-    stdout: (chunk) => void process.stdout.write(chunk),
     cwd: process.cwd(),
     readStdin: () => readAll(process.stdin),
   };

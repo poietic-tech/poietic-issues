@@ -5,11 +5,10 @@ import { isNetworkError, usage } from '../errors.ts';
 import { retryingFetch } from '../fetch.ts';
 import type { CommandRuntime } from '../tree/runtime.ts';
 import { resolveServer } from './server.ts';
-import { ModuleSink, type Write } from './sink.ts';
+import { ModuleSink } from './sink.ts';
 
 /** What the module reads from the process; injectable for tests. */
 export interface ModuleIO {
-  stdout: Write;
   cwd: string;
   readStdin: () => Promise<string>;
 }
@@ -50,7 +49,7 @@ export class ModuleRuntime implements CommandRuntime {
             .map((f) => f.trim())
             .filter(Boolean)
         : undefined;
-    this.out = new ModuleSink(ctx.output, fields, io.stdout);
+    this.out = new ModuleSink(ctx.output, fields);
   }
 
   async api(): Promise<ApiClient> {

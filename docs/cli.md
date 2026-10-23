@@ -64,14 +64,12 @@ The output format belongs to the host:
 - `--all` fetches every page. `--limit` and `--cursor` page manually.
 - **stdout carries only results.** Errors and hints go to **stderr**.
 - Nothing ever prompts. A missing required input fails immediately with exit code 2.
-- **Raw commands print the same bytes whatever the format:** `event tail` (one NDJSON line per event), `attachment download -o -` (the file's bytes), `schema`, `api` (the response body), `commands` (the JSON reference) and `fields describe` (text).
+- **Raw commands print the same bytes whatever the format:** `event tail` (one NDJSON line per event), `attachment download -o -` (the file's bytes), `schema`, `api` (the response body), `commands` (the JSON reference) and `fields describe` (text). Piped or redirected, they are exact. To a terminal the host cleans control characters, and refuses binary (`attachment download -o -` to a terminal is exit 2; redirect it or use `-o <file>`).
+- A JSON list is `{"data":[...],"nextCursor":…}`: `nextCursor` is a string while more pages exist and `null` on the last page. The table, `ndjson` and `ids` forms keep stdout to rows and print the cursor hint on stderr.
+- `-q` prints each resource's own identifier, on a single item too: an issue's key, even when `--fields` leaves it out.
+- `issue view` in table format shows the description below its header with its line breaks.
 
-Known limitations:
-
-- A JSON list is `{"data":[...]}` without `nextCursor`. When more pages exist, the cursor hint goes to stderr; use `--all` to fetch everything.
-- `-q` on a single item (a create or an edit) prints the id (`iss_…`), not the key. Every command accepts that id wherever it accepts a key.
-- `issue view` in table format shows the description inlined on one line, because the host's table puts each value on one line. Use `--json` to read it whole.
-- Some human hints the old CLI printed are not shown.
+Known limitation: some human hints the old CLI printed are not shown.
 
 ## Errors and exit codes
 

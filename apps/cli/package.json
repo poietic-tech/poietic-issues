@@ -1,6 +1,6 @@
 {
   "name": "@poietic-tech/issues",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The poietic-tech issues module: the issue tracker at issues.poietic.tech, from the poietic-tech command line.",
   "license": "MIT",
   "type": "module",
@@ -31,10 +31,10 @@
     "build:module": "tsdown"
   },
   "peerDependencies": {
-    "@poietic-tech/cli": "^0.1.1"
+    "@poietic-tech/cli": "^0.2.0"
   },
   "devDependencies": {
-    "@poietic-tech/cli": "^0.1.1",
+    "@poietic-tech/cli": "^0.2.0",
     "@poietic-tech/issues-client": "workspace:*",
     "@poietic-tech/issues-core": "workspace:*",
     "@poietic-tech/issues-db": "workspace:*",

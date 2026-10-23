@@ -80,6 +80,9 @@ function harness(
       message: record('message'),
       warn: record('warn'),
       secret: record('secret'),
+      raw: (chunk: string | Uint8Array) => {
+        raw += typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk);
+      },
     },
     fail(code: string, message: string, o?: { status?: number }): never {
       throw { code, message, ...(o?.status !== undefined && { status: o.status }) };
@@ -87,12 +90,9 @@ function harness(
     stepUp: async () => {},
     server: 'https://auth.poietic.tech',
     env: { POIETIC_ISSUES_PROJECT: 'CLI', ...opts.env },
-    version: { host: '0.1.1', api: [1] },
+    version: { host: '0.2.0', api: [1] },
   };
   setup(ctx, {
-    stdout: (chunk) => {
-      raw += typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk);
-    },
     cwd: opts.cwd ?? dir,
     readStdin: async () => '',
   });
@@ -165,6 +165,43 @@ describe(`the poietic-tech issues module (${testDialect()})`, () => {
     expect(rows[0]).toEqual({ key: 'CLI-1', title: 'T' });
     expect(columns.map(([, get]) => get(rows[0]))).toEqual(['CLI-1', 'T']);
     expect(id(rows[0])).toBe('CLI-1');
+  });
+
+  it('gives -q the issue key on a single item, even when --fields leaves it out (host 0.2.0 item id)', async () => {
+    const h = harness();
+    await h.run(['--fields', 'title', 'issue', 'view', 'CLI-1']);
+    const [obj, , opts] = h.last('item').args as [
+      Record<string, unknown>,
+      unknown,
+      { id: (o: unknown) => string },
+    ];
+    expect(obj).toEqual({ title: 'T' });
+    expect(opts.id(obj)).toBe('CLI-1');
+  });
+
+  it('shows an issue description as a multiline column', async () => {
+    const h = harness();
+    await h.run(['issue', 'view', 'CLI-1']);
+    const [, columns] = h.last('item').args as [
+      unknown,
+      [string, unknown, { multiline?: boolean }?][],
+    ];
+    const description = columns.find(([header]) => header === 'DESCRIPTION');
+    expect(description?.[2]).toEqual({ multiline: true });
+  });
+
+  it('hands the next cursor to ctx.output.list, and null on the last page', async () => {
+    const setupHarness = harness();
+    await setupHarness.run(['issue', 'create', '-t', 'Second']);
+    const h = harness();
+    await h.run(['issue', 'list', '--limit', '1']);
+    const [, first] = h.last('list').args as [unknown, { nextCursor: string | null }];
+    expect(typeof first.nextCursor).toBe('string');
+    expect(h.last('message').args[0]).toContain(`--cursor ${first.nextCursor}`);
+    const next = harness();
+    await next.run(['issue', 'list', '--limit', '1', '--cursor', first.nextCursor!]);
+    const [, last] = next.last('list').args as [unknown, { nextCursor: string | null }];
+    expect(last.nextCursor).toBeNull();
   });
 
   it('uses the per-kind columns without --fields', async () => {
