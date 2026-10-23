@@ -22,7 +22,8 @@ export type Kind =
   | 'raw';
 
 export type Row = Record<string, unknown>;
-export type Column = [header: string, get: (row: Row) => unknown];
+/** A table column; `multiline` asks a host that supports it to keep a long text's line breaks in a detail view. */
+export type Column = [header: string, get: (row: Row) => unknown, opts?: { multiline?: boolean }];
 
 const PRIORITY = ['—', 'Urgent', 'High', 'Medium', 'Low'];
 

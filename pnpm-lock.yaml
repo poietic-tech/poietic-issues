@@ -51,8 +51,8 @@ importers:
   apps/cli:
     devDependencies:
       '@poietic-tech/cli':
-        specifier: ^0.1.1
-        version: 0.1.1
+        specifier: ^0.2.0
+        version: 0.2.0
       '@poietic-tech/issues-client':
         specifier: workspace:*
         version: link:../../packages/client
@@ -845,8 +845,8 @@ packages:
     resolution: {integrity: sha512-C+ZkKaI4O/FDBCbNADvyGNVOVsX9kwKkb1yjZ6tSEshg8yNz4A8QtO0sE4Y/vM3pMFp46kHUWCTX/oAGjumxBw==}
     engines: {node: '>=20'}
 
-  '@poietic-tech/cli@0.1.1':
-    resolution: {integrity: sha512-8uXRXqiq+znL/NxEpUBZOhsg/3RoXKsMI/jaZfeXP9F07DSQ8AZqs2vMwSaumU+Vdrh0FfnWNu0M4BNiZubWfw==}
+  '@poietic-tech/cli@0.2.0':
+    resolution: {integrity: sha512-aKVU0XoXYnIfjM1XgWWCbCg4Qq/iDcAMzxWA9zTiz/VmQFXaLLGzUYpL4PnRQXt0c41bh3eP07648apt5ASr+w==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -3515,7 +3515,7 @@ snapshots:
 
   '@poietic-tech/auth@0.4.2': {}
 
-  '@poietic-tech/cli@0.1.1':
+  '@poietic-tech/cli@0.2.0':
     dependencies:
       '@poietic-tech/auth': 0.4.2
       commander: 14.0.3

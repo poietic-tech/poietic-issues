@@ -21,7 +21,7 @@ cd "$here"
 npm pack --silent >/dev/null
 tarball="$(ls "$here"/poietic-tech-issues-*.tgz)"
 
-npm i -g --prefix "$T/p" '@poietic-tech/cli@^0.1.1' "$tarball"
+npm i -g --prefix "$T/p" '@poietic-tech/cli@^0.2.0' "$tarball"
 bin="$T/p/bin/poietic-tech"
 
 echo "== issues --help"

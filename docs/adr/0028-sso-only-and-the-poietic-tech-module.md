@@ -46,7 +46,9 @@ longer a goal.
   raw commands (`event tail`, `attachment download`, `schema`, `api`, `commands`, `fields describe`) print the same
   bytes whatever the format; and `issue view` inlines the description in table format. A JSON list carries no
   `nextCursor` (the hint goes to stderr; use `--all`), and `-q` on a single item prints the id. Each is a follow-up
-  in the host.
+  in the host. _Update, 2026-10-23:_ `@poietic-tech/cli` 0.2.0 added `output.raw`, an `id` for single items,
+  `nextCursor` on lists and multiline columns; `@poietic-tech/issues` 0.1.1 uses all four, so only the conflict exit
+  code remains a workaround.
 - The JSON shape of the CLI's output changed to the host's. This is accepted because the CLI was never published.
 - A stack without SSO, such as `docker compose up`, can no longer be called remotely or signed in to. Operators use
   `poietic-issues-admin` inside the container.
