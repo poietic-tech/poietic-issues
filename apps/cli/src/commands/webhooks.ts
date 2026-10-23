@@ -1,9 +1,6 @@
-import { Command } from 'commander';
+import type { Command } from 'commander';
 import { CliError, usage } from '../errors.ts';
-import type { CliIO } from '../io.ts';
-import { makeAction, type Runtime } from '../runtime.ts';
-
-type Opts = Record<string, unknown>;
+import type { Tree } from '../tree/runtime.ts';
 
 const list = (v: string) =>
   v
@@ -11,11 +8,11 @@ const list = (v: string) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-export function webhookCommand(io: CliIO): Command {
-  const act = (fn: (rt: Runtime, args: unknown[], o: Opts) => Promise<void>) => makeAction(io, fn);
-  const cmd = new Command('webhook').description(
-    'Push events to other services over HTTPS (admins; signed per Standard Webhooks)',
-  );
+export function registerWebhook(parent: Command, tree: Tree): Command {
+  const act: Tree['act'] = (fn) => tree.act(fn);
+  const cmd = parent
+    .command('webhook')
+    .description('Push events to other services over HTTPS (admins; signed per Standard Webhooks)');
   cmd
     .command('list')
     .alias('ls')
@@ -37,22 +34,23 @@ export function webhookCommand(io: CliIO): Command {
     .action(
       act(async (rt, [url], o) => {
         const api = await rt.api();
-        rt.out.item(
-          'webhook',
-          await rt.call(
-            api.POST('/webhooks', {
-              body: {
-                url: String(url),
-                eventTypes: list(String(o.events)),
-                ...(o.scope !== undefined && { project: String(o.scope) }),
-                ...(o.description !== undefined && { description: String(o.description) }),
-                ...(o.inactive === true && { active: false }),
-              },
-            }),
-          ),
-          (w) =>
-            `Created webhook ${String(w.id)}\nSigning secret (store it now; it is not shown again):\n${String(w.secret)}\n`,
+        const created = await rt.call(
+          api.POST('/webhooks', {
+            body: {
+              url: String(url),
+              eventTypes: list(String(o.events)),
+              ...(o.scope !== undefined && { project: String(o.scope) }),
+              ...(o.description !== undefined && { description: String(o.description) }),
+              ...(o.inactive === true && { active: false }),
+            },
+          }),
         );
+        rt.out.secret('webhook', created, {
+          value: created.secret,
+          warning: 'This is the webhook’s signing secret: store it now; it is not shown again.',
+          human: (w) =>
+            `Created webhook ${String(w.id)}\nSigning secret (store it now; it is not shown again):\n${String(w.secret)}\n`,
+        });
       }),
     );
   cmd
@@ -124,18 +122,19 @@ export function webhookCommand(io: CliIO): Command {
     .action(
       act(async (rt, [id]) => {
         const api = await rt.api();
-        rt.out.item(
-          'webhook',
-          await rt.call(
-            api.POST('/webhooks/{id}/rotate-secret', { params: { path: { id: String(id) } } }),
-          ),
-          (w) => `New signing secret for ${String(w.id)}:\n${String(w.secret)}\n`,
+        const rotated = await rt.call(
+          api.POST('/webhooks/{id}/rotate-secret', { params: { path: { id: String(id) } } }),
         );
+        rt.out.secret('webhook', rotated, {
+          value: rotated.secret,
+          warning: 'This is the webhook’s new signing secret: store it now; it is not shown again.',
+          human: (w) => `New signing secret for ${String(w.id)}:\n${String(w.secret)}\n`,
+        });
       }),
     );
   cmd
     .command('test')
-    .description('Send a signed webhook.ping now and show the answer (exit 6 unless it was 2xx)')
+    .description('Send a signed webhook.ping now and show the answer (a failure unless it was 2xx)')
     .argument('<id>', 'webhook id')
     .action(
       act(async (rt, [id]) => {

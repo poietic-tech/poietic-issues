@@ -49,10 +49,10 @@ importers:
         version: 5.0.2(@types/node@22.20.4)(vite@8.3.1(@types/node@22.20.4)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.1))
 
   apps/cli:
-    dependencies:
-      '@poietic-tech/auth':
-        specifier: ^0.2.1
-        version: 0.2.1
+    devDependencies:
+      '@poietic-tech/cli':
+        specifier: ^0.1.1
+        version: 0.1.1
       '@poietic-tech/issues-client':
         specifier: workspace:*
         version: link:../../packages/client
@@ -69,8 +69,11 @@ importers:
         specifier: workspace:*
         version: link:../server
       commander:
-        specifier: ^15.0.0
-        version: 15.0.0
+        specifier: ^14.0.3
+        version: 14.0.3
+      openapi-fetch:
+        specifier: ^0.17.0
+        version: 0.17.0
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -838,6 +841,15 @@ packages:
     resolution: {integrity: sha512-c18ylz+knIzYhLp0BMMVtNscvhTsiYLj+i9jAjsam+PdVzOmIglG7m+2nktDwmVboMel8NrunrSUOzrxmhedtQ==}
     engines: {node: '>=20'}
 
+  '@poietic-tech/auth@0.4.2':
+    resolution: {integrity: sha512-C+ZkKaI4O/FDBCbNADvyGNVOVsX9kwKkb1yjZ6tSEshg8yNz4A8QtO0sE4Y/vM3pMFp46kHUWCTX/oAGjumxBw==}
+    engines: {node: '>=20'}
+
+  '@poietic-tech/cli@0.1.1':
+    resolution: {integrity: sha512-8uXRXqiq+znL/NxEpUBZOhsg/3RoXKsMI/jaZfeXP9F07DSQ8AZqs2vMwSaumU+Vdrh0FfnWNu0M4BNiZubWfw==}
+    engines: {node: '>=20'}
+    hasBin: true
+
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
 
@@ -1577,9 +1589,9 @@ packages:
   colorette@1.4.0:
     resolution: {integrity: sha512-Y2oEozpomLn7Q3HFP7dpww7AtMJplbM9lGZP6RDfHqmbeRjiwRg4n6VM6j4KLmRke85uWEI7JqF17f3pqdRA0g==}
 
-  commander@15.0.0:
-    resolution: {integrity: sha512-z67u4ZhzCL/Tydu1lJARtEZYWbWaN7oYLHbsuzocr6y4N6WZAagG3RQ4FW61V1/0+jImpj293XfrcYnd1qxtPg==}
-    engines: {node: '>=22.12.0'}
+  commander@14.0.3:
+    resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
+    engines: {node: '>=20'}
 
   commander@5.1.0:
     resolution: {integrity: sha512-P0CysNDQ7rtVw4QIQtm+MRxV66vKFSvlsQvGYXZWR3qFU0jlMKHZZZgw8e+8DSah4UDKMqnknRDQz+xuQXQ/Zg==}
@@ -3501,6 +3513,13 @@ snapshots:
 
   '@poietic-tech/auth@0.2.1': {}
 
+  '@poietic-tech/auth@0.4.2': {}
+
+  '@poietic-tech/cli@0.1.1':
+    dependencies:
+      '@poietic-tech/auth': 0.4.2
+      commander: 14.0.3
+
   '@polka/url@1.0.0-next.29': {}
 
   '@poppinss/colors@4.1.6':
@@ -4113,7 +4132,7 @@ snapshots:
 
   colorette@1.4.0: {}
 
-  commander@15.0.0: {}
+  commander@14.0.3: {}
 
   commander@5.1.0: {}
 

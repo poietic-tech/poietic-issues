@@ -1,19 +1,22 @@
-# The `poietic-issues` CLI
+# The `poietic-tech issues` CLI
 
-`poietic-issues` (npm: `@poietic-tech/issues`) is the command-line interface to the tracker, built to be driven by AI agents as much as by people. Every command is listed in the generated [CLI reference](cli-reference.md).
+`poietic-tech issues` is the command-line interface to the tracker at issues.poietic.tech, built to be driven by AI agents as much as by people. It is a module (`@poietic-tech/issues`) of the `poietic-tech` command, so it signs in with the shared login and follows the host's output and exit-code conventions. Every command is listed in the generated [CLI reference](cli-reference.md).
 
 ```sh
-pnpm poietic-issues --help              # inside this repo (or link the bin: apps/cli/src/bin.ts)
-poietic-issues issue create -t "Fix login" -p high -l bug --json
-poietic-issues issue list --assignee me --status "In Progress"
-poietic-issues issue edit ENG-42 --status Done --add-label shipped
-poietic-issues comment add ENG-42 --body-file notes.md
-poietic-issues link add ENG-42 blocked-by ENG-7
+npm i -g @poietic-tech/cli @poietic-tech/issues   # a global install of the module alone does not put poietic-tech on PATH
+poietic-tech login
+poietic-tech issues issue create -t "Fix login" -p high -l bug --json
+poietic-tech issues issue list --assignee me --status "In Progress"
+poietic-tech issues issue edit ENG-42 --status Done --add-label shipped
+poietic-tech issues comment add ENG-42 --body-file notes.md
+poietic-tech issues link add ENG-42 blocked-by ENG-7
 ```
+
+Local mode (an in-process database, no server) is not part of the module. It lives in the operator tool, [`poietic-issues-admin`](#administration-the-operator-tool).
 
 ## Grammar
 
-`tracker <noun> <verb> [arguments] [options]`, for example `issue list`, `comment add`, `link add`, `status reorder`.
+`poietic-tech issues <noun> <verb> [arguments] [options]`, for example `issue list`, `comment add`, `link add`, `status reorder`.
 
 **Issue references.** Issues are referenced as `ENG-42` or by id, everywhere.
 
@@ -24,59 +27,67 @@ poietic-issues link add ENG-42 blocked-by ENG-7
 - users: `--assignee @ada`, `me` or `none`
 - links: `blocks`, `blocked-by`, `relates-to`, `duplicates`, `duplicated-by`
 
-## Connecting: remote and local mode
+## Connecting and signing in
 
-| Mode       | When                                                               | How it works                                                                                                                              |
-| ---------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| **Remote** | a server URL is configured                                         | HTTPS to `POIETIC_ISSUES_SERVER` with the token `POIETIC_ISSUES_TOKEN`                                                                    |
-| **Local**  | only a database URL is configured (default `sqlite:./data/dev.db`) | Runs the same HTTP API in-process against the database file; no server needed. Acts as `POIETIC_ISSUES_ACTOR` (default: the first admin). |
+The module talks to one server over HTTPS and holds no credential of its own. The host resolves who you are:
 
-Both modes execute the exact same API code, including validation, permissions, events and error codes ([ADR 0005](adr/0005-api-as-contract.md)).
+- **A person:** `poietic-tech login` once.
+- **An agent in a person's session:** `POIETIC_IDENTITY=<agent>` after `poietic-tech login`.
+- **A harness or CI job:** `POIETIC_AGENT_TOKEN=pat_…`.
 
-Configuration precedence (first wins):
+See [agents.md](agents.md) and [ADR 0023](adr/0023-agent-identities.md). The module never prints an identity token and sends it only to `*.poietic.tech` over https.
 
-1. Flags: `--server`, `--token`, `--database`, `--actor`, `--project`, `--format`, `--fields`
-2. Environment: `POIETIC_ISSUES_SERVER`, `POIETIC_ISSUES_TOKEN`, `POIETIC_ISSUES_DATABASE_URL`, `POIETIC_ISSUES_ACTOR`, `POIETIC_ISSUES_PROJECT`, `POIETIC_ISSUES_FORMAT`, `POIETIC_ISSUES_FIELDS`
-3. `.poietic-issues.json`, found by walking up from the current directory. Write it with `poietic-issues init`. It holds `server` / `database`, `project` and `actor`, **never tokens**. Commit it to a repository so agents working there pick the right project.
-4. User config `$XDG_CONFIG_HOME/poietic-issues/config.json` (mode 0600), which holds tokens per server. Write it with `poietic-issues auth login --server <url> --with-token < token.txt`.
+Settings, first wins:
 
-`poietic-issues auth status` shows which mode, user and project are in effect, and where each setting came from.
+1. Module options on `issues`, inherited by every subcommand: `-P, --project <key>` and `--fields <list>`.
+2. Environment: `POIETIC_ISSUES_SERVER`, `POIETIC_ISSUES_PROJECT`, and the host's `POIETIC_TECH_FORMAT`.
+3. `.poietic-issues.json`, found by walking up from the current directory. Write it with `poietic-tech issues init --project KEY`. It holds `server` and `project`, **never tokens** (a file with a token is refused). Commit it to a repository so agents working there pick the right project.
 
-In remote mode, a set `POIETIC_AGENT_TOKEN` overrides every token source above: the CLI acts as that poietic.tech agent ([agents.md](agents.md#acting-as-a-poietictech-agent), [ADR 0023](adr/0023-agent-identities.md)).
+The server is `https://issues.poietic.tech` by default. A `POIETIC_ISSUES_SERVER` or `server` override must be https on a `*.poietic.tech` host, or the command fails with a usage error.
+
+The user config file `~/.config/poietic-issues/config.json` and the old token and format variables of the `poietic-issues` CLI are gone and ignored. Delete the file. `poietic-tech issues whoami` shows the tracker account in effect (handle, role, kind, owner, project access).
 
 ## Output contract
 
-| Format | Flag                        | Output                                                                                     |
-| ------ | --------------------------- | ------------------------------------------------------------------------------------------ |
-| table  | default                     | Aligned columns for humans. Hints go to stderr.                                            |
-| json   | `--json` or `--format json` | Exactly the API resource shape. Lists are `{ "data": [...], "nextCursor": … }`.            |
-| ndjson | `--format ndjson`           | One JSON object per line. Good for streaming and `jq -c`.                                  |
-| ids    | `-q` / `--quiet`            | Only keys and ids, one per line (e.g. `poietic-issues issue create … -q` prints `ENG-43`). |
+The output format belongs to the host:
 
-- `POIETIC_ISSUES_FORMAT=json` sets the default for a whole agent session.
+| Format | Flag                                | Output                                                    |
+| ------ | ----------------------------------- | --------------------------------------------------------- |
+| table  | default                             | Aligned columns for humans. Hints go to stderr.           |
+| json   | `--json` or `--format json`         | The resource objects. Lists are `{ "data": [...] }`.      |
+| ndjson | `--format ndjson`                   | One JSON object per line. Good for streaming and `jq -c`. |
+| ids    | `-q` / `--quiet`, or `--format ids` | Only identifiers, one per line.                           |
+
+- `POIETIC_TECH_FORMAT=json` sets the default for a whole session.
 - The format never switches automatically based on TTY detection.
-- `--fields key,title,status,assignee.handle` projects output to those fields, for fewer tokens. Plain names are resource fields or field-registry keys (e.g. `statusCategory`). Dotted paths reach into objects.
+- `--fields key,title,status,assignee.handle` narrows the table columns and projects the objects for json and ndjson. Plain names are resource fields or field-registry keys (e.g. `statusCategory`). Dotted paths reach into objects.
 - `--all` fetches every page. `--limit` and `--cursor` page manually.
 - **stdout carries only results.** Errors and hints go to **stderr**.
 - Nothing ever prompts. A missing required input fails immediately with exit code 2.
+- **Raw commands print the same bytes whatever the format:** `event tail` (one NDJSON line per event), `attachment download -o -` (the file's bytes), `schema`, `api` (the response body), `commands` (the JSON reference) and `fields describe` (text).
+
+Known limitations:
+
+- A JSON list is `{"data":[...]}` without `nextCursor`. When more pages exist, the cursor hint goes to stderr; use `--all` to fetch everything.
+- `-q` on a single item (a create or an edit) prints the id (`iss_…`), not the key. Every command accepts that id wherever it accepts a key.
+- `issue view` in table format shows the description inlined on one line, because the host's table puts each value on one line. Use `--json` to read it whole.
+- Some human hints the old CLI printed are not shown.
 
 ## Errors and exit codes
 
-With `--json`, errors are written to stderr as a JSON object with a stable `code`, the same codes as the API ([api.md](api.md#errors)):
+The exit codes are the host's table (`poietic-tech help exit-codes`). The module maps the API's error codes onto it by meaning:
 
-```json
-{ "code": "NOT_FOUND", "detail": "Issue \"ENG-999\" not found" }
-```
+| Exit | Meaning                             | Machine codes (`--json` error `code`)                                                                                             |
+| ---- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | Success                             |                                                                                                                                   |
+| 1    | Internal error                      | `internal`                                                                                                                        |
+| 2    | Usage, invalid request, or conflict | `bad_usage`, `bad_request`, and the conflicts `conflict`, `version_mismatch`, `idempotency_in_progress`, `idempotency_key_reused` |
+| 3    | Not logged in                       | `not_logged_in`                                                                                                                   |
+| 4    | Not found                           | `not_found`, and the host's `no_such_agent` (`POIETIC_IDENTITY` names an unknown agent)                                           |
+| 5    | Not allowed                         | `not_allowed` (forbidden, or an account pending approval)                                                                         |
+| 8    | Network or server failure           | `network`, `server_error` (including 429 and 5xx)                                                                                 |
 
-| Exit | Meaning             | Codes                                              |
-| ---- | ------------------- | -------------------------------------------------- |
-| 0    | Success             |                                                    |
-| 1    | Internal error      | `INTERNAL`                                         |
-| 2    | Usage or validation | `VALIDATION_FAILED`, `INVALID_RELATION`, bad flags |
-| 3    | Not found           | `NOT_FOUND`                                        |
-| 4    | Conflict            | `CONFLICT`, `VERSION_MISMATCH`, `IDEMPOTENCY_*`    |
-| 5    | Auth                | `UNAUTHENTICATED`, `FORBIDDEN`                     |
-| 6    | Unavailable         | server unreachable, database not migrated          |
+Conflicts share exit 2 with usage errors but keep their own machine code, so an agent can tell "someone else changed it, refetch" from "fix your input". Field-level validation errors are appended to the message, one `path: message` per line. The API's own codes are in [api.md](api.md#errors).
 
 ## Input
 
@@ -89,7 +100,7 @@ With `--json`, errors are written to stderr as a JSON object with a stable `code
 ## Safety for automation
 
 - **Retries are safe.** Every mutation in remote mode carries an `Idempotency-Key`. Network failures are retried twice with the same key, so a retried create never duplicates.
-- **Optimistic concurrency.** `--if-version N` (from the issue's `version`) makes `edit`, `move` and `delete` fail with exit 4 instead of overwriting a concurrent change.
+- **Optimistic concurrency.** `--if-version N` (from the issue's `version`) makes `edit`, `move` and `delete` fail with exit 2 (`version_mismatch`) instead of overwriting a concurrent change.
 - **Deletes are restorable.** `issue delete` moves the issue to the trash, and `issue restore` brings it back. `--permanent` is admin-only.
 - **Atomic multi-issue edits.** `issue edit ENG-1 ENG-2 …` updates several issues atomically.
 
@@ -98,30 +109,34 @@ With `--json`, errors are written to stderr as a JSON object with a stable `code
 Projects are `private` (members and admins) or `public` (anyone can read). Members have a role: `viewer`, `editor` or `manager`. Changing any of this needs `manage` on the project. These commands take the project from `-P`, `POIETIC_ISSUES_PROJECT` or `.poietic-issues.json`, like the rest of the CLI.
 
 ```sh
-poietic-issues project edit ENG --visibility public
-poietic-issues project members add @ada --role editor -P ENG
-poietic-issues project members set @ada --role manager -P ENG
-poietic-issues project members list -P ENG
-poietic-issues project repo add https://github.com/acme/app -P ENG   # or acme/app
-poietic-issues issue edit ENG-42 --repo acme/app                      # one of the project's linked repos
+poietic-tech issues project edit ENG --visibility public
+poietic-tech issues project members add @ada --role editor -P ENG
+poietic-tech issues project members set @ada --role manager -P ENG
+poietic-tech issues project members list -P ENG
+poietic-tech issues project repo add https://github.com/acme/app -P ENG   # or acme/app
+poietic-tech issues issue edit ENG-42 --repo acme/app                      # one of the project's linked repos
 ```
 
 ## Discovery
 
-| Command                                                                 | What it gives                                                                                                       |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `poietic-issues commands --json`                                        | Every command, argument, option, exit code, error code and environment variable, in one call                        |
-| `poietic-issues project schema`                                         | JSON Schema for issue create/update in the current project, with live enums: statuses, labels, users, custom fields |
-| `poietic-issues schema <name>`                                          | JSON Schema of resources and inputs (`issue`, `issue-create`, `issue-filter`, `view-config`, …)                     |
-| `poietic-issues api GET /issues/ENG-1`                                  | Any endpoint, raw (like `gh api`)                                                                                   |
-| `poietic-issues event list --after <seq>` / `poietic-issues event tail` | What changed since a point in time (NDJSON with `tail`)                                                             |
+| Command                                                                           | What it gives                                                                                                       |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `poietic-tech issues commands`                                                    | Every command, argument, option, exit code, error code and environment variable, as JSON, whatever the format       |
+| `poietic-tech issues project schema`                                              | JSON Schema for issue create/update in the current project, with live enums: statuses, labels, users, custom fields |
+| `poietic-tech issues schema <name>`                                               | JSON Schema of resources and inputs (`issue`, `issue-create`, `issue-filter`, `view-config`, …)                     |
+| `poietic-tech issues api GET /issues/ENG-1`                                       | Any endpoint, raw (like `gh api`)                                                                                   |
+| `poietic-tech issues event list --after <seq>` / `poietic-tech issues event tail` | What changed since a point in time (NDJSON with `tail`)                                                             |
 
-## Administration (local mode)
+## Administration: the operator tool
+
+Local mode lives in `poietic-issues-admin`, which is never published. It is the same command tree over the in-process app on a local database in trusted mode, plus `db migrate|status|bootstrap|seed` and `serve`. It runs as `pnpm issues-admin …` in this repository and as `poietic-issues-admin` in the Docker image. It keeps the old local flags (`--database`, `--actor`) and its own output: `--json`, `--format`, `-q`, `POIETIC_ISSUES_FORMAT`, and exit codes 0 ok, 1 internal, 2 usage or validation, 3 not found, 4 conflict, 5 authentication or permission, 6 unavailable.
 
 ```sh
-poietic-issues --database sqlite:./data/dev.db db migrate    # apply migrations
-poietic-issues db seed                                       # demo data + printed tokens (empty database only)
-poietic-issues serve --port 3000                             # run the server on the local database
-poietic-issues user create --handle builder-bot --name "Builder Bot" --kind agent
-poietic-issues token create --user builder-bot --name ci -q  # prints the secret only
+pnpm issues-admin --database sqlite:./data/dev.db db migrate    # apply migrations
+pnpm issues-admin db seed                                       # demo data (empty database only)
+pnpm issues-admin db bootstrap --handle you --name "Your Name"  # the first admin, with no token
+pnpm issues-admin serve --port 3000                             # run the server on the local database
+pnpm issues-admin user create --handle builder-bot --name "Builder Bot" --kind agent
 ```
+
+Real agents are auth.poietic.tech agents, not users made here ([agents.md](agents.md)).

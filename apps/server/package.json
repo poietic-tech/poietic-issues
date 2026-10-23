@@ -5,7 +5,8 @@
   "description": "HTTP API server (Hono) exposing @poietic-tech/issues-core over /api/v1.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",

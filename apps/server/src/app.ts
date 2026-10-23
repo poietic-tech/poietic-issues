@@ -38,7 +38,7 @@ export const OPENAPI_CONFIG: Parameters<TrackerApp['getOpenAPI31Document']>[0] =
       'REST API of the tracker. Humans and AI agents use the same API; the `tracker` CLI and the web app are clients of it.',
       '',
       '**Conventions**',
-      '- Authenticate with `Authorization: Bearer trk_…` (API token) or the web session cookie.',
+      '- Authenticate with `Authorization: Bearer <identity token>` (from the SSO issuer) or the web session cookie.',
       '- Paths accept human references: issues as `ENG-42` or id, projects as `ENG` or id, users as `@handle`, `me` or id.',
       '- Lists return `{ data, nextCursor }`; pass `cursor` to continue.',
       '- Errors are RFC 9457 `application/problem+json` with a stable `code`.',
@@ -80,16 +80,15 @@ function buildApi(resolved: ResolvedDeps): TrackerApp {
     type: 'http',
     scheme: 'bearer',
     description:
-      'API token (`trk_…`), created with `POST /users/{user}/tokens` or `poietic-issues token create`. ' +
-      'With single sign-on configured, any other bearer value is an identity token from the SSO issuer, such as an ' +
-      "agent's. A new agent becomes a user owned by its (already signed-in) owner. `trk_` tokens always take " +
-      'precedence, and an invalid bearer value is rejected rather than falling back to a session cookie.',
+      "An identity token from the SSO issuer, such as an agent's. A new agent becomes a user owned by its (already " +
+      'signed-in) owner. Without single sign-on configured, every bearer value is rejected. An invalid bearer value ' +
+      'is a 401 rather than falling back to a session cookie.',
   });
   api.openAPIRegistry.registerComponent('securitySchemes', 'sessionCookie', {
     type: 'apiKey',
     in: 'cookie',
     name: SESSION_COOKIE,
-    description: 'Web session from `/auth/token-login` or `/auth/dev-login`.',
+    description: 'Web session from `/auth/sso` or `/auth/dev-login`.',
   });
 
   api.doc31('/openapi.json', OPENAPI_CONFIG);

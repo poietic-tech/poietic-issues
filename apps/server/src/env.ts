@@ -41,8 +41,8 @@ export interface SsoOptions {
 
 /**
  * How requests are authenticated.
- * - `standard`: bearer tokens (`Authorization: Bearer trk_…`) and web session cookies. With `allowDevLogin`,
- *   `POST /auth/dev-login` lets the web UI sign in as any user — development only.
+ * - `standard`: SSO identity tokens (`Authorization: Bearer …`, when `sso` is set) and web session cookies. With
+ *   `allowDevLogin`, `POST /auth/dev-login` lets the web UI sign in as any user — development only.
  * - `trusted`: every request acts as a fixed user, no credentials. Used only in-process by the CLI's local mode
  *   (which already has direct database access); never mounted on a listening server.
  */
@@ -93,7 +93,7 @@ export interface AppEnv {
     logger: Logger;
     actor: Actor | null;
     /** `identity`: an SSO identity token in the Authorization header (ADR 0023). */
-    authVia: 'bearer' | 'identity' | 'session' | 'trusted' | null;
+    authVia: 'identity' | 'session' | 'trusted' | null;
     /** When the credential this request authenticated with stops working (a session or identity token), else null. */
     credentialExpiresAt: Date | null;
     /** Re-asks the issuer whether an identity token's session is still live (cached); null when there is no check. */

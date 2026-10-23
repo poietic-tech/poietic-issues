@@ -31,6 +31,26 @@ test('shows the pending screen when the account awaits approval', async ({ page 
   await page.goto('/login');
   await expect(page.getByText('Waiting for approval')).toBeVisible();
   await expect(page.getByText('@pat is waiting')).toBeVisible();
+  await expect(page.getByText('poietic-tech issues user edit <handle> --reactivate')).toBeVisible();
+});
+
+test('offers SSO and no API-token form', async ({ page }) => {
+  await page.route('**/api/v1/auth/sso', (r) =>
+    r.fulfill({
+      status: 401,
+      contentType: 'application/problem+json',
+      body: JSON.stringify({
+        type: 'urn:tracker:error:UNAUTHENTICATED',
+        title: 'Authentication required',
+        status: 401,
+        code: 'UNAUTHENTICATED',
+      }),
+    }),
+  );
+  await page.goto('/login?signedout=1');
+  await expect(page.getByRole('button', { name: 'Sign in with Example' })).toBeVisible();
+  await expect(page.getByLabel('API token')).toHaveCount(0);
+  await expect(page.getByText(/token create|use a token/)).toHaveCount(0);
 });
 
 test('sends a signed-out visitor to the SSO login with a redirect back', async ({ page }) => {

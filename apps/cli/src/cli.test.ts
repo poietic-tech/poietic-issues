@@ -11,8 +11,8 @@ import { testDialect } from '@poietic-tech/issues-db/testing';
 import { createApp } from '@poietic-tech/issues-server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { CliIO } from './io.ts';
-import { renderCliReference } from './reference.ts';
-import { run } from './main.ts';
+import type { Command } from 'commander';
+import { buildProgram, run } from './admin.ts';
 
 let t: TestContext;
 let appFetch: (r: Request) => Promise<Response>;
@@ -41,6 +41,18 @@ async function cli(
   };
   const code = await run(args, io);
   return { code, stdout, stderr, json: () => JSON.parse(stdout) };
+}
+
+/** An IO that writes nowhere, for building the program without running it. */
+function processLessIO(): CliIO {
+  return {
+    stdout: () => {},
+    stderr: () => {},
+    env: {},
+    cwd: dir,
+    readStdin: async () => '',
+    isTTY: false,
+  };
 }
 
 beforeAll(async () => {
@@ -226,29 +238,25 @@ describe(`tracker CLI (${testDialect()})`, () => {
     expect(history.json().data.map((e: { type: string }) => e.type)).toContain('comment.created');
   });
 
-  it('describes itself for agents', async () => {
-    const res = await cli(['commands', '--json']);
-    const info = res.json();
-    const names = info.commands.map((c: { name: string }) => c.name);
-    expect(names).toEqual(
-      expect.arrayContaining([
-        'issue create',
-        'issue list',
-        'link add',
-        'event tail',
-        'schema',
-        'api',
-      ]),
-    );
-    expect(info.exitCodes['3']).toBe('Not found');
-    expect(info.errorCodes.VERSION_MISMATCH).toEqual({ status: 412, exit: 4 });
-    // Golden file: changes to the command surface must be deliberate (update with `vitest -u`).
-    await expect(`${JSON.stringify(info, null, 2)}\n`).toMatchFileSnapshot(
-      '../test/commands.golden.json',
-    );
-    // The CLI reference in docs/ is generated from the same description (update with `vitest -u`).
-    await expect(renderCliReference(info)).toMatchFileSnapshot('../../../docs/cli-reference.md');
+  it('never shadows a global option in a subcommand (commander would swallow it)', () => {
+    const program = buildProgram({ ...processLessIO(), env: {} });
+    const flags = (s: string) => s.split(/[ ,|]+/).filter((f) => f.startsWith('-'));
+    const globals = new Set(program.options.flatMap((o) => flags(o.flags)));
+    const clashes: string[] = [];
+    const walk = (cmd: Command, path: string[]) => {
+      for (const sub of cmd.commands) {
+        const name = [...path, sub.name()];
+        for (const o of sub.options)
+          for (const f of flags(o.flags))
+            if (globals.has(f)) clashes.push(`${name.join(' ')} ${f}`);
+        walk(sub, name);
+      }
+    };
+    walk(program, []);
+    expect(clashes).toEqual([]);
+  });
 
+  it('prints schemas and help', async () => {
     const schema = await cli(['schema', 'issue-create']);
     expect(JSON.parse(schema.stdout).required).toEqual(['title']);
     const live = await cli(['project', 'schema']);
@@ -256,23 +264,6 @@ describe(`tracker CLI (${testDialect()})`, () => {
     const help = await cli(['issue', 'create', '--help']);
     expect(help.code).toBe(0);
     expect(help.stdout).toContain('--body-file <path>');
-  });
-
-  it('never shadows a global option in a subcommand (commander would swallow it)', async () => {
-    const info = (await cli(['commands', '--json'])).json();
-    const globals = new Set(
-      info.globalOptions.flatMap((o: { flags: string }) =>
-        o.flags.split(/[ ,|]+/).filter((f: string) => f.startsWith('-')),
-      ),
-    );
-    for (const command of info.commands)
-      for (const option of command.options)
-        for (const flag of option.flags.split(/[ ,|]+/).filter((f: string) => f.startsWith('-')))
-          expect({ command: command.name, flag, clash: globals.has(flag) }).toEqual({
-            command: command.name,
-            flag,
-            clash: false,
-          });
   });
 
   it('defines custom fields and sets/filters them', async () => {
@@ -582,13 +573,13 @@ describe(`project access commands without manage (${testDialect()})`, () => {
   });
 });
 
-describe.runIf(testDialect() === 'sqlite')('local and remote modes (real transports)', () => {
+describe.runIf(testDialect() === 'sqlite')('local mode (real transport)', () => {
   it('runs in-process against a local SQLite file', async () => {
     const db = join(dir, 'local.db');
     const env = { POIETIC_ISSUES_DATABASE_URL: `sqlite:${db}` };
     const unmigrated = await cli(['issue', 'list'], { env, fetch: null });
     expect(unmigrated.code).toBe(6);
-    expect(unmigrated.stderr).toMatch(/poietic-issues db migrate/);
+    expect(unmigrated.stderr).toMatch(/poietic-issues-admin db migrate/);
     expect((await cli(['db', 'migrate'], { env, fetch: null })).stdout).toMatch(
       /Applied: 0001_init, 0002_webhook_delivery_details/,
     );
@@ -598,7 +589,7 @@ describe.runIf(testDialect() === 'sqlite')('local and remote modes (real transpo
       fetch: null,
     });
     expect(boot.json()).toMatchObject({ user: { handle: 'root', role: 'admin' } });
-    expect(boot.json().token).toMatch(/^trk_/);
+    expect(boot.json()).not.toHaveProperty('token');
     const again = await cli(['db', 'bootstrap', '--handle', 'x', '--name', 'X'], {
       env: fresh,
       fetch: null,
@@ -606,7 +597,7 @@ describe.runIf(testDialect() === 'sqlite')('local and remote modes (real transpo
     expect(again.code).toBe(4);
     expect((await cli(['whoami', '-q'], { env: fresh, fetch: null })).stdout).toMatch(/usr_/);
     const seeded = await cli(['db', 'seed', '--json'], { env, fetch: null });
-    expect(seeded.json().agentToken).toMatch(/^trk_/);
+    expect(seeded.json()).toEqual({ users: ['ada', 'grace', 'margaret', 'claude'] });
     const list = await cli(['issue', 'list', '--project', 'ENG', '-q', '--sort', 'key'], {
       env,
       fetch: null,
@@ -711,74 +702,8 @@ describe.runIf(testDialect() === 'sqlite')('local and remote modes (real transpo
     expect(migrated.code).toBe(0);
   });
 
-  it('talks to a real server with a token, and logs in', async () => {
-    const { loadConfig, startServer } = await import('@poietic-tech/issues-server');
-    const server = await startServer(
-      loadConfig({
-        POIETIC_ISSUES_DATABASE_URL: `sqlite:${join(dir, 'remote.db')}`,
-        POIETIC_ISSUES_PORT: '0',
-        POIETIC_ISSUES_SEED: '1',
-      }),
-    );
-    try {
-      const token = (
-        await (
-          await import('@poietic-tech/issues-core')
-        ).createToken(
-          {
-            ...t.ctx,
-            db: server.db,
-            actor: (await (
-              await import('@poietic-tech/issues-core')
-            ).actorForUser({ db: server.db, actor: t.admin }, 'ada'))!,
-          },
-          'ada',
-          { name: 'cli-test' },
-        )
-      ).token;
-      const env = { POIETIC_ISSUES_SERVER: server.url, POIETIC_ISSUES_TOKEN: token };
-      const created = await cli(['issue', 'create', '-P', 'ENG', '-t', 'Over HTTP', '--json'], {
-        env,
-        fetch: null,
-      });
-      expect(created.stderr).toBe('');
-      expect(created.code).toBe(0);
-      expect(created.json().creator.handle).toBe('ada');
-      expect(
-        (
-          await cli(['whoami', '-q'], {
-            env: { POIETIC_ISSUES_SERVER: server.url, POIETIC_ISSUES_TOKEN: 'trk_bad' },
-            fetch: null,
-          })
-        ).code,
-      ).toBe(5);
-      // Without a token the server answers as an anonymous visitor; the CLI reports "not signed in".
-      const anonymous = await cli(['whoami', '--json'], {
-        env: { POIETIC_ISSUES_SERVER: server.url },
-        fetch: null,
-      });
-      expect(anonymous.code).toBe(5);
-      expect(anonymous.stderr).toMatch(/not signed in/i);
-
-      const login = await cli(['auth', 'login', '--server', server.url, '--with-token'], {
-        stdin: token,
-        fetch: null,
-      });
-      expect(login.code).toBe(0);
-      const status = await cli(['auth', 'status', '--json'], { fetch: null });
-      expect(status.json()).toMatchObject({ mode: 'remote', user: { handle: 'ada' } });
-    } finally {
-      await server.close();
-    }
-    const down = await cli(['whoami'], {
-      env: { POIETIC_ISSUES_SERVER: 'http://127.0.0.1:9', POIETIC_ISSUES_TOKEN: 'x' },
-      fetch: null,
-    });
-    expect(down.code).toBe(6);
-  }, 30_000);
-
   it('works as a spawned binary', async () => {
-    const bin = fileURLToPath(new URL('./bin.ts', import.meta.url));
+    const bin = fileURLToPath(new URL('./admin-bin.ts', import.meta.url));
     const exec = promisify(execFile);
     const version = await exec(process.execPath, [bin, '--version']);
     expect(version.stdout.trim()).toBe('0.1.0');
@@ -792,4 +717,37 @@ describe.runIf(testDialect() === 'sqlite')('local and remote modes (real transpo
     expect(failure).toMatchObject({ code: 3 });
     expect(JSON.parse((failure as { stderr: string }).stderr).code).toBe('NOT_FOUND');
   }, 30_000);
+});
+
+describe('the operator tool poietic-issues-admin', () => {
+  it('has no remote mode: --server and --token are unknown options', async () => {
+    for (const args of [
+      ['--server', 'https://x', 'issue', 'list'],
+      ['--token', 't', 'issue', 'list'],
+    ]) {
+      const res = await cli(args);
+      expect(res.code, args[0]).toBe(2);
+      expect(res.stderr, args[0]).toMatch(/unknown option/);
+    }
+  });
+
+  it('has no auth command', async () => {
+    const res = await cli(['auth', 'status']);
+    expect(res.code).toBe(2);
+    expect(res.stderr).toMatch(/unknown command/);
+  });
+
+  it('still runs the tree through the injected fetch', async () => {
+    const res = await cli(['issue', 'create', '-t', 'Through the admin tool', '--json']);
+    expect(res.stderr).toBe('');
+    expect(res.code).toBe(0);
+    expect(res.json()).toMatchObject({ title: 'Through the admin tool' });
+  });
+
+  it('names itself poietic-issues-admin', async () => {
+    const help = await cli(['--help']);
+    expect(help.code).toBe(0);
+    expect(help.stdout).toMatch(/^Usage: poietic-issues-admin /);
+    expect(help.stdout).not.toMatch(/--server|--token|\bauth\b/);
+  });
 });

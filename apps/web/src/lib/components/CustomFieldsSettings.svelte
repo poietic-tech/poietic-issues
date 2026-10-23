@@ -123,7 +123,7 @@
   <p class="mb-3 text-sm text-fg-muted">
     Fields appear on the issue sidebar, can be shown on cards and list columns, used to group the
     board, and set by agents with
-    <code class="font-mono text-xs">poietic-issues issue edit KEY --set key=value</code>.
+    <code class="font-mono text-xs">poietic-tech issues issue edit KEY --set key=value</code>.
   </p>
   <ul class="space-y-2">
     {#each all.data ?? [] as field (field.id)}

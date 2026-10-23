@@ -1,13 +1,14 @@
-import { createToken } from '@poietic-tech/issues-core';
 import { createTestContext, grant, type TestContext } from '@poietic-tech/issues-core/testing';
 import { testDialect } from '@poietic-tech/issues-db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app.ts';
+import { testSso } from './testing.ts';
 
 let t: TestContext;
 let app: ReturnType<typeof createApp>;
 let adminToken: string;
 let memberToken: string;
+let sso: ReturnType<typeof testSso>;
 
 const BASE = 'http://tracker.test';
 
@@ -33,9 +34,10 @@ async function call(
 
 beforeAll(async () => {
   t = await createTestContext();
-  app = createApp({ db: t.db, auth: { mode: 'standard', allowDevLogin: true } });
-  adminToken = (await createToken(t.ctx, 'admin', { name: 'test' })).token;
-  memberToken = (await createToken(t.member, 'member', { name: 'test' })).token;
+  sso = testSso(t);
+  app = createApp({ db: t.db, auth: { mode: 'standard', allowDevLogin: true, sso: sso.options } });
+  adminToken = await sso.bearer('admin');
+  memberToken = await sso.bearer('member');
 });
 afterAll(() => t.destroy());
 
@@ -50,7 +52,39 @@ describe(`HTTP API (${testDialect()})`, () => {
       type: 'urn:tracker:error:UNAUTHENTICATED',
     });
     expect(res.body.requestId).toBe(res.headers.get('x-request-id'));
-    expect((await call('GET', '/projects', { token: 'trk_nope' })).status).toBe(401);
+  });
+
+  it('rejects an old trk_ bearer with a 401, with or without SSO, never falling back to the cookie', async () => {
+    const login = await call('POST', '/auth/dev-login', { token: null, body: { user: 'member' } });
+    const cookie = login.headers.get('set-cookie')!.split(';')[0]!;
+    const plain = createApp({ db: t.db, auth: { mode: 'standard', allowDevLogin: true } });
+    for (const target of [app, plain]) {
+      for (const headers of [{}, { cookie }] as Record<string, string>[]) {
+        const res = await target.request(`${BASE}/api/v1/me`, {
+          headers: { ...headers, authorization: 'Bearer trk_abc' },
+        });
+        expect(res.status).toBe(401);
+        expect(res.headers.get('content-type')).toBe('application/problem+json');
+        expect(((await res.json()) as { code: string }).code).toBe('UNAUTHENTICATED');
+      }
+    }
+    // The cookie on its own still works, so the 401s above did not come from a dead session.
+    expect((await call('GET', '/me', { token: null, headers: { cookie } })).body.handle).toBe(
+      'member',
+    );
+  });
+
+  it('no longer serves the API-token routes', async () => {
+    for (const [method, path] of [
+      ['POST', '/users/admin/tokens'],
+      ['GET', '/users/admin/tokens'],
+      ['DELETE', '/tokens/x'],
+      ['POST', '/auth/token-login'],
+    ] as const) {
+      const body = method === 'GET' ? undefined : { name: 'x', token: 'trk_abc' };
+      const res = await call(method, path, body === undefined ? {} : { body });
+      expect([res.status, res.body.code], `${method} ${path}`).toEqual([404, 'NOT_FOUND']);
+    }
   });
 
   it('creates projects and issues and resolves human refs', async () => {
@@ -299,7 +333,7 @@ describe(`HTTP API (${testDialect()})`, () => {
     expect(issueEvents.body.data).toHaveLength(1);
   });
 
-  it('manages views and tokens', async () => {
+  it('manages views', async () => {
     const views = await call('GET', '/projects/API/views');
     const board = views.body.data.find((v: { layout: string }) => v.layout === 'board');
     const updated = await call('PATCH', `/views/${board.id}`, {
@@ -317,15 +351,6 @@ describe(`HTTP API (${testDialect()})`, () => {
     });
     expect(personal.body.ownerId).not.toBeNull();
     expect((await call('GET', `/views/${personal.body.id}`)).status).toBe(404); // other users can't see it
-
-    const token = await call('POST', '/users/me/tokens', {
-      token: memberToken,
-      body: { name: 'cli' },
-    });
-    expect(token.body.token).toMatch(/^trk_/);
-    expect((await call('GET', '/me', { token: token.body.token })).body.handle).toBe('member');
-    await call('DELETE', `/tokens/${token.body.id}`, { token: memberToken });
-    expect((await call('GET', '/me', { token: token.body.token })).status).toBe(401);
   });
 
   it('signs in the web UI with a cookie session and blocks cross-site writes', async () => {
@@ -358,12 +383,6 @@ describe(`HTTP API (${testDialect()})`, () => {
     expect((await call('GET', '/me', { token: null, headers: { cookie } })).body).toEqual({
       anonymous: true,
     });
-
-    const tokenLogin = await call('POST', '/auth/token-login', {
-      token: null,
-      body: { token: memberToken },
-    });
-    expect(tokenLogin.status).toBe(200);
   });
 
   it('refuses dev login unless enabled, and trusted mode acts as a fixed user', async () => {

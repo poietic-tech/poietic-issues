@@ -124,9 +124,22 @@ describe('createSsoVerifier', () => {
     ).toBeNull();
     expect(await verifier.verify('not.a.jwt')).toBeNull();
     expect(await verifier.verify('nope')).toBeNull();
+    expect(await verifier.verify('trk_0123456789abcdefABCDEF0123456789abcdef')).toBeNull();
     expect(
       await verifier.verify(await sign(other.privateKey, { alg: 'ES256', kid: 'k1' }, claims())),
     ).toBeNull();
+  });
+
+  it('rejects a retired trk_ API token without asking the issuer, so it is a 401 even when the issuer is down', async () => {
+    let fetches = 0;
+    const verifier = await verifierWith({
+      fetchImpl: (async () => {
+        fetches++;
+        throw new Error('issuer down');
+      }) as typeof fetch,
+    });
+    expect(await verifier.verify('trk_0123456789abcdefABCDEF0123456789abcdef')).toBeNull();
+    expect(fetches).toBe(0);
   });
 
   it('refetches once for an unknown kid, at most once a minute', async () => {

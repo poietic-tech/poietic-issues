@@ -1,7 +1,6 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import {
   actorForUser,
-  authenticateToken,
   createSession,
   deleteSession,
   DomainError,
@@ -124,26 +123,6 @@ export function registerAuthRoutes(app: TrackerApp, deps: ResolvedDeps) {
         },
         200,
       );
-    },
-  );
-
-  app.openapi(
-    createRoute({
-      method: 'post',
-      path: '/auth/token-login',
-      tags,
-      security: [],
-      summary: 'Sign in with an API token',
-      description: 'Exchanges an API token for an HttpOnly session cookie (used by the web UI).',
-      request: { body: jsonBody(z.object({ token: z.string() }).openapi('TokenLoginInput')) },
-      responses: { 200: json(UserSchema, 'Signed in'), ...errorResponses() },
-    }),
-    async (c) => {
-      const { token } = c.req.valid('json');
-      const actor = await authenticateToken(c.get('ctx'), token);
-      if (!actor) throw new DomainError('UNAUTHENTICATED', 'Invalid, expired or revoked token');
-      await startSession(c, actor.id);
-      return c.json(await getUser(withActor(c.get('ctx'), actor), actor.id), 200);
     },
   );
 

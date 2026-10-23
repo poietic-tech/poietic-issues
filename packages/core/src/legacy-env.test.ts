@@ -14,6 +14,12 @@ describe('applyLegacyEnv', () => {
     expect(env.POIETIC_ISSUES_TOKEN).toBe('new');
   });
 
+  it('never carries TRACKER_TOKEN over: it held a retired trk_ API token', () => {
+    const env: Record<string, string | undefined> = { TRACKER_TOKEN: 'trk_old' };
+    expect(applyLegacyEnv(env)).toEqual([]);
+    expect(env.POIETIC_ISSUES_TOKEN).toBeUndefined();
+  });
+
   it('warns only when a legacy name was used', () => {
     expect(legacyEnvWarning([])).toBeUndefined();
     expect(legacyEnvWarning(['TRACKER_PORT'])).toContain('TRACKER_PORT → POIETIC_ISSUES_PORT');

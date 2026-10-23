@@ -10,7 +10,7 @@ export type Schemas = components['schemas'];
 export interface ClientOptions {
   /** Server origin, e.g. `http://127.0.0.1:3000`. The `/api/v1` prefix is added automatically. */
   baseUrl: string;
-  /** API token (`trk_…`), sent as `Authorization: Bearer`. */
+  /** Bearer credential (an SSO identity token), sent as `Authorization: Bearer`. */
   token?: string | undefined;
   /** Custom fetch — e.g. `app.fetch` for in-process calls, or a browser fetch with credentials. */
   fetch?: (request: Request) => Promise<Response>;
@@ -45,12 +45,16 @@ export type Problem = Schemas['Problem'];
 export class ApiError extends Error {
   readonly status: number;
   readonly problem: Problem;
+  /** False when the answer was not a problem document (a proxy's HTML page, say): `problem` is made up from
+   *  the status, so only the status is the server's word. */
+  readonly isProblem: boolean;
 
-  constructor(problem: Problem) {
+  constructor(problem: Problem, opts: { isProblem?: boolean } = {}) {
     super(problem.detail ?? problem.title);
     this.name = 'ApiError';
     this.status = problem.status;
     this.problem = problem;
+    this.isProblem = opts.isProblem ?? true;
   }
 
   get code(): Problem['code'] {
@@ -72,16 +76,19 @@ export function toApiError(error: unknown, response: Response): ApiError {
   if (body && typeof body === 'object' && typeof body.code === 'string')
     return new ApiError(body as Problem);
   const status = response.status;
-  return new ApiError({
-    type: 'urn:tracker:error:INTERNAL',
-    title: response.statusText || 'Request failed',
-    status,
-    code:
-      status >= 500
-        ? status === 503 || status === 502
-          ? 'UNAVAILABLE'
-          : 'INTERNAL'
-        : 'VALIDATION_FAILED',
-    detail: typeof error === 'string' ? error.slice(0, 500) : `HTTP ${status}`,
-  });
+  return new ApiError(
+    {
+      type: 'urn:tracker:error:INTERNAL',
+      title: response.statusText || 'Request failed',
+      status,
+      code:
+        status >= 500
+          ? status === 503 || status === 502
+            ? 'UNAVAILABLE'
+            : 'INTERNAL'
+          : 'VALIDATION_FAILED',
+      detail: typeof error === 'string' ? error.slice(0, 500) : `HTTP ${status}`,
+    },
+    { isProblem: false },
+  );
 }

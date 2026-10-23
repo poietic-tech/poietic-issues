@@ -1,5 +1,7 @@
 const LEGACY_PREFIX = 'TRACKER_';
 const PREFIX = 'POIETIC_ISSUES_';
+/** Legacy names that are not carried over: `TRACKER_TOKEN` held a retired `trk_` API token. */
+const RETIRED = new Set(['TRACKER_TOKEN']);
 
 /**
  * Copies each legacy `TRACKER_*` variable to its `POIETIC_ISSUES_*` name when the new name is unset, and returns
@@ -9,7 +11,7 @@ const PREFIX = 'POIETIC_ISSUES_';
 export function applyLegacyEnv(env: Record<string, string | undefined>): string[] {
   const used: string[] = [];
   for (const [name, value] of Object.entries(env)) {
-    if (!name.startsWith(LEGACY_PREFIX) || value === undefined) continue;
+    if (!name.startsWith(LEGACY_PREFIX) || RETIRED.has(name) || value === undefined) continue;
     const current = PREFIX + name.slice(LEGACY_PREFIX.length);
     if (env[current] === undefined) {
       env[current] = value;

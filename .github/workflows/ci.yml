@@ -127,11 +127,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Start the stack (Postgres + S3 storage)
         run: docker compose up -d --build --wait poietic-issues
-      - name: Bootstrap an admin and use the API through the CLI
+      - name: Bootstrap an admin and use the database through the operator tool
         run: |
-          token=$(docker compose exec -T poietic-issues poietic-issues db bootstrap --handle ci --name CI --json | jq -r .token)
-          docker compose exec -T -e POIETIC_ISSUES_SERVER=http://127.0.0.1:3000 -e POIETIC_ISSUES_TOKEN="$token" poietic-issues \
-            sh -c 'poietic-issues project create -k CI --name CI -q && poietic-issues issue create -t "From CI" --project CI -q'
+          docker compose exec -T poietic-issues poietic-issues-admin db bootstrap --handle ci --name CI --json
+          docker compose exec -T poietic-issues sh -c 'poietic-issues-admin --actor ci project create -k CI --name CI -q && poietic-issues-admin --actor ci issue create -t "From CI" --project CI -q && poietic-issues-admin --actor ci issue view CI-1 --json' \
+            | tee smoke.out
+          # The two -q commands print the project key and the issue key; the JSON view follows them.
+          test "$(head -n 2 smoke.out | tr '\n' ' ')" = 'CI CI-1 '
+          sed -n '/^{/,$p' smoke.out | jq -e '.title == "From CI"'
           curl -sf http://localhost:3000/readyz
           curl -sf http://localhost:3000/ | grep -q '<!doctype html>'
       - name: Graceful shutdown
@@ -140,3 +143,17 @@ jobs:
           test "$(docker inspect "$(docker compose ps -aq poietic-issues)" --format '{{.State.ExitCode}}')" = 0
       - if: failure()
         run: docker compose logs
+
+  module-smoke:
+    name: Module smoke (poietic-tech host)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @poietic-tech/issues build:module
+      - run: bash apps/cli/scripts/smoke.sh

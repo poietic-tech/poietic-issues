@@ -1,25 +1,40 @@
 import { Command, CommanderError, Option } from 'commander';
-import { adminCommands } from './commands/index.ts';
 import { toCliError } from './errors.ts';
 import type { CliIO } from './io.ts';
+import { dbCommand, serveCommand } from './local/commands.ts';
+import { adminTree } from './runtime.ts';
+import { registerTree } from './tree/index.ts';
 
 export const CLI_VERSION = '0.1.0';
 
-/** Builds the command tree. Pure: no I/O until an action runs. */
+/** The operator tool's name, in help and in the messages the command tree prints. */
+export const ADMIN_NAME = 'poietic-issues-admin';
+
+/**
+ * Builds the operator tool: the command tree over the in-process app on a local database (trusted mode, acting
+ * as `--actor`), plus `db` and `serve`. Pure: no I/O until an action runs.
+ */
 export function buildProgram(io: CliIO): Command {
-  const program = new Command('poietic-issues')
+  const program = new Command(ADMIN_NAME)
     .description(
-      'Command-line interface to poietic-issues — designed for humans and AI agents.\n\n' +
+      'Operator tool for poietic-issues: the command tree over a local database (trusted mode), plus db and\n' +
+        'serve. Never published; remote callers use `poietic-tech issues`.\n\n' +
         'Machine use: add --json (or set POIETIC_ISSUES_FORMAT=json); errors go to stderr as problem JSON with stable\n' +
-        'codes; exit codes are documented (`poietic-issues commands --json`). Nothing ever prompts.',
+        'codes; exit codes are documented in docs/cli.md. Nothing ever prompts.',
     )
     .version(CLI_VERSION, '-V, --version')
-    .addOption(new Option('--server <url>', 'poietic-issues server URL (remote mode)'))
-    .addOption(new Option('--token <token>', 'API token (remote mode)'))
     .addOption(
-      new Option('--database <url>', 'database URL (local mode), e.g. sqlite:./data/dev.db'),
+      new Option(
+        '--database <url>',
+        'database URL, e.g. sqlite:./data/dev.db (default from POIETIC_ISSUES_DATABASE_URL)',
+      ),
     )
-    .addOption(new Option('--actor <handle>', 'local mode: act as this user'))
+    .addOption(
+      new Option(
+        '--actor <handle>',
+        'act as this user (default from POIETIC_ISSUES_ACTOR, else the first admin)',
+      ),
+    )
     .addOption(
       new Option(
         '-P, --project <key>',
@@ -41,7 +56,26 @@ export function buildProgram(io: CliIO): Command {
       writeErr: (s) => io.stderr(s),
       outputError: () => {}, // rendered by run() so --json can format it
     });
-  for (const cmd of adminCommands(io, () => program)) program.addCommand(cmd);
+  // The shared command tree, with this tool's local-only commands interleaved in the existing help order.
+  const tree = adminTree(io, ADMIN_NAME);
+  registerTree(program, tree, [
+    'issue',
+    'comment',
+    'link',
+    'attachment',
+    'project',
+    'status',
+    'label',
+    'field',
+    'view',
+    'event',
+    'webhook',
+    'user',
+  ]);
+  registerTree(program, tree, ['whoami', 'init']);
+  program.addCommand(dbCommand(io));
+  program.addCommand(serveCommand(io));
+  registerTree(program, tree, ['schema', 'api']);
   for (const cmd of program.commands) configureRecursively(cmd, io);
   return program;
 }

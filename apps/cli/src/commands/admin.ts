@@ -1,19 +1,15 @@
 import type { ApiClient, Schemas } from '@poietic-tech/issues-client';
-import { Command } from 'commander';
+import type { Command } from 'commander';
 import { CliError, usage } from '../errors.ts';
-import type { CliIO } from '../io.ts';
-import { makeAction, readJsonArg, type Runtime } from '../runtime.ts';
-import { membersCommand, repoCommand, visibilityOption } from './members.ts';
+import { readJsonArg } from '../tree/args.ts';
+import type { CommandRuntime, Tree } from '../tree/runtime.ts';
+import { registerMembers, registerRepo, visibilityOption } from './members.ts';
 
 type Opts = Record<string, unknown>;
 const pick = (o: Opts, keys: string[]) =>
   Object.fromEntries(keys.filter((k) => o[k] !== undefined).map((k) => [k, o[k]]));
 
-function actFor(io: CliIO) {
-  return (fn: (rt: Runtime, args: unknown[], o: Opts) => Promise<void>) => makeAction(io, fn);
-}
-
-async function statusId(rt: Runtime, api: ApiClient, ref: string): Promise<string> {
+async function statusId(rt: CommandRuntime, api: ApiClient, ref: string): Promise<string> {
   if (ref.startsWith('sts_')) return ref;
   const list = (
     await rt.call(
@@ -29,7 +25,7 @@ async function statusId(rt: Runtime, api: ApiClient, ref: string): Promise<strin
   return found.id;
 }
 
-async function labelId(rt: Runtime, api: ApiClient, ref: string): Promise<string> {
+async function labelId(rt: CommandRuntime, api: ApiClient, ref: string): Promise<string> {
   if (ref.startsWith('lbl_')) return ref;
   const list = (
     await rt.call(
@@ -41,7 +37,7 @@ async function labelId(rt: Runtime, api: ApiClient, ref: string): Promise<string
   return found.id;
 }
 
-async function viewId(rt: Runtime, api: ApiClient, ref: string): Promise<string> {
+async function viewId(rt: CommandRuntime, api: ApiClient, ref: string): Promise<string> {
   if (ref.startsWith('viw_')) return ref;
   const list = (
     await rt.call(
@@ -53,9 +49,9 @@ async function viewId(rt: Runtime, api: ApiClient, ref: string): Promise<string>
   return found.id;
 }
 
-export function projectCommand(io: CliIO): Command {
-  const act = actFor(io);
-  const cmd = new Command('project').description('Manage projects');
+export function registerProject(parent: Command, tree: Tree): Command {
+  const act: Tree['act'] = (fn) => tree.act(fn);
+  const cmd = parent.command('project').description('Manage projects');
   cmd
     .command('list')
     .alias('ls')
@@ -100,7 +96,9 @@ export function projectCommand(io: CliIO): Command {
     .requiredOption('-k, --key <KEY>', 'issue key prefix, e.g. ENG (immutable)')
     .requiredOption('-n, --name <name>', 'name')
     .option('--description <text>', 'description')
-    .addOption(visibilityOption('public: anyone can read; private (default): members and admins'))
+    .addOption(
+      visibilityOption(cmd, 'public: anyone can read; private (default): members and admins'),
+    )
     .action(
       act(async (rt, _a, o) => {
         const api = await rt.api();
@@ -125,7 +123,7 @@ export function projectCommand(io: CliIO): Command {
     .argument('[project]', 'project key or id')
     .option('-n, --name <name>', 'name')
     .option('--description <text>', 'description')
-    .addOption(visibilityOption('public: anyone can read; private: members and admins'))
+    .addOption(visibilityOption(cmd, 'public: anyone can read; private: members and admins'))
     .option('--archive', 'archive the project (admin)')
     .option('--unarchive', 'unarchive the project (admin)')
     .action(
@@ -159,19 +157,19 @@ export function projectCommand(io: CliIO): Command {
             params: { path: { project: rt.project(ref as string | undefined) } },
           }),
         );
-        rt.io.stdout(`${JSON.stringify(data, null, 2)}\n`);
+        rt.out.raw(`${JSON.stringify(data, null, 2)}\n`);
       }),
     );
-  cmd.addCommand(membersCommand(io));
-  cmd.addCommand(repoCommand(io));
+  registerMembers(cmd, tree);
+  registerRepo(cmd, tree);
   return cmd;
 }
 
-export function statusCommand(io: CliIO): Command {
-  const act = actFor(io);
-  const cmd = new Command('status').description(
-    "Manage a project's workflow statuses (board columns)",
-  );
+export function registerStatus(parent: Command, tree: Tree): Command {
+  const act: Tree['act'] = (fn) => tree.act(fn);
+  const cmd = parent
+    .command('status')
+    .description("Manage a project's workflow statuses (board columns)");
   cmd
     .command('list')
     .alias('ls')
@@ -284,9 +282,9 @@ export function statusCommand(io: CliIO): Command {
   return cmd;
 }
 
-export function labelCommand(io: CliIO): Command {
-  const act = actFor(io);
-  const cmd = new Command('label').description("Manage a project's labels");
+export function registerLabel(parent: Command, tree: Tree): Command {
+  const act: Tree['act'] = (fn) => tree.act(fn);
+  const cmd = parent.command('label').description("Manage a project's labels");
   cmd
     .command('list')
     .alias('ls')
@@ -369,11 +367,11 @@ export function labelCommand(io: CliIO): Command {
   return cmd;
 }
 
-export function viewCommand(io: CliIO): Command {
-  const act = actFor(io);
-  const cmd = new Command('view').description(
-    'Saved list/board views (filters, sort, columns, card fields)',
-  );
+export function registerView(parent: Command, tree: Tree): Command {
+  const act: Tree['act'] = (fn) => tree.act(fn);
+  const cmd = parent
+    .command('view')
+    .description('Saved list/board views (filters, sort, columns, card fields)');
   cmd
     .command('list')
     .alias('ls')
@@ -475,9 +473,9 @@ export function viewCommand(io: CliIO): Command {
   return cmd;
 }
 
-export function userCommand(io: CliIO): Command {
-  const act = actFor(io);
-  const cmd = new Command('user').description('Manage users (humans and agents)');
+export function registerUser(parent: Command, tree: Tree): Command {
+  const act: Tree['act'] = (fn) => tree.act(fn);
+  const cmd = parent.command('user').description('Manage users (humans and agents)');
   cmd
     .command('list')
     .alias('ls')
@@ -559,70 +557,6 @@ export function userCommand(io: CliIO): Command {
           await rt.call(
             api.PATCH('/users/{user}', { params: { path: { user: String(ref) } }, body }),
           ),
-        );
-      }),
-    );
-  return cmd;
-}
-
-export function tokenCommand(io: CliIO): Command {
-  const act = actFor(io);
-  const cmd = new Command('token').description('Manage API tokens');
-  cmd
-    .command('list')
-    .alias('ls')
-    .description('List API tokens (never shows secrets)')
-    .option('-u, --user <user>', 'whose tokens (admin for others)', 'me')
-    .action(
-      act(async (rt, _a, o) => {
-        const api = await rt.api();
-        rt.out.list(
-          'token',
-          (
-            await rt.call(
-              api.GET('/users/{user}/tokens', { params: { path: { user: String(o.user) } } }),
-            )
-          ).data,
-        );
-      }),
-    );
-  cmd
-    .command('create')
-    .description('Create an API token; prints the secret once (-q prints only the secret)')
-    .requiredOption('-n, --name <name>', 'what the token is for')
-    .option('-u, --user <user>', 'for which user (admin for others)', 'me')
-    .option('--expires <iso>', 'expiry timestamp, e.g. 2027-01-01T00:00:00Z')
-    .action(
-      act(async (rt, _a, o) => {
-        const api = await rt.api();
-        const created = await rt.call(
-          api.POST('/users/{user}/tokens', {
-            params: { path: { user: String(o.user) } },
-            body: {
-              name: String(o.name),
-              ...(o.expires !== undefined && { expiresAt: String(o.expires) }),
-            },
-          }),
-        );
-        if (rt.out.format === 'ids') return rt.io.stdout(`${created.token}\n`);
-        rt.out.item(
-          'token',
-          created,
-          (t) =>
-            `Token for ${String(o.user)} created. Store it now — it will not be shown again:\n\n  ${String(t.token)}\n`,
-        );
-      }),
-    );
-  cmd
-    .command('revoke')
-    .description('Revoke a token')
-    .argument('<id>', 'token id')
-    .action(
-      act(async (rt, [id]) => {
-        const api = await rt.api();
-        rt.out.item(
-          'token',
-          await rt.call(api.DELETE('/tokens/{id}', { params: { path: { id: String(id) } } })),
         );
       }),
     );

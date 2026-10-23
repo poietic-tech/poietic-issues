@@ -20,12 +20,6 @@ function storeUser(handle: string | null) {
   }
 }
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': status >= 400 ? 'application/problem+json' : 'application/json' },
-  });
-
 export async function installDemo(): Promise<void> {
   const backend = await startDemoBackend();
   let user = storedUser();
@@ -45,17 +39,6 @@ export async function installDemo(): Promise<void> {
       }
       return me;
     }
-    if (request.method === 'POST' && path === '/auth/token-login')
-      return json(
-        {
-          type: 'urn:tracker:error:VALIDATION_FAILED',
-          title: 'Not available in the demo',
-          status: 400,
-          code: 'VALIDATION_FAILED',
-          detail: 'This demo has no API tokens. Pick a user above to sign in.',
-        },
-        400,
-      );
     if (request.method === 'POST' && path === '/auth/logout') {
       user = null;
       storeUser(null);

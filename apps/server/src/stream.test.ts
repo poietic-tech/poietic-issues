@@ -5,7 +5,6 @@ import {
   createLink,
   createProject,
   createSession,
-  createToken,
   createUser,
   deleteAttachment,
   deleteIssue,
@@ -29,12 +28,14 @@ import { Writable } from 'node:stream';
 import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app.ts';
+import { testSso } from './testing.ts';
 
 let t: TestContext;
 let tailer: EventTailer;
 let app: ReturnType<typeof createApp>;
 let token: string;
 let memberToken: string;
+let sso: ReturnType<typeof testSso>;
 
 beforeAll(async () => {
   t = await createTestContext();
@@ -43,9 +44,10 @@ beforeAll(async () => {
   await createProject(t.ctx, { key: 'PUB', name: 'Public', visibility: 'public' });
   tailer = new EventTailer(t.db, { intervalMs: 50 });
   await tailer.start();
-  app = createApp({ db: t.db, tailer });
-  token = (await createToken(t.ctx, 'admin', { name: 'sse' })).token;
-  memberToken = (await createToken(t.member, 'member', { name: 'sse' })).token;
+  sso = testSso(t);
+  app = createApp({ db: t.db, tailer, auth: { mode: 'standard', sso: sso.options } });
+  token = await sso.bearer('admin');
+  memberToken = await sso.bearer('member');
 });
 afterAll(async () => {
   await tailer.stop();
@@ -257,7 +259,11 @@ describe(`SSE /events/stream (${testDialect()})`, () => {
         return () => listeners.delete(l);
       },
     } as unknown as EventTailer;
-    const racingApp = createApp({ db: t.db, tailer: racing });
+    const racingApp = createApp({
+      db: t.db,
+      tailer: racing,
+      auth: { mode: 'standard', sso: sso.options },
+    });
     const messages = await collect(
       '',
       {},
@@ -291,7 +297,11 @@ describe(`SSE /events/stream (${testDialect()})`, () => {
         return Reflect.get(target, prop, receiver) as unknown;
       },
     });
-    const brokenApp = createApp({ db: broken, tailer: counting });
+    const brokenApp = createApp({
+      db: broken,
+      tailer: counting,
+      auth: { mode: 'standard', sso: sso.options },
+    });
     const res = await brokenApp.request('http://t/api/v1/events/stream');
     const reader = res.body!.getReader();
     while (!(await reader.read()).done);
@@ -335,7 +345,11 @@ describe(`SSE /events/stream (${testDialect()})`, () => {
   it('sends reset and closes when more than 1000 events are pending', async () => {
     const template = (await listEvents(t.ctx, { limit: 1 })).data[0]!;
     const { tailer: manual, emit, listeners } = manualTailer(10_000);
-    const flooded = createApp({ db: t.db, tailer: manual });
+    const flooded = createApp({
+      db: t.db,
+      tailer: manual,
+      auth: { mode: 'standard', sso: sso.options },
+    });
     const events = Array.from({ length: 1001 }, (_, k) => ({ ...template, seq: 10_001 + k }));
     const messages = await collect(
       '',
@@ -358,7 +372,11 @@ describe(`SSE /events/stream (${testDialect()})`, () => {
   it('keeps streaming when 1000 events are pending', async () => {
     const template = (await listEvents(t.ctx, { limit: 1 })).data[0]!;
     const { tailer: manual, emit } = manualTailer(20_000);
-    const app1000 = createApp({ db: t.db, tailer: manual });
+    const app1000 = createApp({
+      db: t.db,
+      tailer: manual,
+      auth: { mode: 'standard', sso: sso.options },
+    });
     const events = Array.from({ length: 1000 }, (_, k) => ({ ...template, seq: 20_001 + k }));
     const messages = await collect(
       '',

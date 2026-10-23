@@ -1,16 +1,12 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import {
-  createIssue,
-  createProject,
-  createToken,
-  LocalDiskBlobStore,
-} from '@poietic-tech/issues-core';
+import { createIssue, createProject, LocalDiskBlobStore } from '@poietic-tech/issues-core';
 import { createTestContext, type TestContext } from '@poietic-tech/issues-core/testing';
 import { testDialect } from '@poietic-tech/issues-db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app.ts';
+import { testSso } from './testing.ts';
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
 const dir = mkdtempSync(join(tmpdir(), 'tracker-api-blobs-'));
@@ -23,8 +19,14 @@ beforeAll(async () => {
   t = await createTestContext();
   await createProject(t.ctx, { key: 'UP', name: 'Uploads' });
   issueKey = (await createIssue(t.ctx, 'UP', { title: 'Files' })).key;
-  app = createApp({ db: t.db, blobStore: new LocalDiskBlobStore(dir), maxUploadBytes: 1024 });
-  token = (await createToken(t.ctx, 'admin', { name: 'up' })).token;
+  const sso = testSso(t);
+  app = createApp({
+    db: t.db,
+    blobStore: new LocalDiskBlobStore(dir),
+    maxUploadBytes: 1024,
+    auth: { mode: 'standard', sso: sso.options },
+  });
+  token = await sso.bearer('admin');
 });
 afterAll(async () => {
   await t.destroy();

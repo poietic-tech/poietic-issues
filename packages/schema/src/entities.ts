@@ -88,37 +88,6 @@ export const UpdateUserInputSchema = z
   .meta({ id: 'UpdateUserInput' });
 export type UpdateUserInput = z.input<typeof UpdateUserInputSchema>;
 
-export const ApiTokenSchema = z
-  .object({
-    id: z.string(),
-    userId: z.string(),
-    name: z.string(),
-    prefix: z.string().meta({
-      description: 'First characters of the token, for recognition.',
-      example: 'trk_a1b2',
-    }),
-    scopes: z.array(z.string()),
-    createdAt: TimestampSchema,
-    lastUsedAt: TimestampSchema.nullable(),
-    expiresAt: TimestampSchema.nullable(),
-    revokedAt: TimestampSchema.nullable(),
-  })
-  .meta({ id: 'ApiToken' });
-export type ApiToken = z.infer<typeof ApiTokenSchema>;
-
-export const CreatedApiTokenSchema = ApiTokenSchema.extend({
-  token: z.string().meta({ description: 'The secret token. Shown only once — store it now.' }),
-}).meta({ id: 'CreatedApiToken' });
-export type CreatedApiToken = z.infer<typeof CreatedApiTokenSchema>;
-
-export const CreateTokenInputSchema = z
-  .object({
-    name: z.string().min(1).max(100),
-    expiresAt: TimestampSchema.nullish(),
-  })
-  .meta({ id: 'CreateTokenInput' });
-export type CreateTokenInput = z.input<typeof CreateTokenInputSchema>;
-
 // ---------------------------------------------------------------------------
 // Projects, statuses, labels
 // ---------------------------------------------------------------------------

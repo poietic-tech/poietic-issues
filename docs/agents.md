@@ -1,104 +1,101 @@
 # Using the tracker from an AI agent
 
-This guide is for agent harnesses, such as Claude Code or custom loops, that manage work through the `poietic-issues` CLI or the API. For working _on_ this repository, see [AGENTS.md](../AGENTS.md).
+This guide is for agent harnesses, such as Claude Code or custom loops, that manage work through `poietic-tech issues` or the API. For working _on_ this repository, see [AGENTS.md](../AGENTS.md).
 
 ## Setup (once per environment)
 
 ```sh
-# Remote server (shared tracker)
-export POIETIC_ISSUES_SERVER=https://tracker.example.com
-export POIETIC_ISSUES_TOKEN=trk_…            # token of the agent's own user (kind=agent)
-export POIETIC_ISSUES_PROJECT=ENG
-export POIETIC_ISSUES_FORMAT=json            # machine output everywhere
-
-# …or local mode against a SQLite file, acting as a named agent user
-export POIETIC_ISSUES_DATABASE_URL=sqlite:/path/to/tracker.db POIETIC_ISSUES_ACTOR=claude
+npm i -g @poietic-tech/cli @poietic-tech/issues   # the host and the issues module; the module alone puts no poietic-tech on PATH
+poietic-tech login                                 # a person signs in once (not needed when POIETIC_AGENT_TOKEN is set)
+poietic-tech issues init --project ENG             # writes .poietic-issues.json; commit it so agents find the project
 ```
 
-Give every agent its own user (`poietic-issues user create --kind agent …`), so history shows who did what. Give every agent user a role on each private project it works in: `poietic-issues project members add @agent --role editor -P <KEY>`. Without a membership, a private project returns exit code 3 (not found), and a public one is read-only. A user created after the upgrade has no memberships, and admins always have full access. See [ADR 0021](adr/0021-project-visibility-and-roles.md).
+There are two ways to act as an agent, and both leave history showing the agent, not its owner:
 
-In remote mode without a token (`POIETIC_ISSUES_TOKEN` unset and none stored by `auth login`), the CLI reads as anonymous: public projects can be read, private projects return exit code 3 (not found), writes fail with exit code 5 (`UNAUTHENTICATED`), and `poietic-issues auth status` reports "Not signed in". A missing token therefore looks like missing access, so check `auth status` first. A token that is invalid, expired or revoked is rejected outright instead (401).
-
-Committing a `.poietic-issues.json` (`poietic-issues init --project ENG --server …`) in a repository lets any agent working there find the right project.
-
-### Acting as a poietic.tech agent
-
-On a server configured for poietic.tech SSO, an agent can act with its own poietic.tech identity instead of a `trk_` token. Create the agent at auth.poietic.tech/account/agents, then set its token where the harness runs:
+- **A person's own session** (a Claude Code session on your machine): sign in with `poietic-tech login`, then set `POIETIC_IDENTITY=<agent>` to act as one of your agents. The host exchanges your login for that agent's identity token.
+- **A harness or CI job:** set `POIETIC_AGENT_TOKEN=pat_…`, the agent's own token from auth.poietic.tech. The host exchanges it for a ten-minute identity token and sends that to the server. Keep it out of repositories and browser bundles; the CLI never prints it.
 
 ```sh
-export POIETIC_ISSUES_SERVER=https://issues.poietic.tech
-export POIETIC_AGENT_TOKEN=pat_…             # never in a repository or a browser bundle
+export POIETIC_IDENTITY=Claude                       # in a session after `poietic-tech login`
+export POIETIC_AGENT_TOKEN=pat_…                     # in a harness or CI instead
+export POIETIC_ISSUES_PROJECT=ENG                    # or -P ENG, or .poietic-issues.json
+export POIETIC_TECH_FORMAT=json                      # machine output everywhere
 ```
 
-In remote mode the CLI exchanges `POIETIC_AGENT_TOKEN` with auth.poietic.tech for a ten-minute identity token, sends that to the server, and ignores `POIETIC_ISSUES_TOKEN`. `poietic-issues auth status` shows `(agent)`. On its first request, the server creates the agent as a `kind: agent` member owned by you. You must have signed in to the tracker at least once, and the agent is active when your account is. Like any member, it needs a role on each private project it works in. A malformed token exits with code 2. A revoked or expired token exits with code 5. The CLI never prints the token. See [ADR 0023](adr/0023-agent-identities.md).
+Create agents with `poietic-tech agents create` (or at auth.poietic.tech/account/agents). On its first request, the server creates the agent as a `kind: agent` member owned by you. You must have signed in to the tracker at least once, and the agent is active when your account is. Like any member, it needs a role on each private project it works in: `poietic-tech issues project members add @agent --role editor -P <KEY>`. Without a membership, a private project returns exit code 4 (not found), and a public one is read-only. See [ADR 0021](adr/0021-project-visibility-and-roles.md) and [ADR 0023](adr/0023-agent-identities.md).
+
+`poietic-tech issues whoami` shows the tracker account in effect (handle, role, kind, owner, project access). Every command, reads included, needs a login: with none (no `poietic-tech login` session, no `POIETIC_AGENT_TOKEN`), the host fails the request with exit code 3 (not logged in) before anything reaches the server, so run `whoami` first to see which account is in effect. A token that is invalid, expired or revoked is rejected outright. A revoked or expired `POIETIC_AGENT_TOKEN` is a login failure (exit 3). A `POIETIC_AGENT_TOKEN` with an interior newline is an internal error (exit 1); surrounding whitespace is trimmed.
+
+The server is `https://issues.poietic.tech` unless `POIETIC_ISSUES_SERVER` or the `server` in `.poietic-issues.json` says otherwise. It must be https on a `*.poietic.tech` host, because that is the only place the identity token may be sent.
 
 ### issues.poietic.tech identities
 
-Interactive and unattended agents use separate users, so history shows which one acted and each token can be revoked on its own:
+Interactive and unattended agents use separate agents, so history shows which one acted and each token can be revoked on its own:
 
-- **`claude`**: Claude sessions a person drives on their own machine. Store its token locally with `poietic-issues auth login --server https://issues.poietic.tech --with-token` (reads stdin), never in CI.
-- **`github-ci`**: GitHub Actions workflows in any `poietic-tech` repository. The org provides its token as the secret `POIETIC_ISSUES_TOKEN` and the server as the variable `POIETIC_ISSUES_SERVER`:
+- **`Claude`**: Claude sessions a person drives on their own machine. Install the module, run `poietic-tech login`, and set `POIETIC_IDENTITY=Claude`. If an older install left `~/.config/poietic-issues/config.json`, delete it: it is ignored now.
+- **`github-ci`**: GitHub Actions workflows in any `poietic-tech` repository. It is an auth.poietic.tech agent made with `poietic-tech agents create`. Its token is the org secret `POIETIC_AGENT_TOKEN`, which replaces the retired `POIETIC_ISSUES_*` token secret:
 
   ```yaml
   env:
-    POIETIC_ISSUES_SERVER: ${{ vars.POIETIC_ISSUES_SERVER }}
-    POIETIC_ISSUES_TOKEN: ${{ secrets.POIETIC_ISSUES_TOKEN }}
+    POIETIC_AGENT_TOKEN: ${{ secrets.POIETIC_AGENT_TOKEN }}
+  steps:
+    - run: npm i -g @poietic-tech/cli @poietic-tech/issues
+    - run: poietic-tech issues issue list -P ENG --assignee me
   ```
-
-  The CLI is not published yet, so a workflow either calls the API with `Authorization: Bearer $POIETIC_ISSUES_TOKEN` or builds the CLI from this repository.
 
 Both agents see only the private projects they are members of.
 
 ## Learn the surface in two calls
 
 ```sh
-poietic-issues commands --json      # all commands/options/exit codes
-poietic-issues project schema       # valid statuses, labels, repos, assignable users, custom fields
+poietic-tech issues commands        # all commands/options/exit codes, as JSON whatever the format
+poietic-tech issues project schema  # valid statuses, labels, repos, assignable users, custom fields
 ```
 
 ## Recipes
 
 ```sh
 # Pick up work
-poietic-issues issue list --assignee me --category unstarted,started --sort priority --fields key,title,status.name,priority
+poietic-tech issues issue list --assignee me --category unstarted,started --sort priority --fields key,title,status.name,priority
 
 # Claim and start an issue, guarding against concurrent edits
-v=$(poietic-issues issue view ENG-42 --fields version | jq .version)
-poietic-issues issue edit ENG-42 --assignee me --status "In Progress" --if-version "$v"
+v=$(poietic-tech issues issue view ENG-42 --fields version --json | jq .version)
+poietic-tech issues issue edit ENG-42 --assignee me --status "In Progress" --if-version "$v"
 
 # Break work down
-poietic-issues issue create -t "Write migration" --parent ENG-42 -l chore -q      # prints ENG-43
+poietic-tech issues issue create -t "Write migration" --parent ENG-42 -l chore -q      # prints ENG-43
 
 # Report progress with markdown from a file or stdin
-poietic-issues comment add ENG-42 --body-file - <<'MD'
+poietic-tech issues comment add ENG-42 --body-file - <<'MD'
 Implemented the migration. Tests: `pnpm test` ✅
 MD
 
 # Record links to external artifacts
-poietic-issues issue edit ENG-42 --meta github.pr=https://github.com/acme/app/pull/12 --meta agent.session=abc123
+poietic-tech issues issue edit ENG-42 --meta github.pr=https://github.com/acme/app/pull/12 --meta agent.session=abc123
 
 # Relate work
-poietic-issues link add ENG-43 blocks ENG-42
+poietic-tech issues link add ENG-43 blocks ENG-42
 
 # Finish
-poietic-issues issue edit ENG-42 --status "In Review"
+poietic-tech issues issue edit ENG-42 --status "In Review"
 ```
 
 ## Reacting to changes
 
-- **Polling:** keep the last `seq` you processed and call `poietic-issues event list --after <seq>`. The log is commit-ordered, so no event is ever skipped.
-- **Streaming:** `poietic-issues event tail --types issue.updated,comment.created` prints one JSON event per line.
-- **Push:** an admin can register a webhook (`poietic-issues webhook create URL --events 'issue.*'`) so your service is called on each event. See [events.md](events.md#webhooks).
+- **Polling:** keep the last `seq` you processed and call `poietic-tech issues event list --after <seq>`. The log is commit-ordered, so no event is ever skipped.
+- **Streaming:** `poietic-tech issues event tail --types issue.updated,comment.created` prints one JSON event per line.
+- **Push:** an admin can register a webhook (`poietic-tech issues webhook create URL --events 'issue.*'`) so your service is called on each event. See [events.md](events.md#webhooks).
 - **Payload:** each event carries the full resource snapshot, plus `changes: { field: { from, to } }` for updates, so a refetch is never needed.
 
 ## Handling failures
 
-Branch on the exit code, not the message text:
+Branch on the exit code (`poietic-tech help exit-codes`), not the message text. Conflicts keep a distinct machine code at exit 2, so tell them apart with `--json` (the error's `code`):
 
-| Exit | Do                                                                                                                |
-| ---- | ----------------------------------------------------------------------------------------------------------------- |
-| 2    | Fix the input (stderr JSON has `errors[]` with field paths). Don't retry unchanged.                               |
-| 3    | The reference is wrong; list or search to find the right one.                                                     |
-| 4    | Someone else changed it (`VERSION_MISMATCH`) or it already exists (`CONFLICT`). Refetch, re-decide, retry.        |
-| 5    | Credentials or permissions. Stop and report.                                                                      |
-| 6    | Transient (server down) or setup (`poietic-issues db migrate`). Retrying later is safe: mutations are idempotent. |
+| Exit | Do                                                                                                                                                                                             |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2    | `bad_request` or `bad_usage`: fix the input (the message lists `path: message` lines). Don't retry unchanged.                                                                                  |
+| 2    | `version_mismatch` or `conflict`: someone else changed it, or it already exists. Refetch, re-decide, retry. `idempotency_*` is a client bug.                                                   |
+| 3    | Not logged in: run `poietic-tech login`, or set `POIETIC_IDENTITY` / `POIETIC_AGENT_TOKEN`. Stop and report in a harness.                                                                      |
+| 4    | The reference is wrong, or the project is private and you are not a member; list or search to find the right one. Also `no_such_agent`: `POIETIC_IDENTITY` names an agent that does not exist. |
+| 5    | Permissions (`not_allowed`, or the agent is pending approval). Stop and report.                                                                                                                |
+| 8    | Transient (network, server down). Retrying later is safe: mutations carry an idempotency key.                                                                                                  |

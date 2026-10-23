@@ -1,6 +1,6 @@
 # 0023. Agent identities from SSO identity tokens
 
-- **Status:** Accepted
+- **Status:** Accepted. Superseded in part by [0028](0028-sso-only-and-the-poietic-tech-module.md): `trk_` tokens are retired.
 - **Date:** 2026-10-11
 
 ## Context

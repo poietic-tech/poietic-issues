@@ -1,7 +1,7 @@
 # Production-shaped stack: poietic-issues on Postgres with S3-compatible object storage (SeaweedFS).
 #   docker compose up -d --build
-#   docker compose exec poietic-issues poietic-issues db bootstrap --handle you --name "Your Name"
-# then sign in at http://localhost:3000 with the printed token.
+#   docker compose exec poietic-issues poietic-issues-admin db bootstrap --handle you --name "Your Name"
+# poietic-issues-admin is the operator tool: it runs the CLI's commands in-process on the container's database.
 services:
   poietic-issues:
     build: .

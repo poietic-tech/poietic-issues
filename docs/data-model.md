@@ -6,7 +6,6 @@ The schema is defined once in `packages/db/src/migrations/` and typed in `packag
 
 ```mermaid
 erDiagram
-  users ||--o{ api_tokens : owns
   users ||--o{ sessions : has
   users ||--o{ user_identities : "signs in as"
   projects ||--o{ statuses : defines
@@ -32,10 +31,11 @@ erDiagram
 
 ## Tables
 
+There is no table of API tokens: migration `0007_drop_api_tokens` dropped `api_tokens` ([ADR 0028](adr/0028-sso-only-and-the-poietic-tech-module.md)). Credentials live at auth.poietic.tech, and the tracker holds only the identities it links (`user_identities`) and browser `sessions`.
+
 | Table                                   | Purpose and key invariants                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `users`                                 | Actors: `kind` is `human`, `agent` or `system`; `role` is `admin` or `member`. `handle` is unique and stored lowercase. Users are deactivated, never deleted.                                                                                                                                                                                                                                                                                  |
-| `api_tokens`                            | Bearer tokens (`trk_…`). Only the sha256 `token_hash` is stored, plus a display `prefix`. The plaintext is shown once.                                                                                                                                                                                                                                                                                                                         |
 | `sessions`                              | Web cookie sessions. The id is the sha256 of the cookie value.                                                                                                                                                                                                                                                                                                                                                                                 |
 | `user_identities`                       | External SSO identities (issuer + subject) linked to a user. Rows cascade with the user.                                                                                                                                                                                                                                                                                                                                                       |
 | `projects`                              | Top-level container. `key` (e.g. `ENG`) is unique and immutable, so issue keys like `ENG-42` never change. `next_issue_number` is incremented inside the write transaction.                                                                                                                                                                                                                                                                    |

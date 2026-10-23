@@ -44,7 +44,7 @@ export async function prepareDatabase(
     const status = await migrationStatus(db);
     if (!status.upToDate)
       throw new Error(
-        `Database is not migrated (pending: ${status.pending.join(', ')}). Run \`poietic-issues db migrate\`.`,
+        `Database is not migrated (pending: ${status.pending.join(', ')}). Run \`poietic-issues-admin db migrate\`.`,
       );
   }
   await ensureBuiltins(db);
@@ -55,16 +55,15 @@ export async function prepareDatabase(
       .where('kind', '!=', 'system')
       .executeTakeFirstOrThrow();
     if (Number(users.n) === 0) {
-      const seeded = await seedDemoData(createContext(db, SYSTEM_ACTOR));
+      await seedDemoData(createContext(db, SYSTEM_ACTOR));
       logger.info(
-        { adminToken: seeded.adminToken, agentToken: seeded.agentToken },
         'seeded demo data (users: ada [admin], grace, margaret, claude [agent]; public ENG with a linked repo, private OPS)',
       );
     }
   }
 }
 
-/** Starts the HTTP server. Used by `node apps/server/src/main.ts`, the bundled server and `poietic-issues serve`. */
+/** Starts the HTTP server. Used by `node apps/server/src/main.ts`, the bundled server and `poietic-issues-admin serve`. */
 export async function startServer(
   config: ServerConfig,
   extensions: AppExtension[] = [],

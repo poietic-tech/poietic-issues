@@ -2,10 +2,9 @@ import { type Db, withWriteTx } from '@poietic-tech/issues-db';
 import { type Clock, SYSTEM_ACTOR, systemClock } from '../context.ts';
 import { newId, type User } from '@poietic-tech/issues-schema';
 import { conflict } from '../errors.ts';
-import { createToken } from './auth.ts';
 import { createUserUnchecked } from './users.ts';
 
-/** Built-in link types. Keys are part of the API contract (`poietic-issues link add ENG-1 blocks ENG-2`). */
+/** Built-in link types. Keys are part of the API contract (`poietic-tech issues link add ENG-1 blocks ENG-2`). */
 export const BUILTIN_LINK_TYPES = [
   { key: 'blocks', name: 'Blocks', outward: 'blocks', inward: 'is blocked by', symmetric: false },
   { key: 'relates', name: 'Relates', outward: 'relates to', inward: 'relates to', symmetric: true },
@@ -71,14 +70,15 @@ export async function ensureBuiltins(db: Db, clock: Clock = systemClock): Promis
 }
 
 /**
- * Creates the first admin of a fresh installation and an API token for them (production has no demo seed).
- * Refuses once any human admin exists — after that, admins manage users through the API.
+ * Creates the first admin of a fresh installation, for local and development use (production has no demo seed;
+ * people sign in through SSO). Mints no credential. Refuses once any human admin exists — after that, admins manage
+ * users through the API.
  */
 export async function bootstrapAdmin(
   db: Db,
   input: { handle: string; name: string; email?: string | undefined },
   clock: Clock = systemClock,
-): Promise<{ user: User; token: string }> {
+): Promise<{ user: User }> {
   const existing = await db.kysely
     .selectFrom('users')
     .select('handle')
@@ -88,6 +88,5 @@ export async function bootstrapAdmin(
   if (existing) throw conflict(`An admin already exists (@${existing.handle})`);
   const ctx = { db, actor: SYSTEM_ACTOR, clock, ids: newId };
   const user = await createUserUnchecked(ctx, { ...input, role: 'admin', kind: 'human' });
-  const { token } = await createToken(ctx, user.id, { name: 'bootstrap' });
-  return { user, token };
+  return { user };
 }

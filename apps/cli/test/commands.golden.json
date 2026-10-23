@@ -376,7 +376,7 @@
         {
           "flags": "--if-version <n>",
           "name": "ifVersion",
-          "description": "fail with exit 4 unless the issue is at this version",
+          "description": "fail with a version_mismatch conflict unless the issue is at this version",
           "required": false,
           "takesValue": true
         }
@@ -1802,7 +1802,7 @@
     {
       "name": "webhook test",
       "aliases": [],
-      "description": "Send a signed webhook.ping now and show the answer (exit 6 unless it was 2xx)",
+      "description": "Send a signed webhook.ping now and show the answer (a failure unless it was 2xx)",
       "arguments": [
         {
           "name": "id",
@@ -1985,97 +1985,6 @@
       ]
     },
     {
-      "name": "token list",
-      "aliases": [
-        "ls"
-      ],
-      "description": "List API tokens (never shows secrets)",
-      "arguments": [],
-      "options": [
-        {
-          "flags": "-u, --user <user>",
-          "name": "user",
-          "description": "whose tokens (admin for others)",
-          "required": false,
-          "takesValue": true,
-          "default": "me"
-        }
-      ]
-    },
-    {
-      "name": "token create",
-      "aliases": [],
-      "description": "Create an API token; prints the secret once (-q prints only the secret)",
-      "arguments": [],
-      "options": [
-        {
-          "flags": "-n, --name <name>",
-          "name": "name",
-          "description": "what the token is for",
-          "required": true,
-          "takesValue": true
-        },
-        {
-          "flags": "-u, --user <user>",
-          "name": "user",
-          "description": "for which user (admin for others)",
-          "required": false,
-          "takesValue": true,
-          "default": "me"
-        },
-        {
-          "flags": "--expires <iso>",
-          "name": "expires",
-          "description": "expiry timestamp, e.g. 2027-01-01T00:00:00Z",
-          "required": false,
-          "takesValue": true
-        }
-      ]
-    },
-    {
-      "name": "token revoke",
-      "aliases": [],
-      "description": "Revoke a token",
-      "arguments": [
-        {
-          "name": "id",
-          "required": true,
-          "variadic": false,
-          "description": "token id"
-        }
-      ],
-      "options": []
-    },
-    {
-      "name": "auth login",
-      "aliases": [],
-      "description": "Store an API token for a server (verifies it first): auth login --server <url> --token <t> | --with-token",
-      "arguments": [],
-      "options": [
-        {
-          "flags": "--with-token",
-          "name": "withToken",
-          "description": "read the token from stdin",
-          "required": false,
-          "takesValue": false
-        }
-      ]
-    },
-    {
-      "name": "auth logout",
-      "aliases": [],
-      "description": "Forget the stored token for the server (--server or the current default)",
-      "arguments": [],
-      "options": []
-    },
-    {
-      "name": "auth status",
-      "aliases": [],
-      "description": "Show how the CLI connects and who it acts as",
-      "arguments": [],
-      "options": []
-    },
-    {
       "name": "whoami",
       "aliases": [],
       "description": "Show the user the CLI acts as",
@@ -2085,7 +1994,7 @@
     {
       "name": "init",
       "aliases": [],
-      "description": "Write .poietic-issues.json here from the global --server/--database, --project and --actor (never tokens)",
+      "description": "Write .poietic-issues.json here: the --project given, and the server from POIETIC_ISSUES_SERVER when it is set (never tokens)",
       "arguments": [],
       "options": [
         {
@@ -2094,88 +2003,6 @@
           "description": "overwrite an existing file",
           "required": false,
           "takesValue": false
-        }
-      ]
-    },
-    {
-      "name": "db migrate",
-      "aliases": [],
-      "description": "Apply pending migrations",
-      "arguments": [],
-      "options": [
-        {
-          "flags": "--down",
-          "name": "down",
-          "description": "revert the newest applied migration instead (one step; drops its tables and columns, so back up first; never reverts the first migration)",
-          "required": false,
-          "takesValue": false
-        }
-      ]
-    },
-    {
-      "name": "db status",
-      "aliases": [],
-      "description": "Show applied and pending migrations",
-      "arguments": [],
-      "options": []
-    },
-    {
-      "name": "db bootstrap",
-      "aliases": [],
-      "description": "Create the first admin of a fresh installation (migrating if needed) and print their API token",
-      "arguments": [],
-      "options": [
-        {
-          "flags": "--handle <handle>",
-          "name": "handle",
-          "description": "admin handle, e.g. ada",
-          "required": true,
-          "takesValue": true
-        },
-        {
-          "flags": "--name <name>",
-          "name": "name",
-          "description": "display name",
-          "required": true,
-          "takesValue": true
-        },
-        {
-          "flags": "--email <email>",
-          "name": "email",
-          "description": "email address",
-          "required": false,
-          "takesValue": true
-        }
-      ]
-    },
-    {
-      "name": "db seed",
-      "aliases": [],
-      "description": "Create demo users (ada admin, grace, margaret, claude agent), public ENG with a linked repo, private OPS and sample issues; prints API tokens",
-      "arguments": [],
-      "options": []
-    },
-    {
-      "name": "serve",
-      "aliases": [],
-      "description": "Run the tracker server (API + web app if built) on the local database",
-      "arguments": [],
-      "options": [
-        {
-          "flags": "--port <port>",
-          "name": "port",
-          "description": "port",
-          "required": false,
-          "takesValue": true,
-          "default": "3000"
-        },
-        {
-          "flags": "--host <host>",
-          "name": "host",
-          "description": "host",
-          "required": false,
-          "takesValue": true,
-          "default": "127.0.0.1"
         }
       ]
     },
@@ -2238,47 +2065,12 @@
     {
       "name": "commands",
       "aliases": [],
-      "description": "Describe every command, option, exit code and error code (use --json for agents)",
+      "description": "Describe every command, option, exit code and error code as JSON (for agents)",
       "arguments": [],
       "options": []
     }
   ],
   "globalOptions": [
-    {
-      "flags": "-V, --version",
-      "name": "version",
-      "description": "output the version number",
-      "required": false,
-      "takesValue": false
-    },
-    {
-      "flags": "--server <url>",
-      "name": "server",
-      "description": "poietic-issues server URL (remote mode)",
-      "required": false,
-      "takesValue": true
-    },
-    {
-      "flags": "--token <token>",
-      "name": "token",
-      "description": "API token (remote mode)",
-      "required": false,
-      "takesValue": true
-    },
-    {
-      "flags": "--database <url>",
-      "name": "database",
-      "description": "database URL (local mode), e.g. sqlite:./data/dev.db",
-      "required": false,
-      "takesValue": true
-    },
-    {
-      "flags": "--actor <handle>",
-      "name": "actor",
-      "description": "local mode: act as this user",
-      "required": false,
-      "takesValue": true
-    },
     {
       "flags": "-P, --project <key>",
       "name": "project",
@@ -2287,28 +2079,7 @@
       "takesValue": true
     },
     {
-      "flags": "--format <format>",
-      "name": "format",
-      "description": "output format",
-      "required": false,
-      "takesValue": true
-    },
-    {
-      "flags": "--json",
-      "name": "json",
-      "description": "JSON output (same as --format json)",
-      "required": false,
-      "takesValue": false
-    },
-    {
-      "flags": "-q, --quiet",
-      "name": "quiet",
-      "description": "print only ids/keys (same as --format ids)",
-      "required": false,
-      "takesValue": false
-    },
-    {
-      "flags": "--fields <fields>",
+      "flags": "--fields <list>",
       "name": "fields",
       "description": "comma-separated fields to include, e.g. key,title,status",
       "required": false,
@@ -2317,83 +2088,94 @@
   ],
   "exitCodes": {
     "0": "Success",
-    "1": "Internal or unexpected error",
-    "2": "Usage or validation error (bad flags, invalid input, invalid relation)",
-    "3": "Not found",
-    "4": "Conflict (duplicate, version mismatch, idempotency)",
-    "5": "Authentication or permission error",
-    "6": "Unavailable (server unreachable, database not migrated)"
+    "1": "Unexpected failure (internal)",
+    "2": "Usage error, invalid request or conflict (bad_usage, bad_request, conflict, version_mismatch, idempotency_in_progress, idempotency_key_reused)",
+    "3": "Not logged in, or the login was refused (not_logged_in): run `poietic-tech login`",
+    "4": "Not found (not_found)",
+    "5": "Not allowed (not_allowed)",
+    "8": "Network or server failure (network, server_error)"
   },
   "errorCodes": {
     "VALIDATION_FAILED": {
       "status": 400,
+      "code": "bad_request",
       "exit": 2
     },
     "UNAUTHENTICATED": {
       "status": 401,
-      "exit": 5
+      "code": "not_logged_in",
+      "exit": 3
     },
     "FORBIDDEN": {
       "status": 403,
+      "code": "not_allowed",
       "exit": 5
     },
     "PENDING_APPROVAL": {
       "status": 403,
+      "code": "not_allowed",
       "exit": 5
     },
     "NOT_FOUND": {
       "status": 404,
-      "exit": 3
+      "code": "not_found",
+      "exit": 4
     },
     "CONFLICT": {
       "status": 409,
-      "exit": 4
+      "code": "conflict",
+      "exit": 2
     },
     "IDEMPOTENCY_IN_PROGRESS": {
       "status": 409,
-      "exit": 4
+      "code": "idempotency_in_progress",
+      "exit": 2
     },
     "VERSION_MISMATCH": {
-      "status": 412,
-      "exit": 4
+      "status": 409,
+      "code": "version_mismatch",
+      "exit": 2
     },
     "PAYLOAD_TOO_LARGE": {
       "status": 413,
+      "code": "bad_request",
       "exit": 2
     },
     "UNSUPPORTED_MEDIA_TYPE": {
       "status": 415,
+      "code": "bad_request",
       "exit": 2
     },
     "INVALID_RELATION": {
       "status": 422,
+      "code": "bad_request",
       "exit": 2
     },
     "IDEMPOTENCY_KEY_REUSED": {
-      "status": 422,
-      "exit": 4
+      "status": 409,
+      "code": "idempotency_key_reused",
+      "exit": 2
     },
     "RATE_LIMITED": {
       "status": 429,
-      "exit": 6
+      "code": "server_error",
+      "exit": 8
     },
     "INTERNAL": {
       "status": 500,
+      "code": "internal",
       "exit": 1
     },
     "UNAVAILABLE": {
       "status": 503,
-      "exit": 6
+      "code": "server_error",
+      "exit": 8
     }
   },
   "environment": {
-    "POIETIC_ISSUES_SERVER": "Server URL (remote mode)",
-    "POIETIC_ISSUES_TOKEN": "API token for the server",
-    "POIETIC_AGENT_TOKEN": "Remote mode: act as this poietic.tech agent (takes precedence over POIETIC_ISSUES_TOKEN)",
-    "POIETIC_ISSUES_DATABASE_URL": "Database URL (local mode), e.g. sqlite:./data/dev.db",
-    "POIETIC_ISSUES_ACTOR": "Local mode: user handle to act as",
+    "POIETIC_ISSUES_SERVER": "Issues server, https on a *.poietic.tech host (default https://issues.poietic.tech)",
     "POIETIC_ISSUES_PROJECT": "Default project key",
-    "POIETIC_ISSUES_FORMAT": "Default output format: table|json|ndjson|ids",
-    "POIETIC_ISSUES_FIELDS": "Default --fields projection"
+    "POIETIC_IDENTITY": "Act as one of your agents (read by poietic-tech)",
+    "POIETIC_AGENT_TOKEN": "Act as an agent with its token, e.g. in CI (read by poietic-tech)"
   }
 }

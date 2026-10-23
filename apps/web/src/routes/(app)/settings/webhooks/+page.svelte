@@ -312,7 +312,8 @@
       {:else}
         <li class="rounded-lg border border-dashed border-border px-3 py-3 text-sm text-fg-subtle">
           No webhooks yet. Or register one from a terminal with
-          <code class="font-mono text-xs">poietic-issues webhook create URL --events 'issue.*'</code
+          <code class="font-mono text-xs"
+            >poietic-tech issues webhook create URL --events 'issue.*'</code
           >.
         </li>
       {/each}

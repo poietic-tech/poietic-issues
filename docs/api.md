@@ -8,17 +8,16 @@ The REST API lives under `/api/v1`. The OpenAPI 3.1 document is the contract:
 
 ## Authentication
 
-| Client               | How                                                                                                                                                                                                    |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| CLI, agents, scripts | `Authorization: Bearer trk_…`, an API token from `POST /users/{user}/tokens` (or `poietic-issues token create`)                                                                                        |
-| SSO agents           | `Authorization: Bearer <identity token>` from the SSO issuer (for poietic.tech, what `POIETIC_AGENT_TOKEN` is exchanged for), when the server is configured for SSO                                    |
-| Web app              | An HttpOnly session cookie from `POST /auth/token-login` (paste a token), `POST /auth/dev-login` when the server runs with `POIETIC_ISSUES_AUTH_MODE=dev`, or `POST /auth/sso` when configured for SSO |
+| Client               | How                                                                                                                                                                                                          |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| CLI, agents, scripts | `Authorization: Bearer <identity token>` from the SSO issuer (for poietic.tech, what `POIETIC_AGENT_TOKEN` is exchanged for), when the server is configured for SSO. Without SSO every bearer value is a 401 |
+| Web app              | An HttpOnly session cookie from `POST /auth/sso` when configured for SSO, or `POST /auth/dev-login` when the server runs with `POIETIC_ISSUES_AUTH_MODE=dev`                                                 |
 
 Every actor is a user. Create one `agent` user per automated worker (`POST /users` with `kind: "agent"`) so its changes are attributed in history, events and webhooks.
 
-Roles: `admin` can manage users, other users' tokens, webhooks, project creation and archiving, and permanent deletes, and has full access to every project. `member` acts on a project according to its role there (`viewer`, `editor` or `manager`) and sees private projects only as a member. Requests without credentials are allowed for `GET` and `HEAD` and read public projects only; anything else returns `UNAUTHENTICATED`. See [ADR 0021](adr/0021-project-visibility-and-roles.md).
+Roles: `admin` can manage users, webhooks, project creation and archiving, and permanent deletes, and has full access to every project. `member` acts on a project according to its role there (`viewer`, `editor` or `manager`) and sees private projects only as a member. Requests without credentials are allowed for `GET` and `HEAD` and read public projects only; anything else returns `UNAUTHENTICATED`. See [ADR 0021](adr/0021-project-visibility-and-roles.md).
 
-A bearer value starting with `trk_` is always an API token. With SSO configured, any other bearer value is verified as an identity token from the issuer. The first request from a new agent creates a `kind: "agent"` member whose `ownerId` is its owner's user. The owner must have signed in before, and the agent is active exactly when the owner is. An agent cannot act while its owner is deactivated (`PENDING_APPROVAL`). An invalid bearer value of either kind is `UNAUTHENTICATED`, never a fallback to the session cookie. See [ADR 0023](adr/0023-agent-identities.md).
+A bearer value is always an identity token: with SSO configured it is verified against the issuer, and without SSO it is `UNAUTHENTICATED`. The retired API tokens get the same 401 ([ADR 0028](adr/0028-sso-only-and-the-poietic-tech-module.md)). The first request from a new agent creates a `kind: "agent"` member whose `ownerId` is its owner's user. The owner must have signed in before, and the agent is active exactly when the owner is. An agent cannot act while its owner is deactivated (`PENDING_APPROVAL`). An invalid bearer value is `UNAUTHENTICATED`, never a fallback to the session cookie. See [ADR 0023](adr/0023-agent-identities.md).
 
 Cookie-authenticated `POST`/`PATCH`/`DELETE` requests must be same-origin (CSRF protection). Bearer requests are exempt.
 
