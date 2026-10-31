@@ -146,7 +146,10 @@ export function parseRepoRef(input: string): { owner: string; name: string } {
     .replace(/^https?:\/\//i, '')
     .replace(/^www\./i, '');
   const urlForm = trimmed.toLowerCase().startsWith('github.com/');
-  if (/^[^/]+\.[^/]+\//.test(trimmed) && !urlForm)
+  // A host-like first segment (a dot with something on both sides, then a slash) that is not github.com.
+  // String operations, not /^[^/]+\.[^/]+\//, which backtracks quadratically on long runs of dots.
+  const slash = trimmed.indexOf('/');
+  if (slash > 0 && trimmed.slice(1, slash - 1).includes('.') && !urlForm)
     throw validationError(`Not a GitHub repository: "${input}"`);
   const path = urlForm ? trimmed.slice('github.com/'.length).split(/[?#]/)[0]! : trimmed;
   const [owner, rawName, ...rest] = path.split('/');
