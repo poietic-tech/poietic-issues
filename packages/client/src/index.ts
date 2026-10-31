@@ -19,10 +19,17 @@ export interface ClientOptions {
   requestId?: () => string;
 }
 
+/** Drops trailing slashes. A loop, not `/\/+$/`, which backtracks quadratically on long runs of `/`. */
+function trimTrailingSlashes(url: string): string {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === '/') end--;
+  return url.slice(0, end);
+}
+
 /** Creates a fully typed client for the tracker API (generated from docs/openapi.json). */
 export function createClient(options: ClientOptions): ApiClient {
   const client = createFetchClient<paths>({
-    baseUrl: `${options.baseUrl.replace(/\/+$/, '')}/api/v1`,
+    baseUrl: `${trimTrailingSlashes(options.baseUrl)}/api/v1`,
     ...(options.fetch && { fetch: options.fetch }),
     headers: options.headers,
   });

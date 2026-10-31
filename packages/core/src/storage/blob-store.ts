@@ -93,6 +93,13 @@ export interface S3Config {
   publicEndpoint?: string;
 }
 
+/** Drops trailing slashes. A loop, not `/\/+$/`, which backtracks quadratically on long runs of `/`. */
+export function trimTrailingSlashes(url: string): string {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === '/') end--;
+  return url.slice(0, end);
+}
+
 /** S3-compatible object storage using SigV4 (aws4fetch — no AWS SDK needed). */
 export class S3BlobStore implements BlobStore {
   readonly kind = 's3' as const;
@@ -111,7 +118,7 @@ export class S3BlobStore implements BlobStore {
   }
 
   #url(key: string, base = this.#config.endpoint): string {
-    const endpoint = base.replace(/\/+$/, '');
+    const endpoint = trimTrailingSlashes(base);
     const path = key.split('/').map(encodeURIComponent).join('/');
     if (this.#config.forcePathStyle ?? true) return `${endpoint}/${this.#config.bucket}/${path}`;
     const url = new URL(endpoint);
