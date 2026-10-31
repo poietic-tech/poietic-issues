@@ -4,7 +4,7 @@ type Info = ReturnType<typeof describeCommands>;
 
 /** Renders `poietic-tech issues commands` output as the markdown reference in docs/cli-reference.md. */
 export function renderCliReference(info: Info): string {
-  const esc = (s: string) => s.replace(/\|/g, '\\|');
+  const esc = (s: string) => s.replace(/[\\|]/g, '\\$&');
   const lines = [
     '# CLI reference',
     '',
