@@ -25,7 +25,8 @@ if ! kubectl -n poietic-issues-sync get secret github-sync-runtime >/dev/null 2>
   exit 1
 fi
 
-kubectl apply -f - < "$root/deploy/k3s/github-sync.yaml"
-kubectl -n poietic-issues-sync set image statefulset/github-sync "sync=${image}"
+# The image goes into the manifest before it is applied: a StatefulSet does not replace a pod that never started,
+# so a first rollout on the placeholder tag would stay stuck.
+sed "s#localhost/poietic-issues-github-sync:unset#${image}#" "$root/deploy/k3s/github-sync.yaml" | kubectl apply -f -
 kubectl -n poietic-issues-sync rollout status statefulset/github-sync --timeout=180s
 kubectl -n poietic-issues-sync logs statefulset/github-sync --tail=20
