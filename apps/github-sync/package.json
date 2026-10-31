@@ -1,0 +1,23 @@
+{
+  "name": "@poietic-tech/issues-github-sync",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Keeps GitHub issues and Poietic Issues in step: GitHub events arrive through Poietic Bridge, tracker changes go back through the GitHub API.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "start": "node src/main.ts",
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@poietic-tech/auth": "^0.4.2",
+    "@poietic-tech/bridge": "^0.1.0",
+    "@poietic-tech/issues-client": "workspace:*"
+  },
+  "devDependencies": {
+    "@poietic-tech/issues-core": "workspace:*",
+    "@poietic-tech/issues-db": "workspace:*",
+    "@poietic-tech/issues-server": "workspace:*",
+    "vitest": "^5.0.2"
+  }
+}
