@@ -23,7 +23,9 @@ which records `poietic.github.url` on the issues it creates.
 - **Tracker → GitHub** polls `GET /events` from a saved cursor and writes through the GitHub REST API with a
   fine-grained token. Events the sync caused itself (its own actor id) are skipped.
 - **Repositories map to projects** through `project.repos`; one project may hold several. A repository with no
-  project gets a new private one named after it (key from its initials, e.g. `poietic-bridge` → `PB`). A tracker
+  project gets a new one named after it in title case, with the repository's visibility (`poietic-bridge` →
+  "Poietic Bridge", key `PB`, private); a project holding only that repository follows later visibility changes
+  (`repository.publicized` / `privatized`). Webhooks come from one organization hook per GitHub owner. A tracker
   issue goes to GitHub only when its `repo` (or its project's only repo) is synced.
 - **Synced fields:** title, body ↔ description, open/closed ↔ status category (closed completed ↔ completed, not
   planned/duplicate ↔ canceled, reopen → the first unstarted status), labels by name (created on demand), and

@@ -162,6 +162,13 @@ export function gitHubCommentBody(
   );
 }
 
+/** A project name for a repository: its words, capitalised (`poietic-bridge` → `Poietic Bridge`). */
+export function projectNameFor(repoName: string): string {
+  const words = repoName.split(/[-_.\s]+/).filter(Boolean);
+  const name = words.map((w) => w[0]!.toUpperCase() + w.slice(1)).join(' ');
+  return (name || repoName).slice(0, 100);
+}
+
 const KEY = /^[A-Z][A-Z0-9]{1,9}$/;
 
 /**

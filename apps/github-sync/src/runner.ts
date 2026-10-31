@@ -6,7 +6,7 @@ import { isTransient, type Sync, TRACKER_EVENT_TYPES } from './sync.ts';
 import type { Tracker } from './tracker.ts';
 
 /** The bridge event types the sync reads; each also matches the types beneath it (`github.issues.opened`). */
-export const BRIDGE_EVENT_TYPES = ['github.issues', 'github.issue_comment'];
+export const BRIDGE_EVENT_TYPES = ['github.issues', 'github.issue_comment', 'github.repository'];
 
 const TRACKER_CURSOR = 'tracker.events';
 

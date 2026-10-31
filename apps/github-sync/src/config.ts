@@ -9,7 +9,6 @@ export interface Config {
   subscription: string;
   terminals: string[] | undefined;
   excludeRepos: string[];
-  visibility: 'private' | 'public';
   trackerPollMs: number;
   discoveryMs: number;
   healthPort: number;
@@ -37,9 +36,6 @@ function required(env: NodeJS.ProcessEnv, name: string): string {
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv): Config {
-  const visibility = env.SYNC_PROJECT_VISIBILITY ?? 'private';
-  if (visibility !== 'private' && visibility !== 'public')
-    throw new Error(`SYNC_PROJECT_VISIBILITY must be private or public, not "${visibility}".`);
   const terminals = list(env.SYNC_TERMINALS);
   return {
     agentToken: required(env, 'POIETIC_AGENT_TOKEN'),
@@ -55,7 +51,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
       env.SYNC_EXCLUDE_REPOS === undefined
         ? ['poietic-tech/persistent-agents']
         : list(env.SYNC_EXCLUDE_REPOS),
-    visibility,
     trackerPollMs: number(env, 'SYNC_TRACKER_POLL_MS', 5000),
     discoveryMs: number(env, 'SYNC_DISCOVERY_MS', 300_000),
     healthPort: number(env, 'SYNC_HEALTH_PORT', 8080),

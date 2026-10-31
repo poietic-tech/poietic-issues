@@ -70,7 +70,7 @@ describe('Runner', () => {
     expect(runner.terminals).toEqual(['github-a']);
     expect(bridge.subscriptions.create).toHaveBeenCalledWith('github-a', { name: 'issues-sync' });
     expect(subscribe.mock.calls[0]![3]).toMatchObject({
-      types: ['github.issues', 'github.issue_comment'],
+      types: ['github.issues', 'github.issue_comment', 'github.repository'],
     });
     controller.abort();
   });

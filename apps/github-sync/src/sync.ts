@@ -20,7 +20,13 @@ import {
   trackerCommentBody,
 } from './mapping.ts';
 import type { IssueLink, Store } from './store.ts';
-import type { Issue, RepoInfo, Tracker, TrackerEvent } from './tracker.ts';
+import {
+  type Issue,
+  type RepoInfo,
+  type Tracker,
+  type TrackerEvent,
+  visibilityOf,
+} from './tracker.ts';
 
 export interface SyncOptions {
   store: Store;
@@ -134,11 +140,33 @@ export class Sync {
   onGitHub(type: string, payload: unknown): Promise<void> {
     return this.#serial(async () => {
       const p = payload as IssuePayload;
-      if (!p?.issue || !p.repository?.full_name) return;
-      if (p.issue.pull_request || this.#excluded(p.repository.full_name)) return;
+      if (!p?.repository?.full_name || this.#excluded(p.repository.full_name)) return;
+      if (type === 'github.repository.publicized' || type === 'github.repository.privatized') {
+        await this.#onVisibility(p.repository);
+        return;
+      }
+      if (!p.issue || p.issue.pull_request) return;
       if (type.startsWith('github.issues.')) await this.#onIssue(p);
       else if (type.startsWith('github.issue_comment.')) await this.#onComment(p as CommentPayload);
     });
+  }
+
+  /**
+   * A repository made public or private: its project follows, when the project holds that repository alone. A
+   * project shared by several repositories keeps the visibility a person chose.
+   */
+  async #onVisibility(repo: RepoInfo): Promise<void> {
+    const { tracker, log } = this.#o;
+    const project = await tracker.projectForRepo(repo.full_name);
+    if (!project) return;
+    const visibility = visibilityOf(repo);
+    if (project.repos.length !== 1) {
+      log.info('tracker.visibility_kept', { key: project.key, repo: repo.full_name, visibility });
+      return;
+    }
+    if (project.visibility === visibility) return;
+    await tracker.setVisibility(project.id, visibility);
+    log.info('tracker.visibility', { key: project.key, repo: repo.full_name, visibility });
   }
 
   async #onIssue(p: IssuePayload): Promise<void> {

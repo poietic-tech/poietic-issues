@@ -117,7 +117,7 @@ describe(`github-sync (${testDialect()})`, () => {
     const project = projects.find((p) => p.repos.some((r) => r.fullName === REPO));
     expect(project).toMatchObject({
       key: 'PB',
-      name: 'poietic-bridge',
+      name: 'Poietic Bridge',
       description: 'Webhooks into terminals',
       visibility: 'private',
     });
@@ -328,6 +328,31 @@ describe(`github-sync (${testDialect()})`, () => {
     await human.trashIssue(second.trackerId);
     await drainTracker();
     expect(gh.issue(REPO, two)).toMatchObject({ state: 'closed', state_reason: 'not_planned' });
+  });
+
+  it("gives a public repository's project public visibility, and follows visibility changes", async () => {
+    const repo = 'poietic-tech/stix-rust';
+    gh.addRepo(repo, 'STIX patterns in Rust', false);
+    const { number } = gh.open(repo, { title: 'Public issue' });
+    await issueEvent('opened', number, repo);
+    let project = (await human.projectForRepo(repo))!;
+    expect(project).toMatchObject({ key: 'SR', name: 'Stix Rust', visibility: 'public' });
+
+    gh.repos.get(repo)!.private = true;
+    await sync.onGitHub('github.repository.privatized', gh.repositoryPayload('privatized', repo));
+    human.invalidate();
+    project = (await human.projectForRepo(repo))!;
+    expect(project.visibility).toBe('private');
+
+    // A project shared with another repository keeps its visibility.
+    await human.api.POST('/projects/{project}/repos', {
+      params: { path: { project: project.id } },
+      body: { repo: 'poietic-tech/other' },
+    });
+    gh.repos.get(repo)!.private = false;
+    await sync.onGitHub('github.repository.publicized', gh.repositoryPayload('publicized', repo));
+    human.invalidate();
+    expect((await human.projectForRepo(repo))!.visibility).toBe('private');
   });
 
   it('leaves excluded repositories and pull requests alone', async () => {

@@ -17,13 +17,31 @@ const json = (status: number, body?: unknown) =>
  * GitHub would send for changes made through it or by `act` (a person on github.com).
  */
 export class FakeGitHub {
-  readonly repos = new Map<string, { description: string; issues: Map<number, FakeIssue> }>();
+  readonly repos = new Map<
+    string,
+    { description: string; private: boolean; issues: Map<number, FakeIssue> }
+  >();
   readonly calls: string[] = [];
   #nextComment = 1000;
   #nextIssue = 1;
 
-  addRepo(fullName: string, description = ''): void {
-    this.repos.set(fullName.toLowerCase(), { description, issues: new Map() });
+  addRepo(fullName: string, description = '', isPrivate = true): void {
+    this.repos.set(fullName.toLowerCase(), { description, private: isPrivate, issues: new Map() });
+  }
+
+  /** The webhook payload for a repository event (`publicized`, `privatized`). */
+  repositoryPayload(action: string, repo: string) {
+    const r = this.repos.get(repo.toLowerCase())!;
+    return {
+      action,
+      repository: {
+        full_name: repo,
+        name: repo.split('/')[1],
+        description: r.description,
+        private: r.private,
+      },
+      sender: { login: 'octocat' },
+    };
   }
 
   issue(repo: string, number: number): FakeIssue {
@@ -57,6 +75,7 @@ export class FakeGitHub {
         name,
         owner: { login: owner },
         description: this.repos.get(repo.toLowerCase())?.description ?? null,
+        private: this.repos.get(repo.toLowerCase())?.private ?? true,
       },
       sender: { login: sender },
     };

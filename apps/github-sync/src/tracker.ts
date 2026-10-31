@@ -1,5 +1,5 @@
 import { type ApiClient, type Schemas, unwrap } from '@poietic-tech/issues-client';
-import { projectKeyFor, sortedLabels } from './mapping.ts';
+import { projectKeyFor, projectNameFor, sortedLabels } from './mapping.ts';
 
 export type Issue = Schemas['Issue'];
 export type Comment = Schemas['Comment'];
@@ -13,7 +13,15 @@ export interface RepoInfo {
   full_name: string;
   name: string;
   description?: string | null;
+  /** Whether the repository is private; its project gets the same visibility. */
+  private?: boolean;
 }
+
+export type Visibility = Schemas['ProjectVisibility'];
+
+/** The project visibility matching a repository: private unless GitHub says it is public. */
+export const visibilityOf = (repo: Pick<RepoInfo, 'private'>): Visibility =>
+  repo.private === false ? 'public' : 'private';
 
 const idem = (key: string) => ({ 'idempotency-key': key });
 
@@ -24,14 +32,12 @@ const idem = (key: string) => ({ 'idempotency-key': key });
  */
 export class Tracker {
   readonly api: ApiClient;
-  readonly #visibility: 'private' | 'public';
   #projects: Project[] | undefined;
   readonly #statuses = new Map<string, Status[]>();
   readonly #labels = new Map<string, Map<string, string>>();
 
-  constructor(api: ApiClient, opts: { visibility?: 'private' | 'public' } = {}) {
+  constructor(api: ApiClient) {
     this.api = api;
-    this.#visibility = opts.visibility ?? 'private';
   }
 
   async me(): Promise<Me> {
@@ -71,7 +77,10 @@ export class Tracker {
     return find(await this.projects());
   }
 
-  /** The repository's project, creating one named after it (and linking it) when there is none. */
+  /**
+   * The repository's project, creating one when there is none: named after the repository in title case, with
+   * its visibility, and linked to it.
+   */
   async ensureProjectForRepo(repo: RepoInfo): Promise<Project> {
     const existing = await this.projectForRepo(repo.full_name);
     if (existing) return existing;
@@ -81,9 +90,9 @@ export class Tracker {
       await this.api.POST('/projects', {
         body: {
           key,
-          name: repo.name,
+          name: projectNameFor(repo.name),
           description: repo.description ?? '',
-          visibility: this.#visibility,
+          visibility: visibilityOf(repo),
         },
         headers: idem(`github-sync:project:${repo.full_name.toLowerCase()}`),
       }),
@@ -99,6 +108,16 @@ export class Tracker {
     if (!linked)
       throw new Error(`Created project ${key} but ${repo.full_name} is not linked to it.`);
     return linked;
+  }
+
+  async setVisibility(projectId: string, visibility: Visibility): Promise<void> {
+    unwrap(
+      await this.api.PATCH('/projects/{project}', {
+        params: { path: { project: projectId } },
+        body: { visibility },
+      }),
+    );
+    this.invalidate();
   }
 
   async statuses(projectId: string): Promise<Status[]> {

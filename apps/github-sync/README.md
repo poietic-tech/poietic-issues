@@ -6,7 +6,9 @@ Keeps GitHub issues and Poietic Issues in step, both ways ([ADR 0029](../../docs
   The sync follows every `github` terminal it can read, through one subscription per terminal (`issues-sync`).
 - **Tracker → GitHub:** it polls the tracker's event log and writes through the GitHub REST API.
 - **Repositories ↔ projects:** a repository belongs to the project that lists it under _repos_; one project can
-  hold several. A repository with no project gets a new private one named after it.
+  hold several. A repository with no project gets a new one named after it in title case (`poietic-bridge` →
+  "Poietic Bridge", key `PB`), public or private as the repository is. When a repository is made public or
+  private, a project that holds only that repository follows.
 
 | GitHub                             | Tracker                                                    |
 | ---------------------------------- | ---------------------------------------------------------- |
@@ -29,20 +31,19 @@ pnpm --filter @poietic-tech/issues-github-sync build   # dist/github-sync.mjs
 POIETIC_AGENT_TOKEN=pat_… GITHUB_TOKEN=github_pat_… SYNC_STATE_FILE=./sync.db node apps/github-sync/dist/github-sync.mjs
 ```
 
-| Variable                  | Default                          | Meaning                                                          |
-| ------------------------- | -------------------------------- | ---------------------------------------------------------------- |
-| `POIETIC_AGENT_TOKEN`     | (required)                       | The `github-sync` agent's token from auth.poietic.tech           |
-| `GITHUB_TOKEN`            | (required)                       | Fine-grained token: Issues read/write on the synced repositories |
-| `POIETIC_ISSUES_SERVER`   | `https://issues.poietic.tech`    | The tracker                                                      |
-| `POIETIC_BRIDGE_URL`      | `https://bridge.poietic.tech`    | The bridge                                                       |
-| `SYNC_STATE_FILE`         | `/data/sync.db`                  | The sync's SQLite state (links, snapshots, tracker cursor)       |
-| `SYNC_TERMINALS`          | every `github` terminal          | Comma-separated terminal names to follow instead                 |
-| `SYNC_EXCLUDE_REPOS`      | `poietic-tech/persistent-agents` | Comma-separated `owner/name` repositories to leave alone         |
-| `SYNC_SUBSCRIPTION`       | `issues-sync`                    | The bridge subscription name on each terminal                    |
-| `SYNC_PROJECT_VISIBILITY` | `private`                        | Visibility of projects it creates                                |
-| `SYNC_TRACKER_POLL_MS`    | `5000`                           | Tracker event poll interval                                      |
-| `SYNC_DISCOVERY_MS`       | `300000`                         | How often to look for new terminals                              |
-| `SYNC_HEALTH_PORT`        | `8080`                           | `/healthz` (the tracker loop is turning) and `/readyz`           |
+| Variable                | Default                          | Meaning                                                          |
+| ----------------------- | -------------------------------- | ---------------------------------------------------------------- |
+| `POIETIC_AGENT_TOKEN`   | (required)                       | The `github-sync` agent's token from auth.poietic.tech           |
+| `GITHUB_TOKEN`          | (required)                       | Fine-grained token: Issues read/write on the synced repositories |
+| `POIETIC_ISSUES_SERVER` | `https://issues.poietic.tech`    | The tracker                                                      |
+| `POIETIC_BRIDGE_URL`    | `https://bridge.poietic.tech`    | The bridge                                                       |
+| `SYNC_STATE_FILE`       | `/data/sync.db`                  | The sync's SQLite state (links, snapshots, tracker cursor)       |
+| `SYNC_TERMINALS`        | every `github` terminal          | Comma-separated terminal names to follow instead                 |
+| `SYNC_EXCLUDE_REPOS`    | `poietic-tech/persistent-agents` | Comma-separated `owner/name` repositories to leave alone         |
+| `SYNC_SUBSCRIPTION`     | `issues-sync`                    | The bridge subscription name on each terminal                    |
+| `SYNC_TRACKER_POLL_MS`  | `5000`                           | Tracker event poll interval                                      |
+| `SYNC_DISCOVERY_MS`     | `300000`                         | How often to look for new terminals                              |
+| `SYNC_HEALTH_PORT`      | `8080`                           | `/healthz` (the tracker loop is turning) and `/readyz`           |
 
 Logs are one JSON object per line. Events that fail for good (a validation error, say) are logged as
 `bridge.event_skipped` / `tracker.event_skipped` and passed over; network and server failures are retried and

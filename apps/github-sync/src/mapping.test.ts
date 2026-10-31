@@ -8,6 +8,7 @@ import {
   gitHubStateFields,
   issueMarker,
   projectKeyFor,
+  projectNameFor,
   snapshotOfGitHub,
   stateOfCategory,
   stateOfGitHub,
@@ -21,6 +22,14 @@ describe('mapping', () => {
     expect(projectKeyFor('a', new Set())).toBe('GHA');
     expect(projectKeyFor('3d-print-sketches', new Set())).toBe('PS');
     expect(projectKeyFor('---', new Set())).toBe('GH');
+  });
+
+  it('names projects in title case', () => {
+    expect(projectNameFor('poietic-bridge')).toBe('Poietic Bridge');
+    expect(projectNameFor('stix_rust')).toBe('Stix Rust');
+    expect(projectNameFor('graphing-library')).toBe('Graphing Library');
+    expect(projectNameFor('poietic.tech')).toBe('Poietic Tech');
+    expect(projectNameFor('3d-print-sketches')).toBe('3d Print Sketches');
   });
 
   it('round-trips the issue marker and strips it from bodies', () => {

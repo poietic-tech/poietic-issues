@@ -19,7 +19,6 @@ async function main(): Promise<void> {
 
   const tracker = new Tracker(
     createClient({ baseUrl: config.trackerUrl, fetch: (request) => agent.fetch(request) }),
-    { visibility: config.visibility },
   );
   const me = await tracker.me();
   if (me.role !== 'admin')
