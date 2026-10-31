@@ -8,7 +8,7 @@ a non-root read-only container, and network policy that allows only DNS and publ
 
 1. Set up the identity and the GitHub token ([apps/github-sync/README.md](../../apps/github-sync/README.md#identity-and-access)).
 2. Put both tokens in Infisical (Poietic Dot Tech, `prod`, `/agents/github-sync`): `POIETIC_API_KEY` (the
-   agent's `pat_` token) and `GITHUB_TOKEN`. Then copy them into the cluster; the values never touch disk or the
+   agent's `pat_` token) and `GITHUB_API_KEY` (the fine-grained GitHub token). Then copy them into the cluster; the values never touch disk or the
    terminal:
 
    ```sh

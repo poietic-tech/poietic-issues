@@ -4,7 +4,7 @@
 #   deploy/k3s/set-secret.sh                 # needs `infisical login`
 # Infisical (Poietic Dot Tech / prod / /agents/github-sync) holds:
 #   POIETIC_API_KEY  the github-sync agent's pat_ token (stored in the cluster as POIETIC_AGENT_TOKEN)
-#   GITHUB_TOKEN     the fine-grained GitHub token (Issues: read and write)
+#   GITHUB_API_KEY   the fine-grained GitHub token, Issues: read and write (stored as GITHUB_TOKEN)
 set -euo pipefail
 
 host="${K3S_HOST:-papa}"
@@ -17,7 +17,7 @@ secret() {
     { echo "Cannot read $1 from Infisical $env:$path (run \`infisical login\`?)." >&2; return 1; }
 }
 agent_token="$(secret POIETIC_API_KEY)"
-github_token="$(secret GITHUB_TOKEN)"
+github_token="$(secret GITHUB_API_KEY)"
 [ -n "$agent_token" ] && [ -n "$github_token" ] || { echo 'Both tokens must be set in Infisical.' >&2; exit 1; }
 
 printf 'POIETIC_AGENT_TOKEN=%s\nGITHUB_TOKEN=%s\n' "$agent_token" "$github_token" |
