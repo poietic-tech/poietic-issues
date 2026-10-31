@@ -35,6 +35,18 @@ describe('parseRepoRef', () => {
     '-bad/app',
     'acme/ap p',
   ])('rejects %s', (input) => expect(() => parseRepoRef(input)).toThrow(/repository/i));
+  it('rejects a host-like first segment', () => {
+    expect(() => parseRepoRef('a.b/c')).toThrow(/repository/i);
+    // A dot at either edge of the first segment is not a host; the owner check rejects it instead.
+    expect(() => parseRepoRef('.ab/c')).toThrow(/repository/i);
+  });
+  it('rejects a long run of dots in linear time', () => {
+    const started = performance.now();
+    expect(() => parseRepoRef('.'.repeat(100_000))).toThrow(/repository/i);
+    expect(() => parseRepoRef(`${'.'.repeat(100_000)}/x`)).toThrow(/repository/i);
+    expect(() => parseRepoRef(`a${'.'.repeat(100_000)}`)).toThrow(/repository/i);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
 });
 
 describe(`repo links (${testDialect()})`, () => {

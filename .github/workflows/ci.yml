@@ -9,6 +9,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# No job writes to the repository: caches and the Playwright report upload use the Actions runtime token,
+# not GITHUB_TOKEN.
+permissions:
+  contents: read
+
 jobs:
   check:
     name: Typecheck, lint, format
