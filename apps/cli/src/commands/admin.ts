@@ -541,6 +541,7 @@ export function registerUser(parent: Command, tree: Tree): Command {
     .command('edit')
     .description('Edit a user')
     .argument('<user>', 'handle or id')
+    .option('--handle <handle>', 'rename the user (admin only)')
     .option('-n, --name <name>', 'display name')
     .option('--email <email>', 'email')
     .option('--role <role>', 'admin|member (admin only)')
@@ -549,7 +550,7 @@ export function registerUser(parent: Command, tree: Tree): Command {
     .action(
       act(async (rt, [ref], o) => {
         const api = await rt.api();
-        const body: Schemas['UpdateUserInput'] = pick(o, ['name', 'email', 'role']);
+        const body: Schemas['UpdateUserInput'] = pick(o, ['handle', 'name', 'email', 'role']);
         if (o.deactivate) body.deactivated = true;
         if (o.reactivate) body.deactivated = false;
         rt.out.item(

@@ -3,7 +3,7 @@ import { CreateUserInputSchema, type User } from '@poietic-tech/issues-schema';
 import { nowIso, type ServiceContext } from '../context.ts';
 import { forbidden } from '../errors.ts';
 import { toUser } from '../mappers.ts';
-import { insertUser } from './users.ts';
+import { insertUser, RESERVED_HANDLES } from './users.ts';
 
 /** A verified identity from an SSO issuer's token. */
 export interface SsoIdentity {
@@ -31,8 +31,6 @@ export interface SsoSignIn {
 }
 
 const HANDLE_MAX = 30;
-/** Handles that resolve to something else (`me` is the actor, `system` the system user). */
-const RESERVED_HANDLES = new Set(['me', 'system']);
 
 /** Derives a handle from a display name: lowercase ASCII letters, digits, `-` and `_`; `user` if nothing usable remains. */
 export function handleFromName(name: string): string {

@@ -8,11 +8,14 @@ import {
 } from '@poietic-tech/issues-schema';
 import type { z } from 'zod';
 import { type Actor, nowIso, type ServiceContext } from '../context.ts';
-import { conflict, forbidden, isUniqueViolation, parseInput } from '../errors.ts';
+import { conflict, forbidden, isUniqueViolation, parseInput, validationError } from '../errors.ts';
 import { diff, recordEvent } from '../events.ts';
 import { toUser } from '../mappers.ts';
 import { isAdmin, requireAdmin, requireSignedIn } from '../permissions.ts';
 import { getUserRow } from '../refs.ts';
+
+/** Handles that resolve to something else (`me` is the actor, `system` the system user). */
+export const RESERVED_HANDLES: ReadonlySet<string> = new Set(['me', 'system']);
 
 export function toActor(user: Pick<User, 'id' | 'handle' | 'name' | 'kind' | 'role'>): Actor {
   return { id: user.id, handle: user.handle, name: user.name, kind: user.kind, role: user.role };
@@ -113,39 +116,62 @@ export async function insertUser(
   return user;
 }
 
-/** Updates a user. Admins can change anything; users can change their own name, email and avatar. */
+/**
+ * Updates a user. Admins can change anything, including the handle; users can change their own name, email and avatar.
+ */
 export async function updateUser(
   ctx: ServiceContext,
   ref: string,
   input: UpdateUserInput,
 ): Promise<User> {
   const patch = parseInput(UpdateUserInputSchema, input);
-  return withWriteTx(ctx.db, async (tx) => {
-    const row = await getUserRow(ctx, tx, ref);
-    const self = row.id === ctx.actor.id;
-    const adminOnly = patch.role !== undefined || patch.deactivated !== undefined;
-    if (!isAdmin(ctx) && (!self || adminOnly))
-      throw forbidden('You can only edit your own profile');
-    const owner = await ownerHandle(tx, row.owner_id);
-    const before = toUser(row, owner);
-    const now = nowIso(ctx);
-    const updated = await tx
-      .updateTable('users')
-      .set({
-        ...(patch.name !== undefined && { name: patch.name }),
-        ...(patch.email !== undefined && { email: patch.email }),
-        ...(patch.role !== undefined && { role: patch.role }),
-        ...(patch.avatarUrl !== undefined && { avatar_url: patch.avatarUrl }),
-        ...(patch.deactivated !== undefined && { deactivated_at: patch.deactivated ? now : null }),
-        updated_at: now,
-      })
-      .where('id', '=', row.id)
-      .returningAll()
-      .executeTakeFirstOrThrow();
-    const user = toUser(updated, owner);
-    const changes = diff(before, user, ['name', 'email', 'role', 'avatarUrl', 'deactivatedAt']);
-    if (Object.keys(changes).length > 0)
-      await recordEvent(tx, ctx, 'user.updated', { data: { user, changes } });
-    return user;
-  });
+  if (patch.handle !== undefined && RESERVED_HANDLES.has(patch.handle))
+    throw validationError(`"${patch.handle}" is a reserved handle`);
+  try {
+    return await withWriteTx(ctx.db, async (tx) => {
+      const row = await getUserRow(ctx, tx, ref);
+      if (patch.handle !== undefined && row.kind === 'system')
+        throw forbidden('The system user cannot be renamed');
+      const self = row.id === ctx.actor.id;
+      const adminOnly =
+        patch.handle !== undefined || patch.role !== undefined || patch.deactivated !== undefined;
+      if (!isAdmin(ctx) && (!self || adminOnly))
+        throw forbidden('You can only edit your own profile');
+      const owner = await ownerHandle(tx, row.owner_id);
+      const before = toUser(row, owner);
+      const now = nowIso(ctx);
+      const updated = await tx
+        .updateTable('users')
+        .set({
+          ...(patch.handle !== undefined && { handle: patch.handle }),
+          ...(patch.name !== undefined && { name: patch.name }),
+          ...(patch.email !== undefined && { email: patch.email }),
+          ...(patch.role !== undefined && { role: patch.role }),
+          ...(patch.avatarUrl !== undefined && { avatar_url: patch.avatarUrl }),
+          ...(patch.deactivated !== undefined && {
+            deactivated_at: patch.deactivated ? now : null,
+          }),
+          updated_at: now,
+        })
+        .where('id', '=', row.id)
+        .returningAll()
+        .executeTakeFirstOrThrow();
+      const user = toUser(updated, owner);
+      const changes = diff(before, user, [
+        'handle',
+        'name',
+        'email',
+        'role',
+        'avatarUrl',
+        'deactivatedAt',
+      ]);
+      if (Object.keys(changes).length > 0)
+        await recordEvent(tx, ctx, 'user.updated', { data: { user, changes } });
+      return user;
+    });
+  } catch (error) {
+    if (isUniqueViolation(error))
+      throw conflict(`A user with handle "${patch.handle}" already exists`);
+    throw error;
+  }
 }

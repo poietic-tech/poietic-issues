@@ -1948,6 +1948,13 @@
       ],
       "options": [
         {
+          "flags": "--handle <handle>",
+          "name": "handle",
+          "description": "rename the user (admin only)",
+          "required": false,
+          "takesValue": true
+        },
+        {
           "flags": "-n, --name <name>",
           "name": "name",
           "description": "display name",

@@ -76,6 +76,10 @@ export type CreateUserInput = z.input<typeof CreateUserInputSchema>;
 
 export const UpdateUserInputSchema = z
   .object({
+    handle: HandleSchema.meta({
+      description:
+        'Rename the user (admin only). Existing history refers to users by id, so it follows the rename.',
+    }),
     name: z.string().min(1).max(100),
     email: z.email().nullable(),
     role: UserRoleSchema,
