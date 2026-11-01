@@ -76,3 +76,19 @@ test('an operator-tool write (another process, same database) appears in the bro
     timeout: 2000,
   });
 });
+
+test('a project created elsewhere appears in the sidebar live, on a page outside any project', async ({
+  page,
+}) => {
+  await page.goto('/settings/webhooks');
+  await expect(page.getByTestId('live-indicator')).toHaveAttribute('data-connected', 'true');
+  const key = `LV${Date.now().toString(36).toUpperCase().slice(-6)}`;
+  const res = await page.request.post('/api/v1/projects', {
+    data: { key, name: 'Created live elsewhere' },
+    headers: { origin, 'x-request-id': 'external-project-1' },
+  });
+  expect(res.ok()).toBe(true);
+  await expect(page.getByRole('link', { name: /Created live elsewhere/ })).toBeVisible({
+    timeout: 2000,
+  });
+});

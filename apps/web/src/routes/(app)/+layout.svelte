@@ -100,11 +100,11 @@
     ui.sidebarOpen = false;
   });
 
-  // One live event stream for the project in view; reconnects when the project changes. Signed-out visitors
+  // One live event stream for every project the viewer can read, kept across navigation. Signed-out visitors
   // get one too: the server sends each viewer only what they may read.
   $effect(() => {
-    if (!me.data || waitingForSso || !currentProject) return;
-    return connectLive(qc, currentProject);
+    if (!me.data || waitingForSso) return;
+    return connectLive(qc);
   });
 
   /** What issue shortcuts act on: the selection, else the open issue, else the focused row or card. */
