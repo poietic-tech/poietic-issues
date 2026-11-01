@@ -159,14 +159,15 @@ function handle(qc: QueryClient, event: TrackerEvent, meId: string | undefined) 
 }
 
 /**
- * Subscribes to live events for a project over SSE (cookie-authenticated, same origin; signed-out visitors get
- * the public projects' events, filtered by the server). The browser reconnects
- * automatically and resumes with Last-Event-ID; a `reset` means the gap was too large, so everything refetches.
- * Returns a function that closes the connection.
+ * Subscribes to live events over SSE (cookie-authenticated, same origin): one stream for every project the viewer
+ * can read, filtered by the server (signed-out visitors get the public projects'), so any page stays current,
+ * including the project list when a project is created or renamed. The browser reconnects automatically and
+ * resumes with Last-Event-ID; a `reset` means the gap was too large, so everything refetches. Returns a function
+ * that closes the connection.
  */
-export function connectLive(qc: QueryClient, projectKey: string): () => void {
-  if (typeof EventSource === 'undefined' || !projectKey) return () => {};
-  const source = new EventSource(`/api/v1/events/stream?project=${encodeURIComponent(projectKey)}`);
+export function connectLive(qc: QueryClient): () => void {
+  if (typeof EventSource === 'undefined') return () => {};
+  const source = new EventSource('/api/v1/events/stream');
   const meId = () => {
     const me = qc.getQueryData<Me>(keys.me);
     return isSignedIn(me) ? me.id : undefined;
@@ -176,7 +177,10 @@ export function connectLive(qc: QueryClient, projectKey: string): () => void {
   source.addEventListener('ready', () => {
     live.connected = true;
     // After a reconnect we may have missed updates made while offline: refresh lists once.
-    if (opened) void qc.invalidateQueries({ queryKey: keys.issueLists(projectKey) });
+    if (opened) {
+      void qc.invalidateQueries({ queryKey: ['issues'] });
+      void qc.invalidateQueries({ queryKey: keys.projects });
+    }
     opened = true;
   });
   source.addEventListener('reset', () => void qc.invalidateQueries());
