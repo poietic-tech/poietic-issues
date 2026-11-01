@@ -3,7 +3,8 @@
 Keeps GitHub issues and Poietic Issues in step, both ways ([ADR 0029](../../docs/adr/0029-github-sync-through-the-bridge.md)).
 
 - **GitHub → tracker:** GitHub issue and comment webhooks arrive through [Poietic Bridge](https://bridge.poietic.tech).
-  The sync follows every `github` terminal it can read, through one subscription per terminal (`issues-sync`).
+  The sync follows every `github` terminal it can read (or those in `SYNC_TERMINALS`; the K3s deployment pins the
+  organization-wide `github-poietic-tech`), through one subscription per terminal (`issues-sync`).
 - **Tracker → GitHub:** it polls the tracker's event log and writes through the GitHub REST API.
 - **Repositories ↔ projects:** a repository belongs to the project that lists it under _repos_; one project can
   hold several. A repository with no project gets a new one named after it in title case (`poietic-bridge` →

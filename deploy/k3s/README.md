@@ -29,7 +29,7 @@ Every later deployment is step 3 again. To rotate a token, update it in Infisica
 ```sh
 ssh papa sudo k3s kubectl -n poietic-issues-sync logs statefulset/github-sync -f
 ssh papa sudo k3s kubectl -n poietic-issues-sync get pods,pvc
-poietic-tech bridge terminal show github-poietic-bridge   # the issues-sync subscription's position and lag
+poietic-tech bridge terminal show github-poietic-tech     # the issues-sync subscription's position and lag
 ```
 
 - **A skipped event** (`*.event_skipped` in the logs) failed for a reason a retry would not fix. Fix the cause,

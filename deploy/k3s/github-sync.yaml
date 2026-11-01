@@ -50,6 +50,9 @@ spec:
           env:
             - name: SYNC_STATE_FILE
               value: /data/sync.db
+            # The organization-wide hook feeds this one terminal; per-repo terminals are not followed.
+            - name: SYNC_TERMINALS
+              value: github-poietic-tech
           envFrom:
             - secretRef:
                 name: github-sync-runtime
