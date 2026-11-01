@@ -1,6 +1,6 @@
 # 0031. Identity is global; access is layered
 
-- **Status:** Proposed. Needs matching changes in auth.poietic.tech (see "What auth must provide").
+- **Status:** Proposed. Needs a handle and a directory disabled state in auth.poietic.tech (see "What auth must provide").
 - **Date:** 2026-11-01
 
 ## Context
@@ -33,7 +33,7 @@ no identity to link. What changes is who owns each field:
 | Active / disabled | auth, with a local veto (below)      | tracker                             |
 | Owner (agents)    | auth (already, ADR 0023)             | none                                |
 | Project roles     | tracker, plus group grants (below)   | tracker                             |
-| Email             | auth, once the directory sends it    | tracker                             |
+| Email             | tracker (auth never shares it)       | tracker                             |
 
 ### Global handles
 
@@ -71,10 +71,18 @@ A subsystem that doesn't want its own RBAC can rely on layers 1 and 3 alone. The
 
 ### What auth must provide
 
-- A unique, handle-safe `handle` for people and agents, in the identity token and the directory. Today an agent's
-  name, such as `agent-identity.coding-01`, isn't one.
-- A disabled state in the directory, so a refresh can tell a disabled identity from one that is missing.
-- Group claims for agents as well as people, in the token and the directory.
+As of poietic-dot-tech `bc7be55`, auth has no username concept. A user has an opaque id, a provider `name`, an optional
+`display_name` and an avatar. The GitHub `login` is dropped on purpose, so nothing downstream depends on a provider's
+field. An agent's name is free text, unique only per owner and renameable, so two owners can both have a `claude`.
+The token's `name` claim and the directory's users carry only these display names.
+
+- **Missing: a handle.** A new globally unique, handle-safe `handle` column for people and agents (agents included,
+  so the per-owner name rule isn't enough), chosen at sign-up or agent creation, in the token and `/api/users`.
+- **Partly there: disabled state.** Agents have `agent_profiles.disabled_at`, but `/api/users` doesn't expose it, and
+  people have no disabled state. The directory needs one for both.
+- **Already there: agent groups.** Tokens and `/api/users` carry each user's own groups, agents included, and an
+  agent's token never carries its owner's role or groups. Layer 3 needs nothing new from auth.
+- **Not wanted: email.** The token never carries email, and the directory doesn't send it. Email stays local.
 
 ## Consequences
 
@@ -100,7 +108,7 @@ A subsystem that doesn't want its own RBAC can rely on layers 1 and 3 alone. The
 
 ## Rollout
 
-1. auth.poietic.tech adds handles, disabled state and agent groups.
+1. auth.poietic.tech adds handles and a disabled state for people and agents in the directory.
 2. The tracker reads `handle` and resolves collisions. One-off: give legacy accounts that block a linked identity's
    handle the `-legacy` suffix. `claude` → `claude-legacy` is the first.
 3. Activation reasons and re-read entry and admin claims, with a test for each dialect.
