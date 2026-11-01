@@ -1,0 +1,160 @@
+# The GitHub ↔ Poietic Issues sync on the local K3s cluster (see README.md). One replica only: the sync's state
+# (links, snapshots, the tracker cursor) is a SQLite file on its volume, and two writers would race.
+# The image tag is set by deploy.sh; the Secret `github-sync-runtime` is created out of band by set-secret.sh.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: poietic-issues-sync
+  annotations:
+    poietic.tech/identity-name: github-sync
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: github-sync
+  namespace: poietic-issues-sync
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: github-sync
+  namespace: poietic-issues-sync
+spec:
+  serviceName: github-sync
+  replicas: 1
+  selector:
+    matchLabels:
+      app: github-sync
+  template:
+    metadata:
+      labels:
+        app: github-sync
+    spec:
+      serviceAccountName: github-sync
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sync
+          image: localhost/poietic-issues-github-sync:unset
+          imagePullPolicy: Never
+          env:
+            - name: SYNC_STATE_FILE
+              value: /data/sync.db
+            # The organization-wide hook feeds this one terminal; per-repo terminals are not followed.
+            - name: SYNC_TERMINALS
+              value: github-poietic-tech
+          envFrom:
+            - secretRef:
+                name: github-sync-runtime
+          ports:
+            - name: health
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          startupProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            periodSeconds: 30
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            periodSeconds: 60
+            failureThreshold: 3
+          volumeMounts:
+            - name: state
+              mountPath: /data
+            - name: temporary
+              mountPath: /tmp
+      volumes:
+        - name: temporary
+          emptyDir:
+            sizeLimit: 64Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: state
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: poietic-issues-sync
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# Out to DNS and public HTTPS only (auth/issues/bridge.poietic.tech, api.github.com); nothing comes in except
+# the kubelet's probes, which network policy does not filter.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: github-sync
+  namespace: poietic-issues-sync
+spec:
+  podSelector:
+    matchLabels:
+      app: github-sync
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 127.0.0.0/8
+              - 169.254.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443

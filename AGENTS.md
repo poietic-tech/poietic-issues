@@ -15,6 +15,7 @@ pnpm e2e              # build the web app, run Playwright (E2E_DATABASE_URL=post
 pnpm build            # web app + dist/server.mjs + dist/poietic-issues-admin.mjs (tsdown bundles)
 pnpm --filter @poietic-tech/issues build:module   # the published module bundle: apps/cli/dist/poietic-tech.js (tested by apps/cli/test/bundle.test.ts)
 pnpm build:demo       # self-contained browser demo in apps/web/build-demo/ (pnpm e2e:demo tests it)
+pnpm --filter @poietic-tech/issues-github-sync build   # the GitHub ↔ tracker sync bundle; deploy/k3s/deploy.sh ships it to K3s
 docker compose up -d --build --wait poietic-issues   # production shape: Postgres + S3 storage
 pnpm openapi:gen      # regenerate docs/openapi.json + client types after API changes
 pnpm vitest run --project cli -u      # refresh CLI golden files + docs/cli-reference.md after CLI changes
