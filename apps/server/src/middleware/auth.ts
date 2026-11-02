@@ -176,6 +176,7 @@ async function identityActor(
       issuer: sso.issuer,
       subject: claims.sub,
       name: claims.name,
+      handle: claims.handle,
       role: claims.role,
       groups: claims.groups,
       kind: claims.kind,

@@ -216,6 +216,7 @@ export function registerAuthRoutes(app: TrackerApp, deps: ResolvedDeps) {
           issuer: sso.issuer,
           subject: claims.sub,
           name: claims.name,
+          handle: claims.handle,
           role: claims.role,
           groups: claims.groups,
           kind: 'human',
