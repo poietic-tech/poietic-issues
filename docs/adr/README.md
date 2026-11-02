@@ -34,3 +34,4 @@ Short records of decisions that constrain future work. Copy `0000-template.md`, 
 | [0028](0028-sso-only-and-the-poietic-tech-module.md)  | SSO only, and the CLI as a `poietic-tech` module                       | Accepted                                  |
 | [0029](0029-github-sync-through-the-bridge.md)        | GitHub issues sync both ways, through Poietic Bridge                   | Accepted                                  |
 | [0031](0031-global-identity-local-access.md)          | Identity is global; access is layered                                  | Accepted (steps 3–4 to do)                |
+| [0032](0032-notice-webhooks-and-change-reasons.md)    | Notice webhooks, change reasons and a published event follower         | Accepted                                  |
