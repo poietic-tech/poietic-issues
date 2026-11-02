@@ -50,7 +50,7 @@ no identity to link. What changes is who owns each field:
   user gets `<handle>-2` meanwhile and a known one keeps its current handle, and the refresh moves every handle at
   once, so two users can swap in one pass.
 - A token or directory entry without a handle (an issuer older than handles) keeps the tracker deriving one as before.
-- The `PATCH /users/{user}` refusal waits for ADR 0030's renames: the endpoint has no handle field yet.
+- With ADR 0030's renames, `PATCH /users/{user}` refuses a new `handle` for a linked user (`FORBIDDEN`).
 
 ### Activation follows auth, with a local veto
 

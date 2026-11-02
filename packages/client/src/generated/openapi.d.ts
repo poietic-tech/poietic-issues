@@ -5529,6 +5529,8 @@ export interface components {
             avatarUrl?: string | null;
         };
         UpdateUserInput: {
+            /** @description Rename the user (admin only). Existing history refers to users by id, so it follows the rename. */
+            handle?: string;
             name?: string;
             /** Format: email */
             email?: string | null;

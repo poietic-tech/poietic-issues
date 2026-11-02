@@ -821,6 +821,7 @@ Edit a user
 
 | Option | Description |
 | --- | --- |
+| `--handle <handle>` | rename the user (admin only) |
 | `-n, --name <name>` | display name |
 | `--email <email>` | email |
 | `--role <role>` | admin\|member (admin only) |
