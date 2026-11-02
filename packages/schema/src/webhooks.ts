@@ -23,6 +23,50 @@ export function webhookMatchesType(patterns: readonly string[], type: EventType 
   );
 }
 
+/** What a webhook sends: the whole event, or a content-free notice that it happened. */
+export const WEBHOOK_PAYLOADS = ['full', 'notice'] as const;
+export type WebhookPayload = (typeof WEBHOOK_PAYLOADS)[number];
+
+const WebhookPayloadSchema = z.enum(WEBHOOK_PAYLOADS).meta({
+  description:
+    '`full` sends the event as in `GET /events`; `notice` sends only its seq, ids, type and time.',
+});
+
+/** The body of a `notice` webhook: which event happened, never what it contains. */
+export const EventNoticeSchema = z
+  .object({
+    seq: z
+      .number()
+      .int()
+      .meta({ description: 'Read `GET /events?after=<seq - 1>` for the event.' }),
+    id: z.string(),
+    type: z.string().meta({ example: 'issue.updated' }),
+    projectId: z.string().nullable(),
+    issueId: z.string().nullable(),
+    actorId: z.string().nullable(),
+    createdAt: TimestampSchema,
+  })
+  .meta({ id: 'EventNotice' });
+export type EventNotice = z.infer<typeof EventNoticeSchema>;
+
+/** The notice for an event, with its keys in a fixed order. */
+export function toEventNotice(
+  event: Pick<
+    EventNotice,
+    'seq' | 'id' | 'type' | 'projectId' | 'issueId' | 'actorId' | 'createdAt'
+  >,
+): EventNotice {
+  return {
+    seq: event.seq,
+    id: event.id,
+    type: event.type,
+    projectId: event.projectId,
+    issueId: event.issueId,
+    actorId: event.actorId,
+    createdAt: event.createdAt,
+  };
+}
+
 const WEBHOOK_URL = z
   .url({ protocol: /^https?$/ })
   .max(2000)
@@ -39,6 +83,7 @@ export const WebhookSchema = z
       .nullable()
       .meta({ description: 'Only events from this project; null for all projects.' }),
     active: z.boolean(),
+    payload: WebhookPayloadSchema,
     failureCount: z.number().int().meta({
       description:
         'Consecutive deliveries that exhausted their retries. The webhook is disabled at 5; re-activating resets it.',
@@ -72,6 +117,7 @@ export const CreateWebhookInputSchema = z
       .optional()
       .meta({ description: 'Project key or id to scope the webhook to.', example: 'ENG' }),
     active: z.boolean().default(true),
+    payload: WebhookPayloadSchema.default('full'),
   })
   .meta({ id: 'CreateWebhookInput' });
 export type CreateWebhookInput = z.input<typeof CreateWebhookInputSchema>;
@@ -83,6 +129,7 @@ export const UpdateWebhookInputSchema = z
     eventTypes: z.array(WebhookEventPatternSchema).min(1).optional(),
     project: z.string().nullable().optional().meta({ description: 'null removes the scope.' }),
     active: z.boolean().optional(),
+    payload: WebhookPayloadSchema.optional(),
   })
   .meta({ id: 'UpdateWebhookInput' });
 export type UpdateWebhookInput = z.input<typeof UpdateWebhookInputSchema>;

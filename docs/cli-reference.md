@@ -706,6 +706,7 @@ Register a webhook; prints its signing secret (shown only now)
 | `--scope <project>` | only events from this project |
 | `--description <text>` | what the webhook is for |
 | `--inactive` | create it disabled |
+| `--payload <payload>` | what to send: full (the event, default) or notice (only its seq, ids and type) |
 
 ### `poietic-tech issues webhook view <id>`
 
@@ -731,6 +732,7 @@ Change a webhook; --enable re-activates an automatically disabled one
 | `--description <text>` | description |
 | `--enable` | activate |
 | `--disable` | deactivate |
+| `--payload <payload>` | what to send: full (the event) or notice (only its seq, ids and type) |
 
 ### `poietic-tech issues webhook delete <id>`
 

@@ -1695,6 +1695,13 @@
           "description": "create it disabled",
           "required": false,
           "takesValue": false
+        },
+        {
+          "flags": "--payload <payload>",
+          "name": "payload",
+          "description": "what to send: full (the event, default) or notice (only its seq, ids and type)",
+          "required": false,
+          "takesValue": true
         }
       ]
     },
@@ -1766,6 +1773,13 @@
           "description": "deactivate",
           "required": false,
           "takesValue": false
+        },
+        {
+          "flags": "--payload <payload>",
+          "name": "payload",
+          "description": "what to send: full (the event) or notice (only its seq, ids and type)",
+          "required": false,
+          "takesValue": true
         }
       ]
     },

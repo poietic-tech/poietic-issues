@@ -13,6 +13,7 @@ import {
   dispatchWebhookEvents,
   getWebhook,
   isPrivateAddress,
+  listEvents,
   listWebhookDeliveries,
   publicOnlyLookup,
   redeliverWebhook,
@@ -296,6 +297,101 @@ describe(`webhooks (${testDialect()})`, () => {
     while ((await deliverDueWebhooks(t.ctx, { policy: slow })) > 0);
     expect(sends).toBe(total);
     await deleteWebhook(t.ctx, hook.id);
+  });
+
+  it('notice webhooks send only the notice', async () => {
+    const hook = await createWebhook(
+      t.ctx,
+      { url: receiverUrl, eventTypes: ['issue.*'], project: 'WH', payload: 'notice' },
+      policy,
+    );
+    expect(hook.payload).toBe('notice');
+    const issue = await createIssue(t.ctx, 'WH', { title: 'Notice me' });
+    await dispatchWebhookEvents(t.ctx);
+    await deliver();
+    received.length = 0;
+    await updateIssue(t.ctx, issue.key, { priority: 2 });
+    await dispatchWebhookEvents(t.ctx);
+    expect(await deliver()).toBe(1);
+    const [r] = received;
+    const events = await listEvents(t.ctx, { issue: issue.id });
+    const event = events.data.at(-1)!;
+    expect(r!.body).toBe(
+      JSON.stringify({
+        seq: event.seq,
+        id: event.id,
+        type: 'issue.updated',
+        projectId: event.projectId,
+        issueId: issue.id,
+        actorId: event.actorId,
+        createdAt: event.createdAt,
+      }),
+    );
+    expect(Buffer.byteLength(r!.body)).toBeLessThan(8192);
+    const headers = r!.headers as Record<string, string>;
+    expect(headers['x-poietic-issues-event']).toBe('issue.updated');
+    expect(() =>
+      verifyWebhook(hook.secret, headers, r!.body, { toleranceSeconds: 1e10 }),
+    ).not.toThrow();
+    await deleteWebhook(t.ctx, hook.id);
+  });
+
+  it('full payload stays the default, and payload can be switched', async () => {
+    const hook = await createWebhook(
+      t.ctx,
+      { url: receiverUrl, eventTypes: ['issue.*'], project: 'WH' },
+      policy,
+    );
+    expect(hook.payload).toBe('full');
+    received.length = 0;
+    const issue = await createIssue(t.ctx, 'WH', { title: 'Full' });
+    await dispatchWebhookEvents(t.ctx);
+    await deliver();
+    expect(JSON.parse(received[0]!.body).data.issue.key).toBe(issue.key);
+
+    expect((await updateWebhook(t.ctx, hook.id, { payload: 'notice' }, policy)).payload).toBe(
+      'notice',
+    );
+    received.length = 0;
+    await updateIssue(t.ctx, issue.key, { priority: 3 });
+    await dispatchWebhookEvents(t.ctx);
+    await deliver();
+    expect(JSON.parse(received[0]!.body)).not.toHaveProperty('data');
+    await deleteWebhook(t.ctx, hook.id);
+  });
+
+  it('the test ping of a notice webhook is a notice', async () => {
+    const hook = await createWebhook(
+      t.ctx,
+      { url: receiverUrl, project: 'WH', payload: 'notice' },
+      policy,
+    );
+    received.length = 0;
+    expect(await testWebhook(t.ctx, hook.id, policy)).toMatchObject({ ok: true });
+    const ping = JSON.parse(received[0]!.body);
+    expect(Object.keys(ping)).toEqual([
+      'seq',
+      'id',
+      'type',
+      'projectId',
+      'issueId',
+      'actorId',
+      'createdAt',
+    ]);
+    expect(ping).toMatchObject({
+      seq: 0,
+      type: 'webhook.ping',
+      projectId: hook.projectId,
+      issueId: null,
+      actorId: t.ctx.actor.id,
+    });
+    await deleteWebhook(t.ctx, hook.id);
+  });
+
+  it('an unknown payload is refused', async () => {
+    await expect(
+      createWebhook(t.ctx, { url: receiverUrl, payload: 'snapshot' as never }, policy),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   });
 
   it('pings, rotates secrets, validates URLs and requires admin', async () => {

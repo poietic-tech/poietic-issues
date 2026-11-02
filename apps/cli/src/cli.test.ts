@@ -383,7 +383,9 @@ describe(`tracker CLI (${testDialect()})`, () => {
     const id = /Created webhook (whk_\w+)/.exec(created.stdout)![1]!;
 
     const listed = await cli(['webhook', 'ls']);
-    expect(listed.stdout.split('\n')[0]).toMatch(/^ID\s+URL\s+EVENTS\s+ACTIVE\s+DESCRIPTION$/);
+    expect(listed.stdout.split('\n')[0]).toMatch(
+      /^ID\s+URL\s+EVENTS\s+ACTIVE\s+PAYLOAD\s+DESCRIPTION$/,
+    );
     expect(listed.stdout).toContain('issue.*,comment.created');
 
     const edited = await cli(['webhook', 'edit', id, '--scope', 'all', '--disable', '--json']);
@@ -403,6 +405,21 @@ describe(`tracker CLI (${testDialect()})`, () => {
     expect(ping.code).toBe(6);
     expect(ping.stderr).toMatch(/ECONNREFUSED/);
     expect((await cli(['webhook', 'rm', id])).stdout).toBe(`Deleted webhook ${id}\n`);
+
+    const notice = await cli([
+      'webhook',
+      'create',
+      'https://example.com/notices',
+      '--payload',
+      'notice',
+      '--json',
+    ]);
+    expect(notice.json()).toMatchObject({ payload: 'notice' });
+    const full = await cli(['webhook', 'edit', notice.json().id, '--payload', 'full', '--json']);
+    expect(full.json()).toMatchObject({ payload: 'full' });
+    expect(
+      (await cli(['webhook', 'create', 'https://example.com/x', '--payload', 'all'])).code,
+    ).toBe(2);
   });
 });
 

@@ -72,6 +72,7 @@ export const COLUMNS: Record<Exclude<Kind, 'raw'>, Column[]> = {
     ['URL', (r) => r.url],
     ['EVENTS', (r) => (r.eventTypes as string[]).join(',')],
     ['ACTIVE', (r) => (r.active ? 'yes' : r.disabledAt ? 'disabled (failures)' : 'no')],
+    ['PAYLOAD', (r) => r.payload],
     ['DESCRIPTION', (r) => r.description],
   ],
   webhookDelivery: [
