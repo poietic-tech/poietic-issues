@@ -6675,6 +6675,8 @@ export interface components {
              * @enum {string}
              */
             payload?: "full" | "notice";
+            /** @description Signing secret to use instead of a generated one, for receivers that issue their own (such as the bridge): `whsec_` and standard base64 of 16–64 bytes. */
+            secret?: string;
         };
         UpdateWebhookInput: {
             /**

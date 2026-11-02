@@ -2921,6 +2921,10 @@
             ],
             "default": "full",
             "description": "`full` sends the event as in `GET /events`; `notice` sends only its seq, ids, type and time."
+          },
+          "secret": {
+            "type": "string",
+            "description": "Signing secret to use instead of a generated one, for receivers that issue their own (such as the bridge): `whsec_` and standard base64 of 16–64 bytes."
           }
         },
         "required": [

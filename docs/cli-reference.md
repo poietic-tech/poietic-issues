@@ -707,6 +707,7 @@ Register a webhook; prints its signing secret (shown only now)
 | `--description <text>` | what the webhook is for |
 | `--inactive` | create it disabled |
 | `--payload <payload>` | what to send: full (the event, default) or notice (only its seq, ids and type) |
+| `--secret-stdin` | read a supplied signing secret (whsec_…) from stdin instead of generating one |
 
 ### `poietic-tech issues webhook view <id>`
 

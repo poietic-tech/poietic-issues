@@ -121,6 +121,12 @@ describe(`webhooks API (${testDialect()})`, () => {
       eventTypes: ['x.y'],
     });
     expect(bad.status).toBe(400);
+    const badSecret = await call('POST', '/webhooks', {
+      url: 'https://example.com',
+      secret: 'whsec_notEnoughBytes==',
+    });
+    expect(badSecret.status).toBe(400);
+    expect(await badSecret.text()).not.toContain('notEnoughBytes');
   });
 
   it('POST /webhooks accepts payload: notice and the receiver gets a notice', async () => {

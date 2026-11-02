@@ -107,6 +107,34 @@ export const WebhookWithSecretSchema = WebhookSchema.extend({
 }).meta({ id: 'WebhookWithSecret' });
 export type WebhookWithSecret = z.infer<typeof WebhookWithSecretSchema>;
 
+const SECRET_PATTERN = /^whsec_((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)$/;
+
+/** Bytes encoded by canonical, padded base64 (its length says it all). */
+function base64Bytes(b64: string): number {
+  return (b64.length / 4) * 3 - (b64.match(/=+$/)?.[0].length ?? 0);
+}
+
+/**
+ * A supplied signing secret: `whsec_` and standard, padded base64 of 16–64 bytes. That is what the bridge (and any
+ * strict Standard Webhooks verifier) decodes, so a webhook can never hold a secret its receiver cannot check. The
+ * messages name the rule and never the value.
+ */
+export const WebhookSecretSchema = z
+  .string()
+  .refine(
+    (s) => {
+      const b64 = SECRET_PATTERN.exec(s)?.[1];
+      if (b64 === undefined) return false;
+      const bytes = base64Bytes(b64);
+      return bytes >= 16 && bytes <= 64;
+    },
+    { message: 'The secret must be whsec_ followed by standard, padded base64 of 16 to 64 bytes' },
+  )
+  .meta({
+    description:
+      'Signing secret to use instead of a generated one, for receivers that issue their own (such as the bridge): `whsec_` and standard base64 of 16–64 bytes.',
+  });
+
 export const CreateWebhookInputSchema = z
   .object({
     url: WEBHOOK_URL,
@@ -118,6 +146,7 @@ export const CreateWebhookInputSchema = z
       .meta({ description: 'Project key or id to scope the webhook to.', example: 'ENG' }),
     active: z.boolean().default(true),
     payload: WebhookPayloadSchema.default('full'),
+    secret: WebhookSecretSchema.optional(),
   })
   .meta({ id: 'CreateWebhookInput' });
 export type CreateWebhookInput = z.input<typeof CreateWebhookInputSchema>;

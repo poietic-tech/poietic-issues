@@ -40,8 +40,15 @@ export function registerWebhook(parent: Command, tree: Tree): Command {
         'what to send: full (the event, default) or notice (only its seq, ids and type)',
       ),
     )
+    .option(
+      '--secret-stdin',
+      'read a supplied signing secret (whsec_…) from stdin instead of generating one',
+    )
     .action(
       act(async (rt, [url], o) => {
+        // From stdin, never an argument, so the secret stays out of shell history and process lists.
+        const secret = o.secretStdin ? (await rt.io.readStdin()).replace(/\r?\n$/, '') : undefined;
+        if (secret === '') throw usage('--secret-stdin read nothing: pipe the secret in');
         const api = await rt.api();
         const created = await rt.call(
           api.POST('/webhooks', {
@@ -52,6 +59,7 @@ export function registerWebhook(parent: Command, tree: Tree): Command {
               ...(o.description !== undefined && { description: String(o.description) }),
               ...(o.inactive === true && { active: false }),
               ...(o.payload !== undefined && { payload: o.payload as 'full' | 'notice' }),
+              ...(secret !== undefined && { secret }),
             },
           }),
         );

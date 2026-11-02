@@ -420,6 +420,23 @@ describe(`tracker CLI (${testDialect()})`, () => {
     expect(
       (await cli(['webhook', 'create', 'https://example.com/x', '--payload', 'all'])).code,
     ).toBe(2);
+
+    const secret = 'whsec_AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dw=';
+    const supplied = await cli(
+      ['webhook', 'create', 'https://example.com/bridge', '--secret-stdin', '--json'],
+      { stdin: `${secret}\n` },
+    );
+    expect(supplied.code).toBe(0);
+    expect(supplied.json().secret).toBe(secret);
+    const empty = await cli(['webhook', 'create', 'https://example.com/y', '--secret-stdin'], {
+      stdin: '',
+    });
+    expect(empty.code).toBe(2);
+    const bad = await cli(['webhook', 'create', 'https://example.com/z', '--secret-stdin'], {
+      stdin: 'whsec_tooshort=',
+    });
+    expect(bad.code).toBe(2);
+    expect(bad.stderr).not.toContain('tooshort');
   });
 });
 

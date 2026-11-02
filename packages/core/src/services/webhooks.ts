@@ -110,7 +110,7 @@ export async function createWebhook(
     const project = data.project ? await getProjectRow(ctx, tx, data.project, 'read') : null;
     const now = nowIso(ctx);
     await ensureDispatchCursor(tx, now);
-    const secret = generateWebhookSecret();
+    const secret = data.secret ?? generateWebhookSecret();
     const row = await tx
       .insertInto('webhooks')
       .values({
