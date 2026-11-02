@@ -1,6 +1,7 @@
 # 0031. Identity is global; access is layered
 
-- **Status:** Proposed. Needs a handle and a directory disabled state in auth.poietic.tech (see "What auth must provide").
+- **Status:** Accepted. Global handles (rollout step 2) shipped in #44. Activation (step 3) still needs a directory
+  disabled state in auth.poietic.tech (see "What auth must provide"), and group grants (step 4) are not built yet.
 - **Date:** 2026-11-01
 
 ## Context
@@ -41,10 +42,15 @@ no identity to link. What changes is who owns each field:
   `a-z`, `0-9`, `-`, `_`), carried in the identity token and the directory.
 - The tracker copies it on sign-in and on each directory refresh, recording `user.updated` with `handle: { from, to }`
   as ADR 0030 does. `PATCH /users/{user}` refuses `handle` for a linked user, since the next refresh would undo it.
-- **Collisions** can only be with an unlinked account, because auth handles are unique. The linked identity wins: the
-  unlinked account is renamed to `<handle>-legacy` (then `-legacy-2`, …) in the same transaction, with its own
-  `user.updated` event. Ids don't change, so its history stays intact.
-- Until auth sends a handle, the tracker keeps deriving one as today.
+- **Collisions** are with an account the directory doesn't vouch for, because auth handles are unique: an unlinked
+  account, or (during a refresh) a linked one the directory no longer lists. The linked identity wins: the other
+  account is renamed to `<handle>-legacy` (then `-legacy-2`, …, clipped to 39 characters) in the same transaction,
+  with its own `user.updated` event. Ids don't change, so its history stays intact.
+- A **listed linked holder** keeps its handle. That happens only between a rename at auth and the next refresh: a new
+  user gets `<handle>-2` meanwhile and a known one keeps its current handle, and the refresh moves every handle at
+  once, so two users can swap in one pass.
+- A token or directory entry without a handle (an issuer older than handles) keeps the tracker deriving one as before.
+- The `PATCH /users/{user}` refusal waits for ADR 0030's renames: the endpoint has no handle field yet.
 
 ### Activation follows auth, with a local veto
 
@@ -71,13 +77,14 @@ A subsystem that doesn't want its own RBAC can rely on layers 1 and 3 alone. The
 
 ### What auth must provide
 
-As of poietic-dot-tech `bc7be55`, auth has no username concept. A user has an opaque id, a provider `name`, an optional
-`display_name` and an avatar. The GitHub `login` is dropped on purpose, so nothing downstream depends on a provider's
+When this ADR was proposed (poietic-dot-tech `bc7be55`), auth had no username concept. A user had an opaque id, a
+provider `name`, an optional `display_name` and an avatar. The GitHub `login` is dropped on purpose, so nothing downstream depends on a provider's
 field. An agent's name is free text, unique only per owner and renameable, so two owners can both have a `claude`.
 The token's `name` claim and the directory's users carry only these display names.
 
-- **Missing: a handle.** A new globally unique, handle-safe `handle` column for people and agents (agents included,
-  so the per-owner name rule isn't enough), chosen at sign-up or agent creation, in the token and `/api/users`.
+- **Done: a handle.** Every person and agent now has a globally unique, case-insensitive handle that passes
+  `HandleSchema`, assigned at sign-up or agent creation and renameable by the person, the agent's owner or an admin.
+  It is in the token's `handle` claim and on `/api/users` items (poietic-dot-tech #145, `@poietic-tech/auth` 0.5.0).
 - **Partly there: disabled state.** Agents have `agent_profiles.disabled_at`, but `/api/users` doesn't expose it, and
   people have no disabled state. The directory needs one for both.
 - **Already there: agent groups.** Tokens and `/api/users` carry each user's own groups, agents included, and an
@@ -108,9 +115,9 @@ The token's `name` claim and the directory's users carry only these display name
 
 ## Rollout
 
-1. auth.poietic.tech adds handles and a disabled state for people and agents in the directory.
-2. The tracker reads `handle` and resolves collisions. One-off: give legacy accounts that block a linked identity's
-   handle the `-legacy` suffix. `claude` → `claude-legacy` is the first.
+1. auth.poietic.tech adds handles (done) and a disabled state for people and agents in the directory (to do).
+2. **Done (#44).** The tracker reads `handle` and resolves collisions. No one-off script was needed: the first
+   refresh after deploy renamed the pre-SSO `claude` to `claude-legacy` and the SSO agent `claude-2` to `claude`.
 3. Activation reasons and re-read entry and admin claims, with a test for each dialect.
 4. `project_group_grants`, its API, CLI and OpenAPI.
 
