@@ -78,6 +78,25 @@ describe(`createSsoDirectory (${testDialect()})`, () => {
     expect(subjects).not.toContain('p2');
   });
 
+  it("copies each person's handle from the directory", async () => {
+    const { fetchImpl } = directoryApi([[user('p9', ['crew'], { handle: 'pat' })]]);
+    const dir = createSsoDirectory({
+      serviceKey: KEY,
+      baseUrl: ISS,
+      issuer: ISS,
+      memberGroup: 'crew',
+      fetchImpl,
+    });
+    await dir.refresh(withActor(t.ctx, SYSTEM_ACTOR), logLines().logger);
+    const row = await t.db.kysely
+      .selectFrom('user_identities')
+      .innerJoin('users', 'users.id', 'user_identities.user_id')
+      .select('handle')
+      .where('subject', '=', 'p9')
+      .executeTakeFirstOrThrow();
+    expect(row.handle).toBe('pat');
+  });
+
   it('refreshes at most once per TTL, and retries a failure after a minute', async () => {
     const ok = directoryApi([[]]);
     let failing = true;

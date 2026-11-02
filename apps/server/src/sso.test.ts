@@ -41,6 +41,7 @@ function sso(): SsoOptions {
               groups: token.startsWith('member-') ? ['crew'] : [],
               kind: token.startsWith('agent:') ? 'agent' : 'human',
               owner: token.startsWith('agent:') ? token.split(':')[1]! : null,
+              ...(token.includes('@') && { handle: token.split('@')[1]! }),
               sid: 's1',
               iat: 0,
               exp: 0,
@@ -84,6 +85,12 @@ describe(`SSO sign-in (${testDialect()})`, () => {
     expect(session).toMatch(/^poietic_issues_session=/);
     const me = await app.request(`${BASE}/api/v1/me`, { headers: { cookie: session } });
     expect(((await me.json()) as { name: string }).name).toBe('Person admin-1');
+  });
+
+  it("takes the issuer's handle claim for the new user", async () => {
+    const app = createApp({ db: t.db, auth: { mode: 'standard', sso: sso() } });
+    const res = await post(app, 'admin-h1@hopper');
+    expect(await res.json()).toMatchObject({ handle: 'hopper', name: 'Person admin-h1@hopper' });
   });
 
   it('still accepts the pre-rename tracker_session cookie, and logout clears it', async () => {
@@ -283,6 +290,13 @@ describe(`SSO sign-in (${testDialect()})`, () => {
       });
       const again = await app.request(`${BASE}/api/v1/me`, bearer('agent:admin-own1:a'));
       expect(((await again.json()) as { id: string }).id).toBe(me.id);
+    });
+
+    it("gives an agent its identity token's handle", async () => {
+      const app = createApp({ db: t.db, auth: { mode: 'standard', sso: sso() } });
+      await post(app, 'admin-own9');
+      const res = await app.request(`${BASE}/api/v1/me`, bearer('agent:admin-own9:a@claude-bot'));
+      expect(await res.json()).toMatchObject({ kind: 'agent', handle: 'claude-bot' });
     });
 
     it('needs no same-origin check: an identity token is not an ambient credential', async () => {

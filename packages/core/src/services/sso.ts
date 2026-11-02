@@ -3,6 +3,7 @@ import { CreateUserInputSchema, type User } from '@poietic-tech/issues-schema';
 import { nowIso, type ServiceContext } from '../context.ts';
 import { forbidden } from '../errors.ts';
 import { toUser } from '../mappers.ts';
+import { authHandle, freeAuthHandle, setHandle, unlinked } from './handles.ts';
 import { insertUser } from './users.ts';
 
 /** A verified identity from an SSO issuer's token. */
@@ -11,6 +12,8 @@ export interface SsoIdentity {
   subject: string;
   /** Display name from the token; used only when the user is first created. */
   name: string;
+  /** The issuer's handle (ADR 0031), copied on every sign-in; absent from tokens minted before the issuer had one. */
+  handle?: string | null | undefined;
   /** The issuer's role claim; equal to `adminRole` makes a new human an active admin. Ignored for agents. */
   role: string;
   /** The issuer's group slugs. Membership of `memberGroup` makes a new human an active member (ADR 0026). */
@@ -66,7 +69,10 @@ export async function freeHandle(tx: Tx, name: string): Promise<string> {
 
 /**
  * Maps an SSO identity to its poietic-issues user, creating one on first sign-in. Role and name are fixed at creation:
- * later sign-ins never re-derive privilege or access from the token. A new human is an active admin when its role is
+ * later sign-ins never re-derive privilege or access from the token. The handle is the issuer's (ADR 0031), copied on
+ * every sign-in: an unlinked account holding it is renamed `<handle>-legacy`, while a linked holder keeps it until the
+ * directory refresh moves it, so meanwhile a new user is suffixed (`ada-2`) and a known one keeps its old handle. A
+ * token without a handle derives one from the name, as before. A new human is an active admin when its role is
  * `adminRole`, an active member when it is in `memberGroup`, and otherwise starts deactivated (pending).
  *
  * An agent becomes a `kind: 'agent'` member owned by the user its `owner` subject maps to, active exactly when that
@@ -82,12 +88,17 @@ export async function signInWithSso(
     memberGroup?: string | undefined;
   },
 ): Promise<SsoSignIn> {
+  const wanted = authHandle(identity.handle);
+  const settled = (known: SsoSignIn) => !wanted || known.user.handle === wanted;
   // Every identity-token request lands here, so a known identity is resolved without taking the write lock.
   const known = await findIdentity(ctx.db.kysely, identity);
-  if (known) return known;
+  if (known && settled(known)) return known;
   return withWriteTx(ctx.db, async (tx) => {
     const raced = await findIdentity(tx, identity);
-    if (raced) return raced;
+    if (raced) {
+      if (settled(raced) || !(await freeAuthHandle(tx, ctx, wanted!, unlinked))) return raced;
+      return { ...raced, user: await setHandle(tx, ctx, raced.user.id, wanted!) };
+    }
 
     let owner: { id: string; deactivated_at: string | null } | undefined;
     if (identity.kind === 'agent') {
@@ -104,7 +115,10 @@ export async function signInWithSso(
         );
     }
 
-    const handle = await freeHandle(tx, identity.name);
+    const handle =
+      wanted && (await freeAuthHandle(tx, ctx, wanted, unlinked))
+        ? wanted
+        : await freeHandle(tx, wanted ?? identity.name);
 
     const admin = identity.kind === 'human' && identity.role === opts.adminRole;
     const member =
