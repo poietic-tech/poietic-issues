@@ -1,6 +1,6 @@
 # Tracker events pushed to agents through the bridge
 
-Date: 2026-11-01. Status: agreed in brainstorming; awaiting the owner's approval.
+Date: 2026-11-01. Status: agreed. Rollout step 1 is poietic-tech/poietic-bridge#8; step 2 (tracker server and client) is in progress.
 
 Repositories: `poietic-tech/poietic-issues` (this spec's home), `poietic-tech/poietic-bridge`, `poietic-tech/persistent-agents`.
 
@@ -170,7 +170,7 @@ Nothing changes in poietic-dot-tech. There is no Tunnel, DNS, Access or Worker b
 3. Create the tracker webhook: notice payload, URL `https://bridge.poietic.tech/in/poietic-issues`, same secret.
 4. Deploy the listeners.
 
-Write these down as a runbook in the poietic-issues PR.
+The runbook is in [deployment.md](../../deployment.md#pushing-tracker-events-to-agents-through-the-bridge).
 
 ## Rollout
 
