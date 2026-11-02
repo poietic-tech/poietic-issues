@@ -2,7 +2,7 @@
  * Reads the SSO issuer's directory with `@poietic-tech/auth` (issue #16 stage 3, ADR 0027).
  *
  * auth.poietic.tech owns who people are; local user rows are its cache. `refresh` pages through the directory's
- * users with the service key and hands them to core's `applyDirectory`, which refreshes names and avatars and creates
+ * users with the service key and hands them to core's `applyDirectory`, which refreshes names, handles and avatars and creates
  * member-group humans who have never signed in. It runs at most once per `ttlMs` (default 5 minutes) against the
  * injected clock, one fetch at a time, and fails open: an unreachable directory is logged and the local users are
  * served as they are. A failed attempt is retried after `retryMs` (default 1 minute), not on every request.
@@ -20,6 +20,7 @@ import type { Logger } from '../logger.ts';
 const DirectoryUserSchema = z.object({
   id: z.string().min(1),
   name: z.string(),
+  handle: z.string().optional(),
   avatar_url: z.string().nullable(),
   groups: z.array(z.string()),
   kind: z.enum(['human', 'agent']),
@@ -66,6 +67,7 @@ export function createSsoDirectory(opts: {
         people.push({
           subject: u.id,
           name: u.name,
+          handle: u.handle,
           avatarUrl: u.avatar_url,
           groups: u.groups,
           kind: u.kind,
