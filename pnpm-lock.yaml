@@ -51,8 +51,8 @@ importers:
   apps/cli:
     devDependencies:
       '@poietic-tech/cli':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.2.1
+        version: 0.2.1
       '@poietic-tech/issues-client':
         specifier: workspace:*
         version: link:../../packages/client
@@ -85,7 +85,7 @@ importers:
         version: 0.4.2
       '@poietic-tech/bridge':
         specifier: ^0.1.0
-        version: 0.1.0(@poietic-tech/cli@0.2.0)
+        version: 0.1.0(@poietic-tech/cli@0.2.1)
       '@poietic-tech/issues-client':
         specifier: workspace:*
         version: link:../../packages/client
@@ -870,6 +870,10 @@ packages:
     resolution: {integrity: sha512-C+ZkKaI4O/FDBCbNADvyGNVOVsX9kwKkb1yjZ6tSEshg8yNz4A8QtO0sE4Y/vM3pMFp46kHUWCTX/oAGjumxBw==}
     engines: {node: '>=20'}
 
+  '@poietic-tech/auth@0.5.0':
+    resolution: {integrity: sha512-TapD4i8j7zx4GDhZcL1nez4yhnCkQn4+UtlLIZmDhZqeyyeAZJwjq+U7h/BZHAcLVzyuBQBZJXMOUGDv8p6HXQ==}
+    engines: {node: '>=20'}
+
   '@poietic-tech/bridge@0.1.0':
     resolution: {integrity: sha512-0Nppuq+bvbTTzhbihfczLMEHaDEo77SCMzSVzdttE3gQ+Fe/ghIDSNQul6Qa9vjam8iS2sFiBCx7+swlbU5hqQ==}
     engines: {node: '>=22.12'}
@@ -879,8 +883,8 @@ packages:
       '@poietic-tech/cli':
         optional: true
 
-  '@poietic-tech/cli@0.2.0':
-    resolution: {integrity: sha512-aKVU0XoXYnIfjM1XgWWCbCg4Qq/iDcAMzxWA9zTiz/VmQFXaLLGzUYpL4PnRQXt0c41bh3eP07648apt5ASr+w==}
+  '@poietic-tech/cli@0.2.1':
+    resolution: {integrity: sha512-IEggRwLCHpwKdUrlLOnmokAm2GFM5XBKc5uCrLrvVlANeOrwgHihNcz4QL48i9gkQgKWt9LkAOTpNIVWnP/ODA==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -3549,13 +3553,15 @@ snapshots:
 
   '@poietic-tech/auth@0.4.2': {}
 
-  '@poietic-tech/bridge@0.1.0(@poietic-tech/cli@0.2.0)':
-    optionalDependencies:
-      '@poietic-tech/cli': 0.2.0
+  '@poietic-tech/auth@0.5.0': {}
 
-  '@poietic-tech/cli@0.2.0':
+  '@poietic-tech/bridge@0.1.0(@poietic-tech/cli@0.2.1)':
+    optionalDependencies:
+      '@poietic-tech/cli': 0.2.1
+
+  '@poietic-tech/cli@0.2.1':
     dependencies:
-      '@poietic-tech/auth': 0.4.2
+      '@poietic-tech/auth': 0.5.0
       commander: 14.0.3
 
   '@polka/url@1.0.0-next.29': {}
