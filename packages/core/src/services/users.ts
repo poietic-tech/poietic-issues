@@ -117,7 +117,8 @@ export async function insertUser(
 }
 
 /**
- * Updates a user. Admins can change anything, including the handle; users can change their own name, email and avatar.
+ * Updates a user. Admins can change anything, including the handle of a user not linked to an SSO identity; users can
+ * change their own name, email and avatar.
  */
 export async function updateUser(
   ctx: ServiceContext,
@@ -132,6 +133,16 @@ export async function updateUser(
       const row = await getUserRow(ctx, tx, ref);
       if (patch.handle !== undefined && row.kind === 'system')
         throw forbidden('The system user cannot be renamed');
+      if (patch.handle !== undefined && patch.handle !== row.handle) {
+        const linked = await tx
+          .selectFrom('user_identities')
+          .select('issuer')
+          .where('user_id', '=', row.id)
+          .executeTakeFirst();
+        // The issuer owns a linked user's handle (ADR 0031): the next sign-in or refresh would undo a rename here.
+        if (linked)
+          throw forbidden(`This user's handle comes from ${linked.issuer}; rename them there`);
+      }
       const self = row.id === ctx.actor.id;
       const adminOnly =
         patch.handle !== undefined || patch.role !== undefined || patch.deactivated !== undefined;

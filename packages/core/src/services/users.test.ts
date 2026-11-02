@@ -52,6 +52,27 @@ describe(`updateUser handle renames (${testDialect()})`, () => {
     });
   });
 
+  it('refuses to rename a user linked to an SSO identity, whose issuer owns the handle', async () => {
+    const linked = await createUser(t.ctx, { handle: 'linked', name: 'Linked', kind: 'agent' });
+    await t.db.kysely
+      .insertInto('user_identities')
+      .values({
+        issuer: 'https://auth.example.test',
+        subject: 'sub-linked',
+        user_id: linked.id,
+        created_at: new Date(0).toISOString(),
+      })
+      .execute();
+    await expect(updateUser(t.ctx, 'linked', { handle: 'renamed' })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+    // Other fields, and a no-op handle, are still fine.
+    expect(await updateUser(t.ctx, 'linked', { handle: 'linked', name: 'Still' })).toMatchObject({
+      handle: 'linked',
+      name: 'Still',
+    });
+  });
+
   it('is admin only, even for your own handle', async () => {
     const self = await createUser(t.ctx, { handle: 'selfie', name: 'Self' });
     for (const who of [withActor(t.ctx, toActor(self)), t.member])

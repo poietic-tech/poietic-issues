@@ -13,6 +13,8 @@ issues.poietic.tech the legacy pre-SSO agent `claude` left the SSO agent **Claud
 
 - **Admin only.** `PATCH /users/{user}` takes `handle`, and `poietic-tech issues user edit <user> --handle <new>` sends
   it. Users can't rename themselves, and the system user can't be renamed.
+- **Only unlinked users.** A user linked to an SSO identity takes its handle from the issuer on every sign-in and
+  directory refresh (ADR 0031), so renaming them here is refused: rename them at the issuer.
 - **Same rules as creation.** The new handle passes `HandleSchema` (lowercased). `me` and `system` are reserved, and a
   taken handle is a `CONFLICT`.
 - **History follows the user.** Everything stores user ids, so issues, comments, memberships and events move with the
@@ -20,6 +22,7 @@ issues.poietic.tech the legacy pre-SSO agent `claude` left the SSO agent **Claud
 
 ## Consequences
 
-- An admin can give the handle to the right account: rename the stale one away, then rename the new one.
+- An admin can move a legacy account out of the way, or tidy the handles of accounts with no identity. Linked
+  accounts already get the right handle from auth.
 - Text that quotes a handle, such as an `@old` mention in a comment or a script that filters by handle, keeps the old
   spelling. Prefer ids where a reference must survive a rename.
