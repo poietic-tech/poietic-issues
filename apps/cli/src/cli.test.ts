@@ -427,7 +427,18 @@ describe(`tracker CLI (${testDialect()})`, () => {
       { stdin: `${secret}\n` },
     );
     expect(supplied.code).toBe(0);
-    expect(supplied.json().secret).toBe(secret);
+    // The caller already holds a supplied secret: it is never printed back.
+    expect(supplied.json()).toMatchObject({ url: 'https://example.com/bridge' });
+    expect(supplied.stdout).not.toContain(secret);
+    const human = await cli(
+      ['webhook', 'create', 'https://example.com/bridge2', '--secret-stdin'],
+      {
+        stdin: secret,
+      },
+    );
+    expect(human.code).toBe(0);
+    expect(human.stdout + human.stderr).not.toContain(secret);
+    expect(human.stdout).toMatch(/whk_/);
     const empty = await cli(['webhook', 'create', 'https://example.com/y', '--secret-stdin'], {
       stdin: '',
     });

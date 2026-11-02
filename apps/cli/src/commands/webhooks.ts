@@ -63,6 +63,12 @@ export function registerWebhook(parent: Command, tree: Tree): Command {
             },
           }),
         );
+        if (secret !== undefined) {
+          // The caller supplied the secret and already holds it: never print it back.
+          const { secret: _supplied, ...webhook } = created;
+          rt.out.item('webhook', webhook, (w) => `Created webhook ${String(w.id)}\n`);
+          return;
+        }
         rt.out.secret('webhook', created, {
           value: created.secret,
           warning: 'This is the webhook’s signing secret: store it now; it is not shown again.',
