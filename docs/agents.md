@@ -90,7 +90,7 @@ poietic-tech issues issue edit ENG-42 --status "In Review"
 
 ## Saying why
 
-- **Every write an agent makes sends a reason:** `X-Change-Reason`, one line of at most 200 characters, stored on the event as `data.reason` ([api.md](api.md#change-reasons)). With the client, pass `headers: reasonHeaders('…')`.
+- **Every write a pipeline agent makes through `@poietic-tech/issues-client` sends a reason:** `X-Change-Reason`, one line of at most 200 characters, stored on the event as `data.reason` ([api.md](api.md#change-reasons)). Pass `headers: reasonHeaders('…')`. The `poietic-tech issues` CLI cannot send one yet; an agent working through the CLI explains its change in a comment instead.
 - **Bigger decisions also get a comment** on the issue, posted under the agent's own identity.
 - **Hand-offs are checked with `provenance`.** Before acting on an assignment, an agent checks that the event that last set the assignee and the hand-off metadata is one event, written by the agent it expects. Metadata alone proves nothing: any project writer can edit it.
 

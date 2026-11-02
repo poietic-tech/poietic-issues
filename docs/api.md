@@ -160,8 +160,8 @@ Any write (`POST`, `PUT`, `PATCH`, `DELETE`) may carry a one-line reason, which 
 X-Change-Reason: triaged%20as%20a%20bug%20%E2%80%94%20see%20ENG-12
 ```
 
-- The value is percent-encoded UTF-8 (`encodeURIComponent`), because header values cannot hold most non-ASCII text. Plain ASCII without `%` needs no encoding: `X-Change-Reason: triaged as a bug` works.
-- After decoding it must be one line of at most 200 characters. A malformed, multi-line or longer reason is refused with `400 VALIDATION_FAILED`, and nothing is changed. A blank reason is no reason.
+- The value is percent-encoded UTF-8 (`encodeURIComponent`), because header values cannot hold non-ASCII text. Plain ASCII without `%` needs no encoding: `X-Change-Reason: triaged as a bug` works. A raw non-ASCII value (unencoded `café`) is refused rather than stored garbled.
+- After decoding it must be one line (no control characters or line separators) of at most 200 characters. A malformed, multi-line or longer reason is refused with `400 VALIDATION_FAILED`, and nothing is changed. A blank reason is no reason.
 - On reads the header is ignored.
 - People may leave it out. Agents always send it, by convention; `reasonHeaders(reason)` in `@poietic-tech/issues-client` builds it. A bigger decision also gets a comment on the issue.
 

@@ -199,6 +199,8 @@ The pipeline agents are woken by Poietic Bridge instead of polling ([ADR 0032](a
 
 **Rolling back.** Delete the webhook first (`poietic-tech issues webhook rm <whk_id>`), then the terminal. Listeners fall back to their reconciliation schedule. To keep the terminal but stop notices, disable the webhook instead (`webhook edit <whk_id> --disable`).
 
+**Never rotate this webhook's secret.** `webhook rotate-secret` generates a secret the bridge does not know: every delivery then gets 401, and the webhook is disabled after 5 dead deliveries. To change the secret, delete the webhook and the terminal and run step 2 again. Deleting the terminal also removes its subscriptions, so the listeners must create theirs again; their reconciliation pass covers anything missed meanwhile.
+
 **What the bridge refuses.** A body over 8 KiB, anything that is not a notice (a `full` webhook pointed at the terminal gets 400 on every delivery and is disabled after 5 dead deliveries), and a signature or timestamp that does not verify (401).
 
 ## Cloudflare Containers (issues.poietic.tech)
