@@ -36,6 +36,34 @@ export const requestId = createMiddleware<AppEnv>(async (c, next) => {
   c.header('x-request-id', id);
 });
 
+/** Longest reason accepted, in characters (code points). */
+export const CHANGE_REASON_MAX = 200;
+
+/**
+ * Reads a write's one-line reason from `X-Change-Reason` (percent-encoded UTF-8, since header values are Latin-1;
+ * plain ASCII without `%` passes unchanged). Only writes carry one: on a read the header is ignored. A malformed,
+ * multi-line or over-long reason is refused, so nothing is recorded without it; a blank one is no reason.
+ */
+export const changeReason = createMiddleware<AppEnv>(async (c, next) => {
+  const raw = UNSAFE.has(c.req.method) ? c.req.header('x-change-reason') : undefined;
+  if (raw !== undefined) {
+    let reason: string | undefined;
+    try {
+      reason = decodeURIComponent(raw).trim();
+    } catch {
+      reason = undefined;
+    }
+    if (reason === undefined || [...reason].length > CHANGE_REASON_MAX || /\p{Cc}/u.test(reason))
+      return problem(
+        c,
+        'VALIDATION_FAILED',
+        `X-Change-Reason must be one line of at most ${CHANGE_REASON_MAX} characters, percent-encoded UTF-8`,
+      );
+    if (reason) c.set('changeReason', reason);
+  }
+  await next();
+});
+
 /**
  * Resolves the actor from a bearer identity token, a session cookie, or (trusted mode) configuration, and builds the
  * per-request ServiceContext. Without credentials (or with a stale session cookie) the context acts as the
@@ -112,6 +140,7 @@ export function authenticate(deps: ResolvedDeps) {
       clock,
       ids: deps.ids ?? newId,
       requestId: c.get('requestId'),
+      ...(c.get('changeReason') !== undefined && { reason: c.get('changeReason') }),
     });
     await next();
   });
