@@ -112,8 +112,8 @@ importers:
         specifier: ^1.6.3
         version: 1.6.3(hono@4.13.9)(zod@4.6.5)
       '@poietic-tech/auth':
-        specifier: ^0.2.1
-        version: 0.2.1
+        specifier: ^0.5.0
+        version: 0.5.0
       '@poietic-tech/issues-core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -861,10 +861,6 @@ packages:
     resolution: {integrity: sha512-oxMK4vllB9RK5NQ2l1pq1IfOf2AvnEuj/vYGDj0H2nMtmtZpKtCwt/l00GEO6xjGfpBNAvjovvYdCm50dRQkpQ==}
     engines: {node: '>=20'}
     hasBin: true
-
-  '@poietic-tech/auth@0.2.1':
-    resolution: {integrity: sha512-c18ylz+knIzYhLp0BMMVtNscvhTsiYLj+i9jAjsam+PdVzOmIglG7m+2nktDwmVboMel8NrunrSUOzrxmhedtQ==}
-    engines: {node: '>=20'}
 
   '@poietic-tech/auth@0.4.2':
     resolution: {integrity: sha512-C+ZkKaI4O/FDBCbNADvyGNVOVsX9kwKkb1yjZ6tSEshg8yNz4A8QtO0sE4Y/vM3pMFp46kHUWCTX/oAGjumxBw==}
@@ -3548,8 +3544,6 @@ snapshots:
   '@playwright/test@1.63.0':
     dependencies:
       playwright: 1.63.0
-
-  '@poietic-tech/auth@0.2.1': {}
 
   '@poietic-tech/auth@0.4.2': {}
 
