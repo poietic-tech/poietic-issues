@@ -50,6 +50,8 @@ describe('reasonHeaders', () => {
     expect(REASON_MAX).toBe(200);
     expect(() => reasonHeaders('x'.repeat(201))).toThrow(RangeError);
     expect(() => reasonHeaders('a\nb')).toThrow(RangeError);
+    expect(() => reasonHeaders('a\u2028b')).toThrow(RangeError);
+    expect(reasonHeaders('🚀'.repeat(200))).toHaveProperty('x-change-reason');
     expect(reasonHeaders('é'.repeat(200))).toHaveProperty('x-change-reason');
   });
 });

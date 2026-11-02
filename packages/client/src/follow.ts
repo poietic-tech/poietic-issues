@@ -98,7 +98,11 @@ export function follow(api: ApiClient, options: FollowOptions): Follower {
   }
 
   function run(): Promise<number> {
-    if (inFlight) return inFlight;
+    // The caller may know of events the run in flight has already read past: read once more after it.
+    if (inFlight) {
+      rerun = true;
+      return inFlight;
+    }
     inFlight = (async () => {
       try {
         let reached = await drain();
@@ -115,10 +119,17 @@ export function follow(api: ApiClient, options: FollowOptions): Follower {
     return inFlight;
   }
 
+  const onError = (options as { onError?: (error: unknown) => void }).onError;
   const unsubscribe = wake?.(() => {
     if (stopped) return;
-    if (inFlight) rerun = true;
-    else run().catch((error: unknown) => (options as { onError(e: unknown): void }).onError(error));
+    run().catch((error: unknown) => {
+      // Nothing above a wake-up can catch: a throwing (or missing) handler must not become an unhandled rejection.
+      try {
+        onError?.(error);
+      } catch {
+        /* the handler failed too; the follower keeps listening */
+      }
+    });
   });
 
   return {

@@ -210,7 +210,56 @@ describe('follow', () => {
     const [a, b] = await Promise.all([follower.run(), follower.run()]);
     expect(a).toBe(6);
     expect(b).toBe(6);
-    expect(queries).toHaveLength(3);
+    // Three pages, then one more read from the saved cursor for the joining caller.
+    expect(queries).toHaveLength(4);
+  });
+
+  it('a run() called while a run finishes reads again, so nothing announced waits', async () => {
+    const pages: Record<number, { data: Event[]; nextCursor: string | null }> = {
+      0: { data: [ev(50)], nextCursor: null },
+    };
+    const { api } = fakeApi(pages);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const seen: number[] = [];
+    const follower = follow(api, {
+      cursor: memoryCursor(),
+      onBatch: async (events) => {
+        if (events[0]!.seq === 50) await gate;
+        seen.push(...events.map((e) => e.seq));
+      },
+    });
+    const first = follower.run();
+    await tick();
+    // Seq 51 commits, and its notice calls run() while the first run is still handling 50.
+    pages[50] = { data: [ev(51)], nextCursor: null };
+    const second = follower.run();
+    release();
+    expect(await second).toBe(51);
+    expect(await first).toBe(51);
+    expect(seen).toEqual([50, 51]);
+  });
+
+  it('an onError that throws does not escape the follower', async () => {
+    const { api } = fakeApi(threePages);
+    const wake = manualWake();
+    let calls = 0;
+    follow(api, {
+      cursor: memoryCursor(),
+      wake,
+      onError: () => {
+        throw new Error('the handler broke too');
+      },
+      onBatch: async () => {
+        calls++;
+        throw new Error('batch failed');
+      },
+    });
+    wake.fire();
+    await tick();
+    wake.fire();
+    await tick();
+    expect(calls).toBe(2);
   });
 
   it('stop unsubscribes', async () => {

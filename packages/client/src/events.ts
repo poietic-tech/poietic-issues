@@ -57,7 +57,7 @@ export function reasonHeaders(reason: string | undefined): Record<string, string
   if (!trimmed) return {};
   if ([...trimmed].length > REASON_MAX)
     throw new RangeError(`A change reason is at most ${REASON_MAX} characters`);
-  if (/\p{Cc}/u.test(trimmed)) throw new RangeError('A change reason is one line');
+  if (/[\p{Cc}\p{Zl}\p{Zp}]/u.test(trimmed)) throw new RangeError('A change reason is one line');
   return { 'x-change-reason': encodeURIComponent(trimmed) };
 }
 

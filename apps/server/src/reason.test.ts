@@ -99,6 +99,33 @@ describe(`X-Change-Reason (${testDialect()})`, () => {
     expect((await lastEvent(key)).data.reason).toBe(long);
   });
 
+  it('a raw non-ASCII reason is refused, not stored garbled', async () => {
+    const key = await newIssue();
+    const before = (await lastEvent(key)).seq;
+    // Header bytes arrive as Latin-1: unencoded UTF-8 would be stored as mojibake.
+    for (const raw of ['café', 'cafÃ©']) {
+      const res = await call('PATCH', `/issues/${key}`, { priority: 3 }, raw);
+      expect(res.status, raw).toBe(400);
+    }
+    expect((await lastEvent(key)).seq).toBe(before);
+  });
+
+  it('emoji and separators: an encoded emoji is kept exactly; a line separator is refused', async () => {
+    const key = await newIssue();
+    const reason = `shipped 🚀 ${'🎉'.repeat(150)}`;
+    await call('PATCH', `/issues/${key}`, { priority: 2 }, encodeURIComponent(reason));
+    expect((await lastEvent(key)).data.reason).toBe(reason);
+    for (const sep of ['\u2028', '\u2029']) {
+      const res = await call(
+        'PATCH',
+        `/issues/${key}`,
+        { priority: 1 },
+        encodeURIComponent(`a${sep}b`),
+      );
+      expect(res.status).toBe(400);
+    }
+  });
+
   it('a reason on a read is ignored', async () => {
     const res = await call('GET', '/projects/WHY', undefined, '%E0%A4%A');
     expect(res.status).toBe(200);

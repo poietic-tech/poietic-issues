@@ -49,11 +49,16 @@ export const changeReason = createMiddleware<AppEnv>(async (c, next) => {
   if (raw !== undefined) {
     let reason: string | undefined;
     try {
-      reason = decodeURIComponent(raw).trim();
+      // Header bytes arrive as Latin-1, so unencoded non-ASCII would be stored garbled: refuse it instead.
+      reason = /^[\x20-\x7E]*$/.test(raw) ? decodeURIComponent(raw).trim() : undefined;
     } catch {
       reason = undefined;
     }
-    if (reason === undefined || [...reason].length > CHANGE_REASON_MAX || /\p{Cc}/u.test(reason))
+    if (
+      reason === undefined ||
+      [...reason].length > CHANGE_REASON_MAX ||
+      /[\p{Cc}\p{Zl}\p{Zp}]/u.test(reason)
+    )
       return problem(
         c,
         'VALIDATION_FAILED',
