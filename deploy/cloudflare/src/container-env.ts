@@ -17,6 +17,20 @@ export interface WorkerEnv {
   R2_SECRET_ACCESS_KEY: string;
   /** auth.poietic.tech service key for its directory API (ADR 0027). */
   SSO_DIRECTORY_KEY: string;
+  /**
+   * Other sites whose pages call the API with the visitor's cookie (comma-separated origins), e.g. the newsroom,
+   * which files feedback as the signed-in person. Added to PUBLIC_ORIGIN in POIETIC_ISSUES_ALLOWED_ORIGINS.
+   */
+  EXTRA_ALLOWED_ORIGINS?: string;
+}
+
+/** PUBLIC_ORIGIN, then each extra origin once (trimmed, empty entries dropped). */
+function allowedOrigins(env: WorkerEnv): string {
+  const extra = (env.EXTRA_ALLOWED_ORIGINS ?? '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  return [...new Set([env.PUBLIC_ORIGIN, ...extra])].join(',');
 }
 
 const REQUIRED = [
@@ -39,7 +53,7 @@ export function containerEnv(env: WorkerEnv): Record<string, string> {
   return {
     POIETIC_ISSUES_DATABASE_URL: 'sqlite:/data/tracker.db',
     POIETIC_ISSUES_SECURE_COOKIES: '1',
-    POIETIC_ISSUES_ALLOWED_ORIGINS: env.PUBLIC_ORIGIN,
+    POIETIC_ISSUES_ALLOWED_ORIGINS: allowedOrigins(env),
     POIETIC_ISSUES_LOG_FORMAT: 'json',
     POIETIC_ISSUES_BLOB_STORE: 's3',
     POIETIC_ISSUES_S3_ENDPOINT: env.R2_ENDPOINT,
