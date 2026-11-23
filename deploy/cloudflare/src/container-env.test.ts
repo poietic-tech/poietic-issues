@@ -50,6 +50,18 @@ describe('containerEnv', () => {
     });
   });
 
+  it('allows the public origin plus any extra origins, each once', () => {
+    expect(
+      containerEnv({
+        ...env,
+        EXTRA_ALLOWED_ORIGINS:
+          ' https://newsroom.poietic.tech, https://newsroom-staging.poietic.tech,,https://issues.poietic.tech',
+      }).POIETIC_ISSUES_ALLOWED_ORIGINS,
+    ).toBe(
+      'https://issues.poietic.tech,https://newsroom.poietic.tech,https://newsroom-staging.poietic.tech',
+    );
+  });
+
   it('refuses to start without the R2 credentials or the directory key', () => {
     expect(() => containerEnv({ ...env, R2_SECRET_ACCESS_KEY: '' })).toThrow(
       /R2_SECRET_ACCESS_KEY/,

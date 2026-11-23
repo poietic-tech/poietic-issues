@@ -33,6 +33,8 @@
     "SSO_REFRESH_URL": "https://auth.poietic.tech/me",
     "SSO_LIVENESS_URL": "https://auth.poietic.tech/session/live",
     "SSO_MEMBER_GROUP": "issues-users",
+    // Sites that file issues from the browser as the signed-in person (CORS with credentials, and the CSRF check).
+    "EXTRA_ALLOWED_ORIGINS": "https://newsroom.poietic.tech,https://newsroom-staging.poietic.tech",
   },
   // R2_ENDPOINT is passed at deploy time (--var), built from CLOUDFLARE_ACCOUNT_ID.
   // Secrets (set by .github/workflows/deploy.yml): R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, SSO_DIRECTORY_KEY.
