@@ -19,7 +19,7 @@ Roles: `admin` can manage users, webhooks, project creation and archiving, and p
 
 A bearer value is always an identity token: with SSO configured it is verified against the issuer, and without SSO it is `UNAUTHENTICATED`. The retired API tokens get the same 401 ([ADR 0028](adr/0028-sso-only-and-the-poietic-tech-module.md)). The first request from a new agent creates a `kind: "agent"` member whose `ownerId` is its owner's user. The owner must have signed in before, and the agent is active exactly when the owner is. An agent cannot act while its owner is deactivated (`PENDING_APPROVAL`). An invalid bearer value is `UNAUTHENTICATED`, never a fallback to the session cookie. See [ADR 0023](adr/0023-agent-identities.md).
 
-Cookie-authenticated `POST`/`PATCH`/`DELETE` requests must be same-origin (CSRF protection). Bearer requests are exempt.
+Cookie-authenticated `POST`/`PUT`/`PATCH`/`DELETE` requests must be same-origin or from an origin in `POIETIC_ISSUES_ALLOWED_ORIGINS` (CSRF protection). Bearer requests are exempt. Those origins also get CORS with credentials, so a page there can sign in with `POST /auth/sso` and call the API as the signed-in person with `fetch(…, { credentials: 'include' })` (see [deployment](deployment.md#other-sites-calling-the-api-from-the-browser) and [ADR 0035](adr/0035-cors-for-allowed-origins.md)).
 
 ## References
 

@@ -59,7 +59,7 @@ All settings are environment variables, validated at startup. An invalid value s
 | `POIETIC_ISSUES_SEED`                                                           | `1` / `0`                       | Seed demo users and projects into an empty database.                                                                                                                                                              |
 | `POIETIC_ISSUES_WEB_DIR`                                                        | —                               | Directory of the built web app to serve at `/`.                                                                                                                                                                   |
 | `POIETIC_ISSUES_SECURE_COOKIES`                                                 | `0` / `1`                       | `Secure` session cookies (requires HTTPS).                                                                                                                                                                        |
-| `POIETIC_ISSUES_ALLOWED_ORIGINS`                                                | —                               | Extra origins, comma-separated, that may send cookie-authenticated writes (CSRF allow-list).                                                                                                                      |
+| `POIETIC_ISSUES_ALLOWED_ORIGINS`                                                | —                               | Extra origins, comma-separated, trusted as the signed-in person: CSRF allow-list for cookie-authenticated writes, and CORS with credentials ([more](#other-sites-calling-the-api-from-the-browser)).              |
 | `POIETIC_ISSUES_BLOB_STORE`                                                     | `local`                         | `local` or `s3`.                                                                                                                                                                                                  |
 | `POIETIC_ISSUES_BLOB_DIR`                                                       | `./data/blobs`                  | Attachment directory for `local`.                                                                                                                                                                                 |
 | `POIETIC_ISSUES_S3_ENDPOINT`, `_BUCKET`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY` | —                               | Required for `s3`. `POIETIC_ISSUES_S3_REGION` defaults to `us-east-1`.                                                                                                                                            |
@@ -169,6 +169,18 @@ Notes:
 - Behind a TLS-terminating proxy, `POIETIC_ISSUES_ALLOWED_ORIGINS` must include the public origin (for example `https://issues.example.com`), or `POST /auth/sso` answers 403 (CSRF protection).
 - A user's handle is the issuer's `handle` claim. A token without one (from an issuer that has no handles) gets a handle derived from its name; confirm that one with the person before approving.
 - Signing out lands on `/login?signedout=1`, which skips the automatic SSO attempt so the user is not signed straight back in; they can press the SSO button to sign in again.
+
+## Other sites calling the API from the browser
+
+`POIETIC_ISSUES_ALLOWED_ORIGINS` also grants CORS with credentials on `/api/v1/*` ([ADR 0035](adr/0035-cors-for-allowed-origins.md)). The API echoes a listed `Origin` in `Access-Control-Allow-Origin` (never `*`), with `Access-Control-Allow-Credentials: true` and `Vary: Origin`, and answers its preflights with 204. Other origins get no CORS headers. A page on a listed origin can therefore sign in with `POST /api/v1/auth/sso` and call the API as the signed-in person, using `fetch(…, { credentials: 'include' })`. For example, for the newsroom and its staging site:
+
+```sh
+POIETIC_ISSUES_ALLOWED_ORIGINS=https://issues.poietic.tech,https://newsroom.poietic.tech,https://newsroom-staging.poietic.tech
+```
+
+- List only sites you trust as much as the tracker: a listed page can do and read anything the signed-in person can.
+- Give exact origins: scheme, host and port if not the default, with no path or trailing slash. Patterns are not supported.
+- The session cookie is host-only and `SameSite=Lax`, so the browser sends it only from a site with the same registrable domain as the tracker (any `*.poietic.tech` for issues.poietic.tech). A cross-site origin gets CORS headers but no session.
 
 ## Pushing tracker events to agents through the bridge
 
