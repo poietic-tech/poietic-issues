@@ -12,6 +12,7 @@ import {
   type TrackerApp,
 } from './env.ts';
 import { authenticate, changeReason, requestId, requireActor } from './middleware/auth.ts';
+import { cors } from './middleware/cors.ts';
 import { idempotency } from './middleware/idempotency.ts';
 import { silentLogger } from './logger.ts';
 import { sql } from '@poietic-tech/issues-db';
@@ -162,6 +163,11 @@ export function createApp(deps: AppDeps = {}): OpenAPIHono<AppEnv> {
       return c.json({ ok: false, reason: 'database unavailable' }, 503);
     }
   });
+  // CORS for the CSRF allow-list, on the API only (not the web app or health probes); preflights end here.
+  root.use(
+    `${API_PREFIX}/*`,
+    cors(resolved.auth.mode === 'standard' ? (resolved.auth.allowedOrigins ?? []) : []),
+  );
   root.route(API_PREFIX, buildApi(resolved));
   root.get('/api/docs', Scalar({ url: `${API_PREFIX}/openapi.json`, pageTitle: 'Tracker API' }));
 

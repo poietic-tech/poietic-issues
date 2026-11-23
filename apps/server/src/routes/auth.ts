@@ -174,7 +174,7 @@ export function registerAuthRoutes(app: TrackerApp, deps: ResolvedDeps) {
         "Exchanges the SSO issuer's cookie (sent automatically by the browser) for a short session " +
         '(`AuthConfig.sso.sessionSeconds`), replacing any session the request carries; call it again to renew. A first sign-in ' +
         "creates the user; users other than the issuer's admins wait for an admin to reactivate them " +
-        '(`PENDING_APPROVAL`). Browser-only: must be same-origin. With a liveness check configured, a cookie whose issuer session has ended ' +
+        '(`PENDING_APPROVAL`). Browser-only: must be same-origin, or from an origin in `POIETIC_ISSUES_ALLOWED_ORIGINS` (which also get CORS with credentials). With a liveness check configured, a cookie whose issuer session has ended ' +
         "is `UNAUTHENTICATED`. `UNAVAILABLE` means the issuer's signing keys, or its liveness answer, could not be fetched.",
       responses: {
         200: json(UserSchema, 'Signed in'),
