@@ -268,6 +268,8 @@ The workflow sets the R2 credentials as Worker secrets, deploys, and smoke-check
 
 **Environment changes:** The new Worker goes live before the container rollout replaces the image, so for a short window the old image can run with the new Worker's environment. Any change to the container's environment contract (`deploy/cloudflare/src/container-env.ts`) must therefore work with both the previous and the new image for one deploy. For example, send both the old and the new variable names for a release, then drop the old ones. See [ADR 0019](adr/0019-cloudflare-containers-with-litestream.md#consequences) for the 2026-10-08 incident.
 
+The reverse also happens: the rollout can start the new image from a Durable Object still on the previous Worker version, so the container starts with the old environment, and the Durable Object later reattaches to it on the new version. The Worker's Durable Object therefore records a SHA-256 fingerprint of the environment it starts the container with (`deploy/cloudflare/src/env-restart.ts`). Before forwarding a request it compares that record with its current environment and, on a mismatch, stops the container with SIGTERM, waits for it to exit (Litestream's final sync), and lets the request start a fresh one. Requests during that wait get `503` with `Retry-After`. A change to a Worker var or secret therefore reaches the container within one request after the Durable Object picks up the new Worker version, without a manual redeploy. The first deploy of this guard restarts the container once, because the running container has no record. See the 2026-11-23 incident in ADR 0019.
+
 **Admin:** There is no `docker exec` on a remote container. Use the module as an admin:
 
 ```sh

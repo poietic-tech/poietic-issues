@@ -46,6 +46,18 @@ Containers have no persistent disk, Cloudflare offers no hosted Postgres, and D1
   change to the container's environment contract (`deploy/cloudflare/src/container-env.ts`) must work with both the
   previous and the new image for one deploy. For example, send both the old and the new variable names for a release,
   then drop the old ones.
+- The opposite skew is possible too, and lasts until the container restarts. Seen live on 2026-11-23 (PR #58 added
+  `EXTRA_ALLOWED_ORIGINS` for the newsroom; Deploy run 45216243087): the new Worker (b34f6bd8) was at 100% at
+  16:26:09Z, the rollout stopped the old container at 16:26:52Z, and the Durable Object, still running the previous
+  Worker version (d2fc16f0), started the new image at 16:26:53Z with the old environment (only
+  `https://issues.poietic.tech` allowed). At 16:31:23Z the Durable Object reset to the new version and reattached to
+  the running container, whose environment is fixed at start, and traffic kept it from sleeping. Newsroom CORS
+  preflights got 401 until a manual redeploy re-rolled the container at about 16:49Z. Fix: the Durable Object stores a
+  SHA-256 fingerprint of the environment it starts the container with, and before each request restarts a container
+  whose fingerprint differs from its own (`deploy/cloudflare/src/env-restart.ts`). The restart is SIGTERM, wait until
+  the container has exited, then start, all inside the one Durable Object, so it keeps stop-then-start and the single
+  writer. A container that has not exited after two minutes is left alone and requests get 503 until it does; nothing
+  new starts. The compatibility rule above still applies, since the old image can still meet the new environment.
 - Sleep and wake restore from the replica: on 2026-10-07 the container slept at 18:57:04Z (`litestream shut down`)
   and woke at 19:49:22Z with `restore completed` and no migrations to run.
 - Restore fails closed: if the replica cannot be read (bad credentials, endpoint down), the container exits instead
