@@ -268,7 +268,8 @@ The production instance runs on Cloudflare Containers. See [ADR 0019](adr/0019-c
    `_SECRET_ACCESS_KEY` and `POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN`.
 
 6. Later, in a change of its own: drop `POIETIC_ISSUES_BLOB_FALLBACK` from `src/container-env.ts`, then retire the
-   bucket.
+   bucket. Done for issues.poietic.tech: the copy finished on 2026-11-24 (5 files, a re-run copied nothing) and the
+   fallback was dropped; the bucket `poietic-issues-attachments` is no longer read and can be retired.
 
 To go back, delete the Worker secret `ARTIFACTS_AGENT_TOKEN` and the GitHub secret, then redeploy. Files uploaded
 in the meantime are only in artifacts, and `blobs copy` only copies into artifacts, so those would have to be

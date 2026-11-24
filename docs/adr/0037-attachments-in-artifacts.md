@@ -32,8 +32,8 @@ work as they do on any other collection.
   database, so it can run from anywhere with both sets of credentials, and it is safe to re-run. Once a run copies
   nothing and fails nothing, the fallback can be removed and the bucket retired.
 - **issues.poietic.tech** switches when the GitHub `production` secret `POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN` is set:
-  the deploy passes it to the Worker as `ARTIFACTS_AGENT_TOKEN`, and the container then uses artifacts with the R2
-  fallback.
+  the deploy passes it to the Worker as `ARTIFACTS_AGENT_TOKEN`, and the container then uses artifacts. It ran with the
+  R2 fallback until the copy finished on 2026-11-24, and without it since.
 
 ## Consequences
 
