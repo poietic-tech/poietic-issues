@@ -2516,6 +2516,8 @@ export interface paths {
                     /** @description Status names or ids, comma-separated. */
                     status?: string;
                     statusCategory?: string;
+                    /** @description Issue type names or ids, or `none`. */
+                    type?: string;
                     /** @description Handles or ids; `me`, `none`. */
                     assignee?: string;
                     creator?: string;

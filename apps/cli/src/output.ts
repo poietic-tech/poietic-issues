@@ -14,6 +14,7 @@ export type Kind =
   | 'member'
   | 'repo'
   | 'status'
+  | 'issueType'
   | 'label'
   | 'view'
   | 'user'
@@ -41,6 +42,7 @@ export const COLUMNS: Record<Exclude<Kind, 'raw'>, Column[]> = {
   issue: [
     ['KEY', (r) => r.key],
     ['STATUS', (r) => (r.status as { name: string }).name],
+    ['TYPE', (r) => (r.type as { name: string } | null)?.name ?? '—'],
     ['PRI', (r) => PRIORITY[r.priority as number]],
     ['ASSIGNEE', (r) => actor(r.assignee)],
     ['LABELS', (r) => names(r.labels)],
@@ -115,6 +117,12 @@ export const COLUMNS: Record<Exclude<Kind, 'raw'>, Column[]> = {
     ['COLOR', (r) => r.color],
     ['ID', (r) => r.id],
   ],
+  issueType: [
+    ['POS', (r) => r.position],
+    ['NAME', (r) => r.name],
+    ['COLOR', (r) => r.color],
+    ['ID', (r) => r.id],
+  ],
   label: [
     ['NAME', (r) => r.name],
     ['COLOR', (r) => r.color],
@@ -165,13 +173,21 @@ function eventSubject(e: Row): string {
       key?: string;
       name?: string;
       handle?: string;
+      issueType?: { name: string };
       source?: { key: string };
       target?: { key: string };
     }
   >;
   if (data.issue?.key) return data.issue.key;
   if (data.link) return `${data.link.source?.key} → ${data.link.target?.key}`;
-  return data.project?.key ?? data.status?.name ?? data.label?.name ?? data.user?.handle ?? '';
+  return (
+    data.project?.key ??
+    data.status?.name ??
+    data.issueType?.name ??
+    data.label?.name ??
+    data.user?.handle ??
+    ''
+  );
 }
 
 /** What a row stands for in the ids format: an issue's key, an event's seq, a member's handle, else its id. */
@@ -325,7 +341,7 @@ export function formatIssue(issue: Row): string {
   const i = issue as unknown as Issue;
   const lines = [
     `${i.key}  ${i.title}${i.deletedAt ? '  [deleted]' : ''}`,
-    `Status: ${i.status.name} (${i.status.category}) · Priority: ${PRIORITY[i.priority]} · Assignee: ${actor(i.assignee)}`,
+    `Type: ${i.type?.name ?? '—'} · Status: ${i.status.name} (${i.status.category}) · Priority: ${PRIORITY[i.priority]} · Assignee: ${actor(i.assignee)}`,
     `Labels: ${names(i.labels)} · Parent: ${i.parent?.key ?? '—'} · Estimate: ${i.estimate ?? '—'} · Due: ${i.dueDate ?? '—'}`,
     ...(Object.keys(i.customFields).length
       ? [

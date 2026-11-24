@@ -23,6 +23,7 @@ function issueFieldOptions(cmd: Command, mode: 'create' | 'edit'): Command {
     .option('-d, --description <markdown>', 'description (markdown)')
     .option('--body-file <path>', 'read the description from a file, or - for stdin')
     .option('-s, --status <status>', 'status name or id')
+    .option('--type <type>', 'issue type name or id, or none to clear it')
     .option('-p, --priority <priority>', 'none|urgent|high|medium|low or 0-4', parsePriority)
     .option('-a, --assignee <user>', 'handle, @handle, me, or none to unassign')
     .option('--parent <issue>', 'parent issue key, or none')
@@ -72,6 +73,7 @@ async function buildIssueInput(
   set('description', o.description);
   if (o.bodyFile) input.description = await readTextArg(rt.io, String(o.bodyFile));
   set('status', o.status);
+  if (o.type !== undefined) input.type = nullable(String(o.type));
   set('priority', o.priority);
   if (o.assignee !== undefined) input.assignee = nullable(String(o.assignee));
   if (o.parent !== undefined) input.parent = nullable(String(o.parent));
@@ -107,6 +109,7 @@ export function registerIssue(parent: Command, tree: Tree): Command {
       'status categories: backlog,unstarted,started,completed,canceled',
       collect,
     )
+    .option('--type <types>', 'issue type names/ids, or none', collect)
     .option('-a, --assignee <users>', 'handles/ids, me, none', collect)
     .option('--creator <users>', 'creator handles/ids', collect)
     .option('-l, --label <labels>', 'has any of these labels', collect)
@@ -138,6 +141,7 @@ export function registerIssue(parent: Command, tree: Tree): Command {
         };
         add('status', o.status);
         add('statusCategory', o.category);
+        add('type', o.type);
         add('assignee', o.assignee);
         add('creator', o.creator);
         add('label', o.label);

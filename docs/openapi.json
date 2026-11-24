@@ -6057,6 +6057,17 @@
           {
             "schema": {
               "type": "string",
+              "description": "Issue type names or ids, or `none`.",
+              "example": "Bug,Task"
+            },
+            "required": false,
+            "description": "Issue type names or ids, or `none`.",
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
               "description": "Handles or ids; `me`, `none`.",
               "example": "me,none"
             },

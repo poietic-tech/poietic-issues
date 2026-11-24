@@ -3,6 +3,7 @@ import {
   registerLabel,
   registerProject,
   registerStatus,
+  registerType,
   registerUser,
   registerView,
 } from '../commands/admin.ts';
@@ -34,6 +35,7 @@ const RECORD_COMMANDS = {
   attachment: registerAttachment,
   project: registerProject,
   status: registerStatus,
+  type: registerType,
   label: registerLabel,
   field: registerField,
   view: registerView,

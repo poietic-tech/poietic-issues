@@ -23,6 +23,13 @@
           "takesValue": true
         },
         {
+          "flags": "--type <types>",
+          "name": "type",
+          "description": "issue type names/ids, or none",
+          "required": false,
+          "takesValue": true
+        },
+        {
           "flags": "-a, --assignee <users>",
           "name": "assignee",
           "description": "handles/ids, me, none",
@@ -175,6 +182,13 @@
           "takesValue": true
         },
         {
+          "flags": "--type <type>",
+          "name": "type",
+          "description": "issue type name or id, or none to clear it",
+          "required": false,
+          "takesValue": true
+        },
+        {
           "flags": "-p, --priority <priority>",
           "name": "priority",
           "description": "none|urgent|high|medium|low or 0-4",
@@ -286,6 +300,13 @@
           "flags": "-s, --status <status>",
           "name": "status",
           "description": "status name or id",
+          "required": false,
+          "takesValue": true
+        },
+        {
+          "flags": "--type <type>",
+          "name": "type",
+          "description": "issue type name or id, or none to clear it",
           "required": false,
           "takesValue": true
         },
@@ -923,7 +944,7 @@
     {
       "name": "project schema",
       "aliases": [],
-      "description": "JSON Schema for issue create/update in this project, with live enums (statuses, labels, repos, assignable users, custom fields)",
+      "description": "JSON Schema for issue create/update in this project, with live enums (statuses, issue types, labels, repos, assignable users, custom fields)",
       "arguments": [
         {
           "name": "project",
@@ -1179,6 +1200,111 @@
           "required": true,
           "variadic": true,
           "description": "status names or ids"
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "type list",
+      "aliases": [
+        "ls"
+      ],
+      "description": "List issue types in order",
+      "arguments": [],
+      "options": []
+    },
+    {
+      "name": "type create",
+      "aliases": [],
+      "description": "Create an issue type",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "-n, --name <name>",
+          "name": "name",
+          "description": "name",
+          "required": true,
+          "takesValue": true
+        },
+        {
+          "flags": "--color <hex>",
+          "name": "color",
+          "description": "color like #eb5757",
+          "required": false,
+          "takesValue": true
+        },
+        {
+          "flags": "--position <n>",
+          "name": "position",
+          "description": "position in the list (0 = first)",
+          "required": false,
+          "takesValue": true
+        }
+      ]
+    },
+    {
+      "name": "type edit",
+      "aliases": [],
+      "description": "Rename or recolor an issue type",
+      "arguments": [
+        {
+          "name": "type",
+          "required": true,
+          "variadic": false,
+          "description": "issue type name or id"
+        }
+      ],
+      "options": [
+        {
+          "flags": "-n, --name <name>",
+          "name": "name",
+          "description": "new name",
+          "required": false,
+          "takesValue": true
+        },
+        {
+          "flags": "--color <hex>",
+          "name": "color",
+          "description": "color",
+          "required": false,
+          "takesValue": true
+        }
+      ]
+    },
+    {
+      "name": "type delete",
+      "aliases": [
+        "rm"
+      ],
+      "description": "Delete an issue type; its issues are left with no type unless --move-to is given",
+      "arguments": [
+        {
+          "name": "type",
+          "required": true,
+          "variadic": false,
+          "description": "issue type name or id"
+        }
+      ],
+      "options": [
+        {
+          "flags": "--move-to <type>",
+          "name": "moveTo",
+          "description": "give its issues this type instead",
+          "required": false,
+          "takesValue": true
+        }
+      ]
+    },
+    {
+      "name": "type reorder",
+      "aliases": [],
+      "description": "Set the order: list every issue type, in order",
+      "arguments": [
+        {
+          "name": "types",
+          "required": true,
+          "variadic": true,
+          "description": "issue type names or ids"
         }
       ],
       "options": []
