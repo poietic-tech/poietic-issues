@@ -243,8 +243,9 @@ The production instance runs on Cloudflare Containers. See [ADR 0019](adr/0019-c
 **Moving attachments to artifacts.poietic.tech** ([ADR 0037](adr/0037-attachments-in-artifacts.md)), once, in order:
 
 1. Check that artifacts.poietic.tech has restricted collections (`@poietic-tech/artifacts` 0.2.0, live since 2026-11-24).
-2. Create the tracker's own agent at auth.poietic.tech and issue it a token. Its id is the `id` that
-   `GET https://artifacts.poietic.tech/v1/whoami` returns when called with that token.
+2. Create the tracker's own agent at auth.poietic.tech (`poietic-tech agents create issues-tracker`) and issue it a
+   token. The token's home is Infisical (project "Poietic Dot Tech", env `prod`, path `/agents/issues-tracker`, key
+   `POIETIC_AGENT_TOKEN`), like the other agents' tokens.
 3. Create the collection restricted, and grant the agent `editor` on it (and nobody else unless they need it):
 
    ```sh
@@ -252,8 +253,9 @@ The production instance runs on Cloudflare Containers. See [ADR 0019](adr/0019-c
    poietic-tech artifacts collections grant issues-attachments user:<agent id> editor
    ```
 
-4. Set the GitHub `production` secret `POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN` to the token and re-run the Deploy
-   workflow. New uploads then go to artifacts, and older files are read from R2 meanwhile.
+4. Copy the token from Infisical into the GitHub `production` secret `POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN` (piped, so
+   it never appears on screen) and re-run the Deploy workflow. After rotating the token in Infisical, copy it again
+   and redeploy. New uploads then go to artifacts, and older files are read from R2 meanwhile.
 5. Copy the older files, with the R2 credentials and the agent token in the environment (never on the command line).
    A dry run first; then re-run until a run copies nothing and fails nothing:
 
