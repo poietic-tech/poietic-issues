@@ -2,6 +2,7 @@ import { createQuery } from '@tanstack/svelte-query';
 import {
   ApiError,
   type CustomField,
+  type IssueType,
   type Label,
   type Project,
   type Status,
@@ -13,6 +14,8 @@ import { type Access, canManage, canWrite, fetchers, isSignedIn, keys } from './
 export interface ProjectData {
   readonly key: string;
   readonly statuses: Status[];
+  /** The project's issue types, in order: the values an issue's `type` can take. */
+  readonly issueTypes: IssueType[];
   readonly labels: Label[];
   readonly users: User[];
   /** GitHub repositories linked to the project: the values an issue's `repo` can take. */
@@ -41,7 +44,7 @@ export interface ProjectData {
 }
 
 /**
- * Reactive reference data for a project (statuses, labels, users, views, fields), cached by TanStack Query.
+ * Reactive reference data for a project (statuses, issue types, labels, users, views, fields), cached by TanStack Query.
  * Project queries wait for a key: global components (command menu, create dialog) mount before one is chosen.
  */
 export function useProjectData(key: () => string): ProjectData {
@@ -55,6 +58,11 @@ export function useProjectData(key: () => string): ProjectData {
   const statuses = createQuery(() => ({
     queryKey: keys.statuses(key()),
     queryFn: () => fetchers.statuses(key()),
+    enabled: !!key(),
+  }));
+  const issueTypes = createQuery(() => ({
+    queryKey: keys.issueTypes(key()),
+    queryFn: () => fetchers.issueTypes(key()),
     enabled: !!key(),
   }));
   const labels = createQuery(() => ({
@@ -81,14 +89,20 @@ export function useProjectData(key: () => string): ProjectData {
   }));
   /** What `loaded` waits for; a failure here is the project's error. */
   const required = [project, statuses, labels, users, fields];
-  /** Also retried, but optional: saved views failing to load leaves the project usable without them. */
-  const queries = [...required, views];
+  /**
+   * Also retried, but optional: saved views or issue types failing to load leaves the project usable without
+   * them (issues still show their own type).
+   */
+  const queries = [...required, views, issueTypes];
   return {
     get key() {
       return key();
     },
     get statuses() {
       return statuses.data ?? [];
+    },
+    get issueTypes() {
+      return issueTypes.data ?? [];
     },
     get labels() {
       return labels.data ?? [];

@@ -13,6 +13,7 @@ const issue = (over: Partial<Issue> = {}): Issue =>
     repo: null,
     assigneeId: null,
     statusId: 'sts_a',
+    typeId: 'typ_a',
     labelIds: ['lbl_a'],
     customFields: {},
     ...over,
@@ -45,6 +46,7 @@ describe('pruneUnchanged', () => {
           estimate: 2,
           assignee: 'usr_a',
           status: 'sts_a',
+          type: 'typ_a',
           priority: 3,
           customFields: { sev: 'high', team: null },
           addLabels: ['lbl_a'],
@@ -58,6 +60,7 @@ describe('pruneUnchanged', () => {
   it('keeps real changes', () => {
     const patch: UpdateIssueInput = {
       estimate: null,
+      type: null,
       customFields: { sev: 'low' },
       addLabels: ['lbl_b'],
       removeLabels: ['lbl_a'],

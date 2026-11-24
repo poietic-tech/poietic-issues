@@ -11,6 +11,7 @@
   import LabelChip from './LabelChip.svelte';
   import PriorityPicker from './PriorityPicker.svelte';
   import StatusPicker from './StatusPicker.svelte';
+  import TypeBadge from './TypeBadge.svelte';
 
   /**
    * Renders one field-registry field of an issue compactly — used for list columns and board card fields.
@@ -44,6 +45,10 @@
     showLabel={!compact}
     readonly={!project.canWrite}
   />
+{:else if field === 'type'}
+  {#if issue.type}<span class="text-xs text-fg-muted"
+      ><TypeBadge name={issue.type.name} color={issue.type.color} showLabel={!compact} /></span
+    >{/if}
 {:else if field === 'priority'}
   <PriorityPicker {issue} showLabel={!compact} readonly={!project.canWrite} />
 {:else if field === 'assignee'}

@@ -12,6 +12,7 @@
   import PriorityPicker from './PriorityPicker.svelte';
   import RepoPicker from './RepoPicker.svelte';
   import StatusPicker from './StatusPicker.svelte';
+  import TypePicker from './TypePicker.svelte';
   import type { Snippet } from 'svelte';
 
   let { issue, project, extra }: { issue: Issue; project: ProjectData; extra?: Snippet } = $props();
@@ -40,6 +41,7 @@
 
 <div class="space-y-0.5 text-sm" data-testid="issue-properties">
   {#snippet status()}<StatusPicker {issue} statuses={project.statuses} {readonly} />{/snippet}
+  {#snippet type()}<TypePicker {issue} types={project.issueTypes} {readonly} />{/snippet}
   {#snippet priority()}<PriorityPicker {issue} {readonly} />{/snippet}
   {#snippet assignee()}<AssigneePicker {issue} users={project.users} {readonly} />{/snippet}
   {#snippet labels()}<LabelPicker {issue} labels={project.labels} {readonly} />{/snippet}
@@ -81,6 +83,7 @@
     >
   {/snippet}
   {@render row('Status', status)}
+  {#if project.issueTypes.length || issue.type}{@render row('Type', type)}{/if}
   {@render row('Priority', priority)}
   {@render row('Assignee', assignee)}
   {@render row('Labels', labels)}

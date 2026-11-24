@@ -13,6 +13,7 @@
   import { toast } from '$lib/toast.svelte.ts';
   import { confirmAction } from '$lib/confirm.svelte.ts';
   import CustomFieldsSettings from '$components/CustomFieldsSettings.svelte';
+  import IssueTypesSettings from '$components/IssueTypesSettings.svelte';
   import ProjectAccessSettings from '$components/ProjectAccessSettings.svelte';
   import ProjectGeneralSettings from '$components/ProjectGeneralSettings.svelte';
   import ProjectReposSettings from '$components/ProjectReposSettings.svelte';
@@ -27,7 +28,7 @@
   const qc = useQueryClient();
   const me = createQuery(() => ({ queryKey: keys.me, queryFn: fetchers.me, staleTime: 300_000 }));
   /**
-   * Editors change the workflow, labels and custom fields; managers also change access, repos and the project's
+   * Editors change the workflow, issue types, labels and custom fields; managers also change access, repos and the project's
    * details. Signed-in viewers see the members read-only; signed-out visitors get a dead end.
    */
   const readerOnly = $derived(
@@ -205,8 +206,8 @@
         <ProjectGeneralSettings projectKey={key} />
       {:else}
         <p class="text-sm text-fg-muted" data-testid="settings-editor-note">
-          You can change the workflow, labels and custom fields. Only project managers can change
-          access, repositories and the project's details.
+          You can change the workflow, issue types, labels and custom fields. Only project managers
+          can change access, repositories and the project's details.
         </p>
         <ProjectAccessSettings projectKey={key} readonly />
       {/if}
@@ -270,6 +271,8 @@
           <button class={btn.primary} disabled={!newStatus.name.trim()}>Add status</button>
         </form>
       </section>
+
+      <IssueTypesSettings projectKey={key} types={project.issueTypes} />
 
       <section data-testid="settings-labels">
         <h2 class="mb-3 font-medium">Labels</h2>

@@ -22,7 +22,7 @@
   /**
    * Kanban board. Columns come from `board.groupBy` (status by default). Dropping a card:
    * - status columns: `move` (status + position between its new neighbours; the server computes the rank),
-   * - other groupings (priority, assignee, select custom fields): a PATCH of that field.
+   * - other groupings (type, priority, assignee, select custom fields): a PATCH of that field.
    * Both are optimistic and roll back on failure.
    */
   let {
@@ -135,7 +135,19 @@
       return;
     }
     const value = column.id === NONE ? null : column.id;
-    if (groupBy === 'priority') {
+    if (groupBy === 'type') {
+      if (value === issue.typeId) return;
+      const type = project.issueTypes.find((t) => t.id === value) ?? null;
+      await updateIssue(
+        qc,
+        issue,
+        { type: value },
+        {
+          typeId: value,
+          type: type ? { id: type.id, name: type.name, color: type.color } : null,
+        },
+      );
+    } else if (groupBy === 'priority') {
       if (Number(value) !== issue.priority)
         await updateIssue(qc, issue, { priority: Number(value) }, { priority: Number(value) });
     } else if (groupBy === 'assignee') {
@@ -223,7 +235,7 @@
   // Dragging a card changes the issue, so it needs write access.
   const draggable = $derived(
     project.canWrite &&
-      (['status', 'priority', 'assignee'].includes(groupBy) || groupBy.startsWith('cf:')),
+      (['status', 'type', 'priority', 'assignee'].includes(groupBy) || groupBy.startsWith('cf:')),
   );
 </script>
 

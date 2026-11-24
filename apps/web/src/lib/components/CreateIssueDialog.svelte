@@ -16,6 +16,7 @@
   import Picker from './Picker.svelte';
   import PriorityIcon from './PriorityIcon.svelte';
   import StatusIcon from './StatusIcon.svelte';
+  import TypeBadge from './TypeBadge.svelte';
 
   const qc = useQueryClient();
   const project = useProjectData(() => ui.createIssue.project);
@@ -23,6 +24,7 @@
   let title = $state('');
   let description = $state('');
   let statusId = $state<string | undefined>(undefined);
+  let typeId = $state<string | null>(null);
   let priority = $state(0);
   let assigneeId = $state<string | null>(null);
   let repo = $state<string | null>(null);
@@ -40,6 +42,7 @@
       project.statuses[0],
   );
   const assignee = $derived(project.users.find((u) => u.id === assigneeId) ?? null);
+  const issueType = $derived(project.issueTypes.find((t) => t.id === typeId) ?? null);
 
   $effect(() => {
     titleInput?.focus();
@@ -57,6 +60,7 @@
       title: title.trim(),
       description,
       ...(status && { status: status.id }),
+      ...(issueType && { type: issueType.id }),
       priority,
       assignee: assigneeId,
       labels: labelIds,
@@ -130,6 +134,27 @@
                 >{it.label}</span
               >{/snippet}
           </Picker>
+          {#if project.issueTypes.length}
+            <Picker
+              items={[
+                { value: '', label: 'No type', color: 'transparent' },
+                ...project.issueTypes.map((t) => ({ value: t.id, label: t.name, color: t.color })),
+              ]}
+              selected={[typeId ?? '']}
+              onselect={(v) => (typeId = v || null)}
+              triggerLabel="Type"
+              triggerClass="border border-border"
+              testid="create-type"
+            >
+              {#snippet trigger()}
+                {#if issueType}<TypeBadge
+                    name={issueType.name}
+                    color={issueType.color}
+                  />{:else}<span class="text-fg-muted">Type</span>{/if}
+              {/snippet}
+              {#snippet item(it)}<TypeBadge name={it.label} color={it.color} />{/snippet}
+            </Picker>
+          {/if}
           <Picker
             items={PRIORITY_ORDER.map((p) => ({ value: String(p), label: PRIORITY_LABELS[p], p }))}
             selected={[String(priority)]}

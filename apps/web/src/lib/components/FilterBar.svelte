@@ -10,9 +10,10 @@
   import FilterChip from './FilterChip.svelte';
   import PriorityIcon from './PriorityIcon.svelte';
   import StatusIcon from './StatusIcon.svelte';
+  import TypeBadge from './TypeBadge.svelte';
 
   /**
-   * Quick filters over the view's IssueFilter: text, then status, assignee, labels, priority and repository (each
+   * Quick filters over the view's IssueFilter: text, then status, type, assignee, labels, priority and repository (each
    * "is any of" or "is not any of"). Other conditions (from saved views, URLs or the CLI) show as removable pills.
    */
   let {
@@ -29,7 +30,7 @@
   } = $props();
 
   type Value = string | number | null;
-  const QUICK = ['status', 'assignee', 'labels', 'priority', 'repo'];
+  const QUICK = ['status', 'type', 'assignee', 'labels', 'priority', 'repo'];
   const quickOf = (field: string) =>
     filter.conditions.find((c) => c.field === field && (c.op === 'in' || c.op === 'nin'));
   const valuesOf = (field: string): Value[] => (quickOf(field)?.value as Value[] | undefined) ?? [];
@@ -59,7 +60,7 @@
     );
   }
   /**
-   * Picker values are strings; the filter stores null for "no assignee" and "no repository" (`in [null]`, which
+   * Picker values are strings; the filter stores null for "no type", "no assignee" and "no repository" (`in [null]`, which
    * the server and the live matcher both read as "is unset"), and numbers for priority.
    */
   const NONE = '__none__';
@@ -163,6 +164,21 @@
         >{it.label}</span
       >{/snippet}
   </FilterChip>
+
+  {#if project.issueTypes.length || valuesOf('type').length}
+    <FilterChip
+      label="Type"
+      plural="types"
+      items={[
+        { value: NONE, label: 'No type', color: 'transparent' },
+        ...project.issueTypes.map((t) => ({ value: t.id, label: t.name, color: t.color })),
+      ]}
+      {...chipProps('type')}
+      testid="filter-type"
+    >
+      {#snippet item(it)}<TypeBadge name={it.label} color={it.color} />{/snippet}
+    </FilterChip>
+  {/if}
 
   <FilterChip
     label="Assignee"
