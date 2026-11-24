@@ -1,8 +1,11 @@
 import { existsSync } from 'node:fs';
 import {
+  artifactsFromEnv,
   bootstrapAdmin,
+  copyBlobs,
   createContext,
   ensureBuiltins,
+  s3FromEnv,
   seedDemoData,
   SYSTEM_ACTOR,
 } from '@poietic-tech/issues-core';
@@ -142,6 +145,52 @@ export function dbCommand(io: CliIO): Command {
       } finally {
         await db.destroy();
       }
+    });
+  return cmd;
+}
+
+/**
+ * `blobs copy`: copies attachment bytes from the S3 bucket into the artifacts collection (ADR 0037). It reads the
+ * bucket, not the database, so it runs anywhere with both sets of credentials, and it is safe to re-run.
+ */
+export function blobsCommand(io: CliIO): Command {
+  const cmd = new Command('blobs').description('Attachment storage administration');
+  cmd
+    .command('copy')
+    .description(
+      'Copy attachment bytes from S3 (POIETIC_ISSUES_S3_*) into artifacts (POIETIC_ISSUES_ARTIFACTS_*); skips files already copied',
+    )
+    .requiredOption('--from <store>', 'source store (s3)')
+    .requiredOption('--to <store>', 'target store (artifacts)')
+    .option('--dry-run', 'list what would be copied, without writing')
+    .action(async (o: Opts, command: Command) => {
+      if (o.from !== 's3' || o.to !== 'artifacts')
+        throw usage('Only --from s3 --to artifacts is supported');
+      const config = resolveConfig(command.optsWithGlobals(), io);
+      const from = s3FromEnv(io.env, 'running blobs copy --from s3');
+      const to = artifactsFromEnv(io.env, 'running blobs copy --to artifacts');
+      const result = await copyBlobs(from, to, {
+        dryRun: Boolean(o.dryRun),
+        onKey: (key, outcome) => {
+          if (config.format === 'table') io.stderr(`${outcome}: ${key}\n`);
+        },
+      });
+      const summary = {
+        dryRun: Boolean(o.dryRun),
+        copied: result.copied.length,
+        skipped: result.skipped,
+        failed: result.failed,
+      };
+      if (config.format === 'table')
+        io.stdout(
+          `${o.dryRun ? 'Would copy' : 'Copied'} ${summary.copied}, skipped ${summary.skipped}, failed ${summary.failed.length}.\n`,
+        );
+      else io.stdout(`${JSON.stringify(summary, null, 2)}\n`);
+      if (result.failed.length)
+        throw new CliError(
+          'INTERNAL',
+          `${result.failed.length} files failed to copy; re-run to retry`,
+        );
     });
   return cmd;
 }

@@ -21,6 +21,19 @@ describe.runIf(testDialect() === 'sqlite')('server lifecycle', () => {
     expect(() => loadConfig({ POIETIC_ISSUES_BLOB_STORE: 's3' })).toThrow(
       /POIETIC_ISSUES_S3_ENDPOINT/,
     );
+    expect(() => loadConfig({ POIETIC_ISSUES_BLOB_STORE: 'artifacts' })).toThrow(
+      /POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN is required/,
+    );
+    expect(() =>
+      loadConfig({
+        POIETIC_ISSUES_BLOB_STORE: 'artifacts',
+        POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN: 'tok',
+        POIETIC_ISSUES_BLOB_FALLBACK: 's3',
+      }),
+    ).toThrow(/POIETIC_ISSUES_S3_ENDPOINT is required when POIETIC_ISSUES_BLOB_FALLBACK=s3/);
+    expect(() => loadConfig({ POIETIC_ISSUES_BLOB_FALLBACK: 's3' })).toThrow(
+      /needs POIETIC_ISSUES_BLOB_STORE=artifacts/,
+    );
     expect(loadConfig({ NODE_ENV: 'production' })).toMatchObject({
       POIETIC_ISSUES_AUTH_MODE: 'standard',
       POIETIC_ISSUES_LOG_FORMAT: 'json',

@@ -40,3 +40,4 @@ Short records of decisions that constrain future work. Copy `0000-template.md`, 
 | [0034](0034-coalesced-inline-edits.md)                   | Inline issue edits are coalesced                                       | Accepted                                  |
 | [0035](0035-cors-for-allowed-origins.md)                 | CORS with credentials for the allowed origins                          | Accepted                                  |
 | [0036](0036-per-project-issue-types.md)                  | Issues have per-project types                                          | Accepted                                  |
+| [0037](0037-attachments-in-artifacts.md)                 | Attachments can be stored in artifacts.poietic.tech                    | Accepted                                  |
