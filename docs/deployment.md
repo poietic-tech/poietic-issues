@@ -242,7 +242,7 @@ The production instance runs on Cloudflare Containers. See [ADR 0019](adr/0019-c
 
 **Moving attachments to artifacts.poietic.tech** ([ADR 0037](adr/0037-attachments-in-artifacts.md)), once, in order:
 
-1. Wait for an artifacts.poietic.tech release with restricted collections (`@poietic-tech/artifacts` 0.2.0 or later).
+1. Check that artifacts.poietic.tech has restricted collections (`@poietic-tech/artifacts` 0.2.0, live since 2026-11-24).
 2. Create the tracker's own agent at auth.poietic.tech and issue it a token. Its id is the `id` that
    `GET https://artifacts.poietic.tech/v1/whoami` returns when called with that token.
 3. Create the collection restricted, and grant the agent `editor` on it (and nobody else unless they need it):
