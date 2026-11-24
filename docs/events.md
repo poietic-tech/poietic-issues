@@ -51,6 +51,7 @@ Every change is appended to the `events` table in the same transaction as the ch
 | `project.created`, `project.updated`                                | `{ project, changes? }`                                                         |
 | `project.group_grant_added`, `_changed`, `_removed`                 | `{ project: { id, key }, grant, previousRole? }`                                |
 | `status.created`, `status.updated`, `status.deleted`                | `{ status, changes? }`                                                          |
+| `issue_type.created`, `issue_type.updated`, `issue_type.deleted`    | `{ issueType, changes? }`                                                       |
 | `label.created`, `label.updated`, `label.deleted`                   | `{ label, changes? }`                                                           |
 | `user.created`, `user.updated`                                      | `{ user, changes? }`                                                            |
 
