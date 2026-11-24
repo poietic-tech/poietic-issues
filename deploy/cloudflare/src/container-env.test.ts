@@ -50,14 +50,13 @@ describe('containerEnv', () => {
     });
   });
 
-  it('stores attachments in artifacts, falling back to R2, once the tracker has an agent token', () => {
+  it('stores attachments in artifacts, without an R2 fallback, once the tracker has an agent token', () => {
     const out = containerEnv({ ...env, ARTIFACTS_AGENT_TOKEN: 'agent-token' });
     expect(out).toMatchObject({
       POIETIC_ISSUES_BLOB_STORE: 'artifacts',
-      POIETIC_ISSUES_BLOB_FALLBACK: 's3',
       POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN: 'agent-token',
-      POIETIC_ISSUES_S3_BUCKET: 'poietic-issues-attachments',
     });
+    expect(out).not.toHaveProperty('POIETIC_ISSUES_BLOB_FALLBACK');
     expect(containerEnv({ ...env, ARTIFACTS_AGENT_TOKEN: '' }).POIETIC_ISSUES_BLOB_STORE).toBe(
       's3',
     );

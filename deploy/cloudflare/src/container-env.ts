@@ -24,7 +24,7 @@ export interface WorkerEnv {
   EXTRA_ALLOWED_ORIGINS?: string;
   /**
    * The tracker's own agent token at auth.poietic.tech (ADR 0037). Set: attachments are stored in the artifacts
-   * collection, reading the R2 bucket as a read-only fallback until `blobs copy` has moved the older files.
+   * collection. The older files were copied in from the R2 bucket on 2026-11-24, so there is no fallback to it.
    */
   ARTIFACTS_AGENT_TOKEN?: string;
 }
@@ -68,7 +68,6 @@ export function containerEnv(env: WorkerEnv): Record<string, string> {
     POIETIC_ISSUES_S3_SECRET_ACCESS_KEY: env.R2_SECRET_ACCESS_KEY,
     ...(env.ARTIFACTS_AGENT_TOKEN && {
       POIETIC_ISSUES_BLOB_STORE: 'artifacts',
-      POIETIC_ISSUES_BLOB_FALLBACK: 's3',
       POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN: env.ARTIFACTS_AGENT_TOKEN,
     }),
     POIETIC_ISSUES_SSO_NAME: env.SSO_NAME,
