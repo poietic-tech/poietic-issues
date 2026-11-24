@@ -65,6 +65,7 @@ export function buildProgram(io: CliIO): Command {
     'attachment',
     'project',
     'status',
+    'type',
     'label',
     'field',
     'view',

@@ -14,7 +14,8 @@
   "dependencies": {
     "better-sqlite3": "^13.0.3",
     "kysely": "^0.29.6",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "typeid-js": "^1.2.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",

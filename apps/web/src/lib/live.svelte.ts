@@ -133,10 +133,12 @@ function handle(qc: QueryClient, event: TrackerEvent, meId: string | undefined) 
   // Workflow, labels, projects, users: reference data changed (and issue snapshots embed some of it).
   if (
     event.type.startsWith('status.') ||
+    event.type.startsWith('issue_type.') ||
     event.type.startsWith('label.') ||
     event.type.startsWith('project.')
   ) {
     void qc.invalidateQueries({ queryKey: ['statuses'] });
+    void qc.invalidateQueries({ queryKey: ['issue-types'] });
     void qc.invalidateQueries({ queryKey: ['labels'] });
     void qc.invalidateQueries({ queryKey: keys.projects });
     void qc.invalidateQueries({ queryKey: ['project'] });
@@ -145,6 +147,8 @@ function handle(qc: QueryClient, event: TrackerEvent, meId: string | undefined) 
     if (event.type === 'project.updated') void qc.invalidateQueries({ queryKey: ['members'] });
     // Issues that named an unlinked repo lose it, open issue pages included.
     if (event.type === 'project.repo_removed') void qc.invalidateQueries({ queryKey: ['issue'] });
+    // Open issue pages embed their type's name and color, and lose a deleted type.
+    if (event.type.startsWith('issue_type.')) void qc.invalidateQueries({ queryKey: ['issue'] });
   } else if (event.type.startsWith('field.')) {
     // Field definitions changed: refetch them and anything embedding custom field values.
     void qc.invalidateQueries({ queryKey: ['fields'] });
@@ -224,6 +228,9 @@ export function connectLive(qc: QueryClient): () => void {
     'status.created',
     'status.updated',
     'status.deleted',
+    'issue_type.created',
+    'issue_type.updated',
+    'issue_type.deleted',
     'label.created',
     'label.updated',
     'label.deleted',

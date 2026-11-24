@@ -63,6 +63,7 @@ export async function loadIssues(db: Exec, ids: string[]): Promise<Issue[]> {
       .leftJoin('issues as pi', 'pi.id', 'i.parent_id')
       .leftJoin('projects as pp', 'pp.id', 'pi.project_id')
       .leftJoin('project_repos as rp', 'rp.id', 'i.repo_id')
+      .leftJoin('issue_types as ty', 'ty.id', 'i.type_id')
       .selectAll('i')
       .select([
         'p.key as project_key',
@@ -86,6 +87,8 @@ export async function loadIssues(db: Exec, ids: string[]): Promise<Issue[]> {
         'pp.key as parent_project_key',
         'rp.owner as repo_owner',
         'rp.name as repo_name',
+        'ty.name as type_name',
+        'ty.color as type_color',
       ])
       .select((eb) => [
         eb
@@ -131,6 +134,11 @@ export async function loadIssues(db: Exec, ids: string[]): Promise<Issue[]> {
           category: r.status_category,
           color: r.status_color,
         },
+        typeId: r.type_id,
+        type:
+          r.type_id && r.type_name
+            ? { id: r.type_id, name: r.type_name, color: r.type_color! }
+            : null,
         priority: r.priority,
         assigneeId: r.assignee_id,
         assignee:
@@ -235,6 +243,7 @@ const SCALAR_COLUMNS: Record<string, RawBuilder<unknown>> = {
   key: ISSUE_KEY_SQL,
   title: sql.ref('i.title'),
   status: sql.ref('i.status_id'),
+  type: sql.ref('i.type_id'),
   statusCategory: sql.ref('s.category'),
   priority: sql.ref('i.priority'),
   assignee: sql.ref('i.assignee_id'),
@@ -362,7 +371,7 @@ export interface ListIssuesParams {
 }
 
 /**
- * Resolves human-friendly filter values to ids: status names, label names, user handles / `me`,
+ * Resolves human-friendly filter values to ids: status names, issue type names, label names, user handles / `me`,
  * parent issue keys. Throws VALIDATION_FAILED for unknown names so agents get a clear error.
  */
 export async function resolveFilterRefs(
@@ -393,6 +402,19 @@ export async function resolveFilterRefs(
           q = await readableOnly(q);
           const ids = (await q.execute()).map((r) => r.id);
           if (!ids.length) throw validationError(`Unknown status "${v}"`);
+          return ids;
+        }
+        case 'type': {
+          if (v === 'none') return [null];
+          if (isIdOf('issueType', v)) return [v];
+          let q = db
+            .selectFrom('issue_types')
+            .select('id')
+            .where(sql`lower(name)`, '=', v.toLowerCase());
+          if (projectId) q = q.where('project_id', '=', projectId);
+          q = await readableOnly(q);
+          const ids = (await q.execute()).map((r) => r.id);
+          if (!ids.length) throw validationError(`Unknown issue type "${v}"`);
           return ids;
         }
         case 'labels': {

@@ -16,13 +16,14 @@ Local mode (an in-process database, no server) is not part of the module. It liv
 
 ## Grammar
 
-`poietic-tech issues <noun> <verb> [arguments] [options]`, for example `issue list`, `comment add`, `link add`, `status reorder`.
+`poietic-tech issues <noun> <verb> [arguments] [options]`, for example `issue list`, `comment add`, `link add`, `status reorder`, `type create`.
 
 **Issue references.** Issues are referenced as `ENG-42` or by id, everywhere.
 
 **Other references.** Anything with a name can be referenced by it:
 
 - statuses: `--status "In Progress"`
+- issue types: `--type bug`, or `none`
 - labels: `--label bug`
 - users: `--assignee @ada`, `me` or `none`
 - links: `blocks`, `blocked-by`, `relates-to`, `duplicates`, `duplicated-by`
@@ -120,13 +121,13 @@ Since `@poietic-tech/issues` 0.3.0, `project members list` prints `KIND MEMBER R
 
 ## Discovery
 
-| Command                                                                           | What it gives                                                                                                       |
-| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `poietic-tech issues commands`                                                    | Every command, argument, option, exit code, error code and environment variable, as JSON, whatever the format       |
-| `poietic-tech issues project schema`                                              | JSON Schema for issue create/update in the current project, with live enums: statuses, labels, users, custom fields |
-| `poietic-tech issues schema <name>`                                               | JSON Schema of resources and inputs (`issue`, `issue-create`, `issue-filter`, `view-config`, …)                     |
-| `poietic-tech issues api GET /issues/ENG-1`                                       | Any endpoint, raw (like `gh api`)                                                                                   |
-| `poietic-tech issues event list --after <seq>` / `poietic-tech issues event tail` | What changed since a point in time (NDJSON with `tail`)                                                             |
+| Command                                                                           | What it gives                                                                                                                    |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `poietic-tech issues commands`                                                    | Every command, argument, option, exit code, error code and environment variable, as JSON, whatever the format                    |
+| `poietic-tech issues project schema`                                              | JSON Schema for issue create/update in the current project, with live enums: statuses, issue types, labels, users, custom fields |
+| `poietic-tech issues schema <name>`                                               | JSON Schema of resources and inputs (`issue`, `issue-create`, `issue-filter`, `view-config`, …)                                  |
+| `poietic-tech issues api GET /issues/ENG-1`                                       | Any endpoint, raw (like `gh api`)                                                                                                |
+| `poietic-tech issues event list --after <seq>` / `poietic-tech issues event tail` | What changed since a point in time (NDJSON with `tail`)                                                                          |
 
 ## Administration: the operator tool
 

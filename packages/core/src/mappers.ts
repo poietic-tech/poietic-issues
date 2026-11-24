@@ -1,6 +1,7 @@
 import { type Database, fromJson, type Selectable, toBool } from '@poietic-tech/issues-db';
 import type {
   Comment,
+  IssueType,
   Label,
   LinkType,
   Project,
@@ -67,6 +68,18 @@ export function toStatus(r: Row<'statuses'>): Status {
     projectId: r.project_id,
     name: r.name,
     category: r.category,
+    color: r.color,
+    position: r.position,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+export function toIssueType(r: Row<'issue_types'>): IssueType {
+  return {
+    id: r.id,
+    projectId: r.project_id,
+    name: r.name,
     color: r.color,
     position: r.position,
     createdAt: r.created_at,

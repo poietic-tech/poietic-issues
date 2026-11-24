@@ -68,6 +68,9 @@
               "status.created",
               "status.updated",
               "status.deleted",
+              "issue_type.created",
+              "issue_type.updated",
+              "issue_type.deleted",
               "label.created",
               "label.updated",
               "label.deleted",
@@ -895,6 +898,108 @@
           }
         }
       },
+      "IssueType": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Bug"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "description": "Hex color.",
+            "example": "#5e6ad2"
+          },
+          "position": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO-8601 UTC timestamp.",
+            "example": "2026-09-26T13:49:00.123Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO-8601 UTC timestamp.",
+            "example": "2026-09-26T13:49:00.123Z"
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "name",
+          "color",
+          "position",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "A kind of issue (feature, bug, task, …). Each project keeps its own list."
+      },
+      "CreateIssueTypeInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "default": "#8a8f98",
+            "description": "Hex color.",
+            "example": "#5e6ad2"
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Defaults to last."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "ReorderIssueTypesInput": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every issue type id, in the new order."
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "UpdateIssueTypeInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "description": "Hex color.",
+            "example": "#5e6ad2"
+          }
+        }
+      },
       "Label": {
         "type": "object",
         "properties": {
@@ -1163,6 +1268,22 @@
           "status": {
             "$ref": "#/components/schemas/StatusSummary"
           },
+          "typeId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IssueTypeSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "priority": {
             "type": "integer",
             "minimum": 0,
@@ -1330,6 +1451,8 @@
           "description",
           "statusId",
           "status",
+          "typeId",
+          "type",
           "priority",
           "assigneeId",
           "assignee",
@@ -1388,6 +1511,29 @@
           "id",
           "name",
           "category",
+          "color"
+        ]
+      },
+      "IssueTypeSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Bug"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "description": "Hex color.",
+            "example": "#5e6ad2"
+          }
+        },
+        "required": [
+          "id",
+          "name",
           "color"
         ]
       },
@@ -1620,6 +1766,14 @@
             "description": "Defaults to the first backlog/unstarted status.",
             "example": "In Progress"
           },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Defaults to no type.",
+            "example": "Bug"
+          },
           "priority": {
             "type": "integer",
             "minimum": 0,
@@ -1713,6 +1867,14 @@
             "type": "string",
             "description": "Status id or name (case-insensitive) within the project.",
             "example": "In Progress"
+          },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "One of the project's issue types (id or name, case-insensitive), or null for none.",
+            "example": "Bug"
           },
           "priority": {
             "type": "integer",
@@ -1864,6 +2026,14 @@
                 "type": "string",
                 "description": "Status id or name (case-insensitive) within the project.",
                 "example": "In Progress"
+              },
+              "type": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "One of the project's issue types (id or name, case-insensitive), or null for none.",
+                "example": "Bug"
               },
               "priority": {
                 "type": "integer",
@@ -4423,6 +4593,393 @@
         }
       }
     },
+    "/projects/{project}/issue-types": {
+      "get": {
+        "tags": [
+          "Issue types"
+        ],
+        "summary": "List the project's issue types in order",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "ENG"
+            },
+            "required": true,
+            "name": "project",
+            "in": "path",
+            "description": "Project key (e.g. `ENG`) or id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Issue types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/IssueType"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem details. Codes: VALIDATION_FAILED.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem details. Codes: UNAUTHENTICATED.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem details. Codes: NOT_FOUND.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Issue types"
+        ],
+        "summary": "Create an issue type",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "ENG"
+            },
+            "required": true,
+            "name": "project",
+            "in": "path",
+            "description": "Project key (e.g. `ENG`) or id."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIssueTypeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueType"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem details. Codes: VALIDATION_FAILED.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem details. Codes: UNAUTHENTICATED.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem details. Codes: NOT_FOUND.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Problem details. Codes: CONFLICT.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project}/issue-types/reorder": {
+      "post": {
+        "tags": [
+          "Issue types"
+        ],
+        "summary": "Set the order of all issue types",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "ENG"
+            },
+            "required": true,
+            "name": "project",
+            "in": "path",
+            "description": "Project key (e.g. `ENG`) or id."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderIssueTypesInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reordered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/IssueType"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem details. Codes: VALIDATION_FAILED.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem details. Codes: UNAUTHENTICATED.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem details. Codes: NOT_FOUND.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/issue-types/{id}": {
+      "patch": {
+        "tags": [
+          "Issue types"
+        ],
+        "summary": "Update an issue type",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "typ_01h455vb4pex5vsknk084sn02q"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path",
+            "description": "Resource id."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIssueTypeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueType"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem details. Codes: VALIDATION_FAILED.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem details. Codes: UNAUTHENTICATED.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem details. Codes: NOT_FOUND.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Problem details. Codes: CONFLICT.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Issue types"
+        ],
+        "summary": "Delete an issue type",
+        "description": "Its issues are left with no type, or move to `moveIssuesTo` (another type id or name) when given.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "typ_01h455vb4pex5vsknk084sn02q"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path",
+            "description": "Resource id."
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "moveIssuesTo",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueType"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem details. Codes: VALIDATION_FAILED.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem details. Codes: UNAUTHENTICATED.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem details. Codes: NOT_FOUND.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/projects/{project}/labels": {
       "get": {
         "tags": [
@@ -5495,6 +6052,17 @@
             },
             "required": false,
             "name": "statusCategory",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Issue type names or ids, or `none`.",
+              "example": "Bug,Task"
+            },
+            "required": false,
+            "description": "Issue type names or ids, or `none`.",
+            "name": "type",
             "in": "query"
           },
           {
@@ -7589,10 +8157,10 @@
           {
             "schema": {
               "type": "string",
-              "description": "Comma-separated event types: issue.created, issue.updated, issue.deleted, issue.restored, comment.created, comment.updated, comment.deleted, link.created, link.deleted, project.created, project.updated, project.member_added, project.member_changed, project.member_removed, project.group_grant_added, project.group_grant_changed, project.group_grant_removed, project.repo_added, project.repo_removed, status.created, status.updated, status.deleted, label.created, label.updated, label.deleted, user.created, user.updated, field.created, field.updated, field.deleted, attachment.created, attachment.deleted."
+              "description": "Comma-separated event types: issue.created, issue.updated, issue.deleted, issue.restored, comment.created, comment.updated, comment.deleted, link.created, link.deleted, project.created, project.updated, project.member_added, project.member_changed, project.member_removed, project.group_grant_added, project.group_grant_changed, project.group_grant_removed, project.repo_added, project.repo_removed, status.created, status.updated, status.deleted, issue_type.created, issue_type.updated, issue_type.deleted, label.created, label.updated, label.deleted, user.created, user.updated, field.created, field.updated, field.deleted, attachment.created, attachment.deleted."
             },
             "required": false,
-            "description": "Comma-separated event types: issue.created, issue.updated, issue.deleted, issue.restored, comment.created, comment.updated, comment.deleted, link.created, link.deleted, project.created, project.updated, project.member_added, project.member_changed, project.member_removed, project.group_grant_added, project.group_grant_changed, project.group_grant_removed, project.repo_added, project.repo_removed, status.created, status.updated, status.deleted, label.created, label.updated, label.deleted, user.created, user.updated, field.created, field.updated, field.deleted, attachment.created, attachment.deleted.",
+            "description": "Comma-separated event types: issue.created, issue.updated, issue.deleted, issue.restored, comment.created, comment.updated, comment.deleted, link.created, link.deleted, project.created, project.updated, project.member_added, project.member_changed, project.member_removed, project.group_grant_added, project.group_grant_changed, project.group_grant_removed, project.repo_added, project.repo_removed, status.created, status.updated, status.deleted, issue_type.created, issue_type.updated, issue_type.deleted, label.created, label.updated, label.deleted, user.created, user.updated, field.created, field.updated, field.deleted, attachment.created, attachment.deleted.",
             "name": "types",
             "in": "query"
           }

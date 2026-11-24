@@ -99,6 +99,16 @@ export interface StatusesTable {
   updated_at: Timestamp;
 }
 
+export interface IssueTypesTable {
+  id: string;
+  project_id: string;
+  name: string;
+  color: string;
+  position: number;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
 export interface LabelsTable {
   id: string;
   project_id: string;
@@ -117,6 +127,7 @@ export interface IssuesTable {
   title: string;
   description: string;
   status_id: string;
+  type_id: string | null;
   priority: number;
   assignee_id: string | null;
   creator_id: string;
@@ -316,6 +327,7 @@ export interface Database {
   project_group_grants: ProjectGroupGrantsTable;
   project_repos: ProjectReposTable;
   statuses: StatusesTable;
+  issue_types: IssueTypesTable;
   labels: LabelsTable;
   issues: IssuesTable;
   issue_labels: IssueLabelsTable;

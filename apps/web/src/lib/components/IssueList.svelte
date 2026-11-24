@@ -35,6 +35,7 @@
   const WIDTH: Record<string, string> = {
     key: '4.5rem',
     status: '8.5rem',
+    type: '6rem',
     priority: '2rem',
     assignee: '2rem',
     creator: '2rem',

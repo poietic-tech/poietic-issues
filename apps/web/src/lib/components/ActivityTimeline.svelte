@@ -88,6 +88,8 @@
         const out: string[] = [];
         for (const [field, c] of Object.entries(data.changes ?? {})) {
           if (field === 'status') out.push(`changed status from ${name(c.from)} to ${name(c.to)}`);
+          else if (field === 'type')
+            out.push(c.to ? `set type to ${name(c.to)}` : 'removed the type');
           else if (field === 'priority')
             out.push(`set priority to ${PRIORITY_LABELS[c.to as number]}`);
           else if (field === 'assignee')

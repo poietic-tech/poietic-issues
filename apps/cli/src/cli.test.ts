@@ -87,7 +87,9 @@ describe(`tracker CLI (${testDialect()})`, () => {
     expect(quiet.stdout).toBe('CLI-2\n');
 
     const table = await cli(['issue', 'list', '--sort', 'key']);
-    expect(table.stdout.split('\n')[0]).toMatch(/^KEY\s+STATUS\s+PRI\s+ASSIGNEE\s+LABELS\s+TITLE$/);
+    expect(table.stdout.split('\n')[0]).toMatch(
+      /^KEY\s+STATUS\s+TYPE\s+PRI\s+ASSIGNEE\s+LABELS\s+TITLE$/,
+    );
     expect(table.stdout).toContain('CLI-1');
   });
 
@@ -174,6 +176,39 @@ describe(`tracker CLI (${testDialect()})`, () => {
         .split('\n')
         .map((l) => JSON.parse(l).key),
     ).toEqual(['CLI-1', 'CLI-2', 'CLI-3', 'CLI-4']);
+  });
+
+  it('manages issue types and sets, filters and clears an issue type', async () => {
+    const types = await cli(['type', 'list', '--json']);
+    expect((types.json().data as Array<{ name: string }>).map((x) => x.name)).toEqual([
+      'Feature',
+      'Bug',
+      'Task',
+    ]);
+    expect((await cli(['type', 'create', '-n', 'Spike', '--json'])).json()).toMatchObject({
+      name: 'Spike',
+      position: 3,
+    });
+    expect(
+      (await cli(['type', 'edit', 'spike', '--color', '#123456', '--json'])).json(),
+    ).toMatchObject({ color: '#123456' });
+    const typed = await cli(['issue', 'create', '-t', 'Typed', '--type', 'bug', '--json']);
+    const key = (typed.json() as { key: string; type: { name: string } }).key;
+    expect(typed.json()).toMatchObject({ type: { name: 'Bug' } });
+    const bugs = await cli(['issue', 'list', '--type', 'Bug', '-q']);
+    expect(bugs.stdout.trim().split('\n')).toEqual([key]);
+    expect((await cli(['issue', 'view', key])).stdout).toContain('Type: Bug');
+    expect((await cli(['issue', 'edit', key, '--type', 'none', '--json'])).json()).toMatchObject({
+      type: null,
+    });
+    await cli(['type', 'reorder', 'Task', 'Bug', 'Feature', 'Spike']);
+    expect(
+      ((await cli(['type', 'list', '--json'])).json().data as Array<{ name: string }>).map(
+        (x) => x.name,
+      ),
+    ).toEqual(['Task', 'Bug', 'Feature', 'Spike']);
+    expect((await cli(['type', 'delete', 'Spike', '--move-to', 'Task', '--json'])).code).toBe(0);
+    expect((await cli(['type', 'edit', 'Nope', '-n', 'x'])).code).not.toBe(0);
   });
 
   it('maps API errors to documented exit codes and problem JSON on stderr', async () => {

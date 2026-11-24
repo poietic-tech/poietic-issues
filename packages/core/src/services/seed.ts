@@ -86,6 +86,7 @@ export async function seedDemoData(ctx: ServiceContext): Promise<{ users: string
   });
   const kanban = await createIssue(asAda, 'ENG', {
     title: 'Kanban board with customizable cards',
+    type: 'Feature',
     priority: 2,
     status: 'Todo',
     parent: epic.key,
@@ -95,6 +96,7 @@ export async function seedDemoData(ctx: ServiceContext): Promise<{ users: string
   });
   const cli = await createIssue(asClaude, 'ENG', {
     title: 'Agent-friendly CLI with JSON output',
+    type: 'Feature',
     description: 'Every command supports `--json`; errors carry stable codes.',
     priority: 1,
     status: 'In Review',
@@ -106,6 +108,7 @@ export async function seedDemoData(ctx: ServiceContext): Promise<{ users: string
   });
   const bug = await createIssue(asAda, 'ENG', {
     title: 'Dragging a card to an empty column loses its position',
+    type: 'Bug',
     priority: 1,
     status: 'Todo',
     labels: ['bug'],
@@ -121,6 +124,7 @@ export async function seedDemoData(ctx: ServiceContext): Promise<{ users: string
   });
   await createIssue(asAda, 'ENG', {
     title: 'Set up CI for Postgres',
+    type: 'Task',
     status: 'Done',
     labels: ['chore'],
     priority: 3,

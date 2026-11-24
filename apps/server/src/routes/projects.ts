@@ -2,26 +2,34 @@ import { createRoute, z } from '@hono/zod-openapi';
 import {
   createLabel,
   createProject,
+  createIssueType,
   createStatus,
+  deleteIssueType,
   deleteLabel,
   deleteStatus,
   getProject,
   issueInputJsonSchema,
+  listIssueTypes,
   listLabels,
   listProjects,
   listStatuses,
+  reorderIssueTypes,
   reorderStatuses,
+  updateIssueType,
   updateLabel,
   updateProject,
   updateStatus,
 } from '@poietic-tech/issues-core';
 import {
+  CreateIssueTypeInputSchema,
   CreateLabelInputSchema,
   CreateProjectInputSchema,
   CreateStatusInputSchema,
+  IssueTypeSchema,
   LabelSchema,
   ProjectWithAccessSchema,
   StatusSchema,
+  UpdateIssueTypeInputSchema,
   UpdateLabelInputSchema,
   UpdateProjectInputSchema,
   UpdateStatusInputSchema,
@@ -227,6 +235,117 @@ export function registerProjectRoutes(app: TrackerApp) {
     }),
     async (c) =>
       c.json(await deleteStatus(c.get('ctx'), c.req.valid('param').id, c.req.valid('query')), 200),
+  );
+
+  tags = ['Issue types'];
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/projects/{project}/issue-types',
+      tags,
+      summary: "List the project's issue types in order",
+      request: { params: projectParam },
+      responses: {
+        200: json(z.object({ data: z.array(IssueTypeSchema) }), 'Issue types'),
+        ...errorResponses('NOT_FOUND'),
+      },
+    }),
+    async (c) =>
+      c.json({ data: await listIssueTypes(c.get('ctx'), c.req.valid('param').project) }, 200),
+  );
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/projects/{project}/issue-types',
+      tags,
+      summary: 'Create an issue type',
+      request: { params: projectParam, body: jsonBody(CreateIssueTypeInputSchema) },
+      responses: {
+        201: json(IssueTypeSchema, 'Created'),
+        ...errorResponses('NOT_FOUND', 'CONFLICT'),
+      },
+    }),
+    async (c) =>
+      c.json(
+        await createIssueType(c.get('ctx'), c.req.valid('param').project, c.req.valid('json')),
+        201,
+      ),
+  );
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/projects/{project}/issue-types/reorder',
+      tags,
+      summary: 'Set the order of all issue types',
+      request: {
+        params: projectParam,
+        body: jsonBody(
+          z
+            .object({
+              ids: z
+                .array(z.string())
+                .openapi({ description: 'Every issue type id, in the new order.' }),
+            })
+            .openapi('ReorderIssueTypesInput'),
+        ),
+      },
+      responses: {
+        200: json(z.object({ data: z.array(IssueTypeSchema) }), 'Reordered'),
+        ...errorResponses('NOT_FOUND'),
+      },
+    }),
+    async (c) =>
+      c.json(
+        {
+          data: await reorderIssueTypes(
+            c.get('ctx'),
+            c.req.valid('param').project,
+            c.req.valid('json').ids,
+          ),
+        },
+        200,
+      ),
+  );
+  app.openapi(
+    createRoute({
+      method: 'patch',
+      path: '/issue-types/{id}',
+      tags,
+      summary: 'Update an issue type',
+      request: {
+        params: idParam('typ_01h455vb4pex5vsknk084sn02q'),
+        body: jsonBody(UpdateIssueTypeInputSchema),
+      },
+      responses: {
+        200: json(IssueTypeSchema, 'Updated'),
+        ...errorResponses('NOT_FOUND', 'CONFLICT'),
+      },
+    }),
+    async (c) =>
+      c.json(
+        await updateIssueType(c.get('ctx'), c.req.valid('param').id, c.req.valid('json')),
+        200,
+      ),
+  );
+  app.openapi(
+    createRoute({
+      method: 'delete',
+      path: '/issue-types/{id}',
+      tags,
+      summary: 'Delete an issue type',
+      description:
+        'Its issues are left with no type, or move to `moveIssuesTo` (another type id or name) when given.',
+      request: {
+        params: idParam('typ_01h455vb4pex5vsknk084sn02q'),
+        query: z.object({ moveIssuesTo: z.string().optional() }),
+      },
+      responses: { 200: json(IssueTypeSchema, 'Deleted'), ...errorResponses('NOT_FOUND') },
+    }),
+    async (c) =>
+      c.json(
+        await deleteIssueType(c.get('ctx'), c.req.valid('param').id, c.req.valid('query')),
+        200,
+      ),
   );
 
   tags = ['Labels'];

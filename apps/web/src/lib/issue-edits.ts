@@ -38,6 +38,7 @@ export function pruneUnchanged(patch: UpdateIssueInput, base: Issue): UpdateIssu
   for (const f of scalar) if (f in out && same(out[f], base[f])) delete out[f];
   if ('assignee' in out && same(out.assignee, base.assigneeId)) delete out.assignee;
   if ('status' in out && out.status === base.statusId) delete out.status;
+  if ('type' in out && same(out.type, base.typeId)) delete out.type;
   if (out.customFields) {
     const cf = Object.fromEntries(
       Object.entries(out.customFields).filter(([k, v]) => !same(v, base.customFields[k])),

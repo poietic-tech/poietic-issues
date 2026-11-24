@@ -25,6 +25,22 @@ async function statusId(rt: CommandRuntime, api: ApiClient, ref: string): Promis
   return found.id;
 }
 
+async function issueTypeId(rt: CommandRuntime, api: ApiClient, ref: string): Promise<string> {
+  if (ref.startsWith('typ_')) return ref;
+  const list = (
+    await rt.call(
+      api.GET('/projects/{project}/issue-types', { params: { path: { project: rt.project() } } }),
+    )
+  ).data;
+  const found = list.find((t) => t.name.toLowerCase() === ref.toLowerCase());
+  if (!found)
+    throw new CliError(
+      'NOT_FOUND',
+      `Issue type "${ref}" not found in ${rt.project()} (${list.map((t) => t.name).join(', ') || 'none'})`,
+    );
+  return found.id;
+}
+
 async function labelId(rt: CommandRuntime, api: ApiClient, ref: string): Promise<string> {
   if (ref.startsWith('lbl_')) return ref;
   const list = (
@@ -154,7 +170,7 @@ export function registerProject(parent: Command, tree: Tree): Command {
   cmd
     .command('schema')
     .description(
-      'JSON Schema for issue create/update in this project, with live enums (statuses, labels, repos, assignable users, custom fields)',
+      'JSON Schema for issue create/update in this project, with live enums (statuses, issue types, labels, repos, assignable users, custom fields)',
     )
     .argument('[project]', 'project key or id')
     .action(
@@ -279,6 +295,114 @@ export function registerStatus(parent: Command, tree: Tree): Command {
           (
             await rt.call(
               api.POST('/projects/{project}/statuses/reorder', {
+                params: { path: { project: rt.project() } },
+                body: { ids },
+              }),
+            )
+          ).data,
+        );
+      }),
+    );
+  return cmd;
+}
+
+export function registerType(parent: Command, tree: Tree): Command {
+  const act: Tree['act'] = (fn) => tree.act(fn);
+  const cmd = parent
+    .command('type')
+    .description("Manage a project's issue types (feature, bug, task, …)");
+  const list = async (rt: CommandRuntime, api: ApiClient) =>
+    (
+      await rt.call(
+        api.GET('/projects/{project}/issue-types', {
+          params: { path: { project: rt.project() } },
+        }),
+      )
+    ).data;
+  cmd
+    .command('list')
+    .alias('ls')
+    .description('List issue types in order')
+    .action(
+      act(async (rt) => {
+        rt.out.list('issueType', await list(rt, await rt.api()));
+      }),
+    );
+  cmd
+    .command('create')
+    .description('Create an issue type')
+    .requiredOption('-n, --name <name>', 'name')
+    .option('--color <hex>', 'color like #eb5757')
+    .option('--position <n>', 'position in the list (0 = first)', (v) => Number(v))
+    .action(
+      act(async (rt, _a, o) => {
+        const api = await rt.api();
+        rt.out.item(
+          'issueType',
+          await rt.call(
+            api.POST('/projects/{project}/issue-types', {
+              params: { path: { project: rt.project() } },
+              body: pick(o, ['name', 'color', 'position']) as Schemas['CreateIssueTypeInput'],
+            }),
+          ),
+        );
+      }),
+    );
+  cmd
+    .command('edit')
+    .description('Rename or recolor an issue type')
+    .argument('<type>', 'issue type name or id')
+    .option('-n, --name <name>', 'new name')
+    .option('--color <hex>', 'color')
+    .action(
+      act(async (rt, [ref], o) => {
+        const api = await rt.api();
+        const id = await issueTypeId(rt, api, String(ref));
+        rt.out.item(
+          'issueType',
+          await rt.call(
+            api.PATCH('/issue-types/{id}', {
+              params: { path: { id } },
+              body: pick(o, ['name', 'color']) as Schemas['UpdateIssueTypeInput'],
+            }),
+          ),
+        );
+      }),
+    );
+  cmd
+    .command('delete')
+    .alias('rm')
+    .description('Delete an issue type; its issues are left with no type unless --move-to is given')
+    .argument('<type>', 'issue type name or id')
+    .option('--move-to <type>', 'give its issues this type instead')
+    .action(
+      act(async (rt, [ref], o) => {
+        const api = await rt.api();
+        const id = await issueTypeId(rt, api, String(ref));
+        rt.out.item(
+          'issueType',
+          await rt.call(
+            api.DELETE('/issue-types/{id}', {
+              params: { path: { id }, query: o.moveTo ? { moveIssuesTo: String(o.moveTo) } : {} },
+            }),
+          ),
+        );
+      }),
+    );
+  cmd
+    .command('reorder')
+    .description('Set the order: list every issue type, in order')
+    .argument('<types...>', 'issue type names or ids')
+    .action(
+      act(async (rt, [refs]) => {
+        const api = await rt.api();
+        const ids = [];
+        for (const ref of refs as string[]) ids.push(await issueTypeId(rt, api, ref));
+        rt.out.list(
+          'issueType',
+          (
+            await rt.call(
+              api.POST('/projects/{project}/issue-types/reorder', {
                 params: { path: { project: rt.project() } },
                 body: { ids },
               }),

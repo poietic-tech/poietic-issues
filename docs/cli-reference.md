@@ -40,6 +40,7 @@ Aliases: `ls`
 | --- | --- |
 | `-s, --status <statuses>` | status names/ids |
 | `--category <categories>` | status categories: backlog,unstarted,started,completed,canceled |
+| `--type <types>` | issue type names/ids, or none |
 | `-a, --assignee <users>` | handles/ids, me, none |
 | `--creator <users>` | creator handles/ids |
 | `-l, --label <labels>` | has any of these labels |
@@ -77,6 +78,7 @@ Aliases: `new`
 | `-d, --description <markdown>` | description (markdown) |
 | `--body-file <path>` | read the description from a file, or - for stdin |
 | `-s, --status <status>` | status name or id |
+| `--type <type>` | issue type name or id, or none to clear it |
 | `-p, --priority <priority>` | none\|urgent\|high\|medium\|low or 0-4 |
 | `-a, --assignee <user>` | handle, @handle, me, or none to unassign |
 | `--parent <issue>` | parent issue key, or none |
@@ -104,6 +106,7 @@ Aliases: `update`
 | `-d, --description <markdown>` | description (markdown) |
 | `--body-file <path>` | read the description from a file, or - for stdin |
 | `-s, --status <status>` | status name or id |
+| `--type <type>` | issue type name or id, or none to clear it |
 | `-p, --priority <priority>` | none\|urgent\|high\|medium\|low or 0-4 |
 | `-a, --assignee <user>` | handle, @handle, me, or none to unassign |
 | `--parent <issue>` | parent issue key, or none |
@@ -368,7 +371,7 @@ Edit a project
 
 ### `poietic-tech issues project schema [project]`
 
-JSON Schema for issue create/update in this project, with live enums (statuses, labels, repos, assignable users, custom fields)
+JSON Schema for issue create/update in this project, with live enums (statuses, issue types, labels, repos, assignable users, custom fields)
 
 | Argument | Description |
 | --- | --- |
@@ -496,6 +499,57 @@ Set the column order: list every status, in order
 | Argument | Description |
 | --- | --- |
 | `statuses` | status names or ids |
+
+### `poietic-tech issues type list`
+
+List issue types in order
+
+Aliases: `ls`
+
+### `poietic-tech issues type create`
+
+Create an issue type
+
+| Option | Description |
+| --- | --- |
+| `-n, --name <name>` | name **(required)** |
+| `--color <hex>` | color like #eb5757 |
+| `--position <n>` | position in the list (0 = first) |
+
+### `poietic-tech issues type edit <type>`
+
+Rename or recolor an issue type
+
+| Argument | Description |
+| --- | --- |
+| `type` | issue type name or id |
+
+| Option | Description |
+| --- | --- |
+| `-n, --name <name>` | new name |
+| `--color <hex>` | color |
+
+### `poietic-tech issues type delete <type>`
+
+Delete an issue type; its issues are left with no type unless --move-to is given
+
+Aliases: `rm`
+
+| Argument | Description |
+| --- | --- |
+| `type` | issue type name or id |
+
+| Option | Description |
+| --- | --- |
+| `--move-to <type>` | give its issues this type instead |
+
+### `poietic-tech issues type reorder <types...>`
+
+Set the order: list every issue type, in order
+
+| Argument | Description |
+| --- | --- |
+| `types` | issue type names or ids |
 
 ### `poietic-tech issues label list`
 

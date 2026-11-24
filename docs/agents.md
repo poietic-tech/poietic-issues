@@ -49,7 +49,7 @@ Both agents see only the private projects they are members of.
 
 ```sh
 poietic-tech issues commands        # all commands/options/exit codes, as JSON whatever the format
-poietic-tech issues project schema  # valid statuses, labels, repos, assignable users, custom fields
+poietic-tech issues project schema  # valid statuses, issue types, labels, repos, assignable users, custom fields
 ```
 
 ## Recipes
@@ -63,7 +63,10 @@ v=$(poietic-tech issues issue view ENG-42 --fields version --json | jq .version)
 poietic-tech issues issue edit ENG-42 --assignee me --status "In Progress" --if-version "$v"
 
 # Break work down
-poietic-tech issues issue create -t "Write migration" --parent ENG-42 -l chore -q      # prints ENG-43
+poietic-tech issues issue create -t "Write migration" --parent ENG-42 --type Task -l chore -q   # prints ENG-43
+
+# Find the open bugs (types are per project; `poietic-tech issues type list` shows them)
+poietic-tech issues issue list --type Bug --category unstarted,started
 
 # Report progress with markdown from a file or stdin
 poietic-tech issues comment add ENG-42 --body-file - <<'MD'

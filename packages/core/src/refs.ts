@@ -133,6 +133,20 @@ export async function getStatusRow(db: Exec, projectId: string, ref: string) {
   return row;
 }
 
+/** Resolves an issue type of a project by id or name (case-insensitive). */
+export async function findIssueType(db: Exec, projectId: string, ref: string) {
+  const q = db.selectFrom('issue_types').selectAll().where('project_id', '=', projectId);
+  if (isIdOf('issueType', ref)) return q.where('id', '=', ref).executeTakeFirst();
+  const needle = ref.trim().toLowerCase();
+  return (await q.execute()).find((t) => t.name.toLowerCase() === needle);
+}
+
+export async function getIssueTypeRow(db: Exec, projectId: string, ref: string) {
+  const row = await findIssueType(db, projectId, ref);
+  if (!row) throw notFound('IssueType', ref);
+  return row;
+}
+
 const OWNER = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
 const NAME = /^(?!\.{1,2}$)[A-Za-z0-9._-]{1,100}$/;
 

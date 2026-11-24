@@ -33,6 +33,7 @@ export const keys = {
   projects: ['projects'] as const,
   project: (key: string) => ['project', key] as const,
   statuses: (key: string) => ['statuses', key] as const,
+  issueTypes: (key: string) => ['issue-types', key] as const,
   labels: (key: string) => ['labels', key] as const,
   views: (key: string) => ['views', key] as const,
   members: (key: string) => ['members', key] as const,
@@ -68,6 +69,9 @@ export const fetchers = {
       .data,
   statuses: async (key: string) =>
     (await call(api.GET('/projects/{project}/statuses', { params: { path: { project: key } } })))
+      .data,
+  issueTypes: async (key: string) =>
+    (await call(api.GET('/projects/{project}/issue-types', { params: { path: { project: key } } })))
       .data,
   labels: async (key: string) =>
     (await call(api.GET('/projects/{project}/labels', { params: { path: { project: key } } })))

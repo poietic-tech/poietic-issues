@@ -299,6 +299,9 @@ describe(`migrations (${dialect})`, () => {
   it('migrate down removes everything and migrate up restores it', async () => {
     const db = await createTestDb();
     try {
+      expect(await migrateDown(db)).toEqual(['0011_issue_types']);
+      await expect(sql`select count(*) from issue_types`.execute(db.kysely)).rejects.toThrow();
+      await expect(sql`select type_id from issues`.execute(db.kysely)).rejects.toThrow();
       expect(await migrateDown(db)).toEqual(['0010_project_group_grants']);
       await expect(
         sql`select count(*) from project_group_grants`.execute(db.kysely),
@@ -335,6 +338,7 @@ describe(`migrations (${dialect})`, () => {
         '0008_webhook_payload',
         '0009_session_groups',
         '0010_project_group_grants',
+        '0011_issue_types',
       ]);
       expect(await migrateToLatest(db)).toEqual([
         '0001_init',
@@ -347,6 +351,7 @@ describe(`migrations (${dialect})`, () => {
         '0008_webhook_payload',
         '0009_session_groups',
         '0010_project_group_grants',
+        '0011_issue_types',
       ]);
       expect((await migrationStatus(db)).upToDate).toBe(true);
     } finally {
@@ -357,6 +362,7 @@ describe(`migrations (${dialect})`, () => {
   it('0004 makes active non-admin users editors of existing projects', async () => {
     const db = await createTestDb();
     try {
+      await migrateDown(db);
       await migrateDown(db);
       await migrateDown(db);
       await migrateDown(db);
@@ -409,6 +415,7 @@ describe(`migrations (${dialect})`, () => {
       await migrateDown(db);
       await migrateDown(db);
       await migrateDown(db);
+      await migrateDown(db);
       await migrateDown(db); // back to 0003
       const ts = '2026-01-01T00:00:00.000Z';
       // Even a system user whose role is `member` (the built-in one is an admin) must be skipped.
@@ -432,10 +439,47 @@ describe(`migrations (${dialect})`, () => {
   });
 });
 
+describe(`migration 0011 (${dialect})`, () => {
+  it('seeds Feature, Bug and Task in every existing project, and issues start with no type', async () => {
+    const db = await createTestDb();
+    try {
+      expect(await migrateDown(db)).toEqual(['0011_issue_types']);
+      const ts = '2026-01-01T00:00:00.000Z';
+      for (const [id, key] of [
+        ['prj_a', 'AAA'],
+        ['prj_b', 'BBB'],
+      ] as const)
+        await sql`insert into projects (id, key, name, description, next_issue_number, created_at, updated_at, archived_at, visibility)
+          values (${id}, ${key}, ${key}, '', 1, ${ts}, ${ts}, null, 'private')`.execute(db.kysely);
+      expect(await migrateToLatest(db)).toEqual(['0011_issue_types']);
+      const rows = await sql<{ project_id: string; name: string; position: number; id: string }>`
+        select project_id, name, position, id from issue_types order by project_id, position`.execute(
+        db.kysely,
+      );
+      expect(rows.rows.map((r) => [r.project_id, r.name, Number(r.position)])).toEqual([
+        ['prj_a', 'Feature', 0],
+        ['prj_a', 'Bug', 1],
+        ['prj_a', 'Task', 2],
+        ['prj_b', 'Feature', 0],
+        ['prj_b', 'Bug', 1],
+        ['prj_b', 'Task', 2],
+      ]);
+      for (const r of rows.rows) expect(r.id).toMatch(/^typ_[0-7][0-9a-z]{25}$/);
+      await expect(
+        sql`insert into issue_types (id, project_id, name, color, position, created_at, updated_at)
+          values ('typ_dup', 'prj_a', 'BUG', '#000000', 3, ${ts}, ${ts})`.execute(db.kysely),
+      ).rejects.toThrow();
+    } finally {
+      await db.destroy();
+    }
+  });
+});
+
 describe(`migration 0006 (${dialect})`, () => {
   it('ends the sessions of users with an SSO identity, and keeps the rest', async () => {
     const db = await createTestDb();
     try {
+      await migrateDown(db);
       await migrateDown(db);
       await migrateDown(db);
       await migrateDown(db);
@@ -463,6 +507,7 @@ describe(`migration 0006 (${dialect})`, () => {
         '0008_webhook_payload',
         '0009_session_groups',
         '0010_project_group_grants',
+        '0011_issue_types',
       ]);
       const rows = await sql<{ id: string }>`select id from sessions order by id`.execute(
         db.kysely,

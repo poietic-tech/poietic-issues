@@ -25,7 +25,14 @@ import { diff, recordEvent } from '../events.ts';
 import { hideTrashedParents, loadIssue, queryIssues } from '../issue-query.ts';
 import { atLeast } from '../access.ts';
 import { requireAdmin } from '../permissions.ts';
-import { getIssueAccess, getIssueRow, getProjectRow, getStatusRow, getUserRow } from '../refs.ts';
+import {
+  getIssueAccess,
+  getIssueRow,
+  getIssueTypeRow,
+  getProjectRow,
+  getStatusRow,
+  getUserRow,
+} from '../refs.ts';
 import { listEvents } from './events.ts';
 import { findRepo } from './repos.ts';
 
@@ -34,6 +41,7 @@ const TRACKED_FIELDS = [
   'title',
   'description',
   'status',
+  'type',
   'priority',
   'assignee',
   'parent',
@@ -340,6 +348,7 @@ export async function createIssue(
     const status = data.status
       ? await getStatusRow(tx, project.id, data.status)
       : await defaultStatus(tx, project.id);
+    const typeId = data.type ? (await getIssueTypeRow(tx, project.id, data.type)).id : null;
     const assigneeId = await resolveAssignee(ctx, tx, data.assignee ?? null);
     const parentId = await resolveParent(ctx, tx, { projectId: project.id }, data.parent ?? null);
     const repoId = await resolveRepoId(tx, project.id, data.repo ?? null);
@@ -365,6 +374,7 @@ export async function createIssue(
         title: data.title,
         description: data.description,
         status_id: status.id,
+        type_id: typeId,
         priority: data.priority,
         assignee_id: assigneeId,
         creator_id: ctx.actor.id,
@@ -451,6 +461,10 @@ export async function updateIssueInTx(
   if (patch.repo !== undefined) {
     const repoId = await resolveRepoId(tx, row.project_id, patch.repo);
     if (repoId !== row.repo_id) set.repo_id = repoId;
+  }
+  if (patch.type !== undefined) {
+    const typeId = patch.type ? (await getIssueTypeRow(tx, row.project_id, patch.type)).id : null;
+    if (typeId !== row.type_id) set.type_id = typeId;
   }
 
   let labelIds: string[] | undefined;

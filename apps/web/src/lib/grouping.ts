@@ -102,7 +102,7 @@ function customFieldGroups(issues: Issue[], key: string, project: ProjectData): 
 
 /**
  * Splits issues into groups for a groupable field (list groups / board columns). Group order follows the
- * domain: statuses by position, priorities urgent→none, users alphabetically with "No assignee" first,
+ * domain: statuses and issue types by position (no type first), priorities urgent→none, users alphabetically with "No assignee" first,
  * select options in their configured order.
  */
 export function groupIssues(
@@ -125,6 +125,17 @@ export function groupIssues(
         (i) => i.statusId === s.id,
       ),
     );
+  } else if (groupBy === 'type') {
+    const types = project.issueTypes.map((t) => ({ id: t.id, name: t.name, color: t.color }));
+    // A type the list no longer has can still appear on a stale snapshot; keep those issues visible.
+    for (const issue of issues)
+      if (issue.type && !types.some((t) => t.id === issue.type!.id)) types.push(issue.type);
+    groups = [
+      group(NONE, { kind: 'plain', label: 'No type' }, (i) => i.typeId === null),
+      ...types.map((t) =>
+        group(t.id, { kind: 'option', label: t.name, color: t.color }, (i) => i.typeId === t.id),
+      ),
+    ];
   } else if (groupBy === 'priority') {
     groups = PRIORITY_ORDER.map((p) =>
       group(

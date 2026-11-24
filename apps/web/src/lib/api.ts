@@ -2,6 +2,7 @@ import { ApiError, createClient, type Schemas, unwrap } from '@poietic-tech/issu
 
 export type Issue = Schemas['Issue'];
 export type Status = Schemas['Status'];
+export type IssueType = Schemas['IssueType'];
 export type Label = Schemas['Label'];
 export type User = Schemas['User'];
 export type Project = Schemas['ProjectWithAccess'];

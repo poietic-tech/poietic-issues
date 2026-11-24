@@ -211,6 +211,7 @@ describe(`the poietic-tech issues module (${testDialect()})`, () => {
     expect(columns.map(([header]) => header)).toEqual([
       'KEY',
       'STATUS',
+      'TYPE',
       'PRI',
       'ASSIGNEE',
       'LABELS',
@@ -512,6 +513,7 @@ describe('registerTree', () => {
       'attachment',
       'project',
       'status',
+      'type',
       'label',
       'field',
       'view',

@@ -10,12 +10,14 @@ erDiagram
   users ||--o{ user_identities : "signs in as"
   projects ||--o{ project_group_grants : "grants a role to a group"
   projects ||--o{ statuses : defines
+  projects ||--o{ issue_types : defines
   projects ||--o{ labels : defines
   projects ||--o{ custom_fields : defines
   projects ||--o{ views : has
   projects ||--o{ issues : contains
   custom_fields ||--o{ custom_field_options : "select options"
   statuses ||--o{ issues : "current status"
+  issue_types ||--o{ issues : "kind of issue"
   users ||--o{ issues : "creates / is assigned"
   issues ||--o{ issues : "parent of"
   issues ||--o{ issue_labels : ""
@@ -42,6 +44,7 @@ There is no table of API tokens: migration `0007_drop_api_tokens` dropped `api_t
 | `project_group_grants`                  | A role (`viewer`, `editor` or `manager`) a project grants to an auth.poietic.tech group (migration `0010_project_group_grants`, [ADR 0031](adr/0031-global-identity-local-access.md)). Primary key `(project_id, group_slug)`: the group's slug alone, since auth owns groups and no table here holds them. Rows cascade with the project. Grants only add access.                                                                             |
 | `projects`                              | Top-level container. `key` (e.g. `ENG`) is unique and immutable, so issue keys like `ENG-42` never change. `next_issue_number` is incremented inside the write transaction.                                                                                                                                                                                                                                                                    |
 | `statuses`                              | Per-project workflow states. `category` drives semantics (`backlog`, `unstarted`, `started`, `completed`, `canceled`) and `position` orders board columns. Names are unique per project, case-insensitively.                                                                                                                                                                                                                                   |
+| `issue_types`                           | Per-project kinds of issue (Feature, Bug and Task to start with, ADR 0036). `position` orders them; names are unique per project, case-insensitively. An issue's `type_id` is optional, and deleting a type clears it.                                                                                                                                                                                                                         |
 | `labels`                                | Per-project labels. Names are unique per project, case-insensitively.                                                                                                                                                                                                                                                                                                                                                                          |
 | `issues`                                | Identified by `(project_id, number)`. The fields: <ul><li>`priority`: 0 none, 1 urgent … 4 low.</li><li>`rank`: a fractional index, ordered byte-wise.</li><li>`version`: incremented on every change, for optimistic concurrency.</li><li>`metadata`: free-form JSON for integrations and agents.</li><li>`started_at` / `completed_at` / `canceled_at`: follow the status category.</li><li>`deleted_at`: soft delete (the trash).</li></ul> |
 | `issue_labels`                          | Many-to-many join between issues and labels.                                                                                                                                                                                                                                                                                                                                                                                                   |

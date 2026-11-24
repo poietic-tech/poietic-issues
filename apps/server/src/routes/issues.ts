@@ -56,6 +56,10 @@ const listQuery = z
       example: 'Todo,In Progress',
     }),
     statusCategory: z.string().optional().openapi({ example: 'started' }),
+    type: z
+      .string()
+      .optional()
+      .openapi({ description: 'Issue type names or ids, or `none`.', example: 'Bug,Task' }),
     assignee: z
       .string()
       .optional()

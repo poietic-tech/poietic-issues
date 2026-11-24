@@ -39,3 +39,4 @@ Short records of decisions that constrain future work. Copy `0000-template.md`, 
 | [0033](0033-access-decisions-via-poietic-tech-access.md) | Access decisions via `@poietic-tech/access`                            | Accepted                                  |
 | [0034](0034-coalesced-inline-edits.md)                   | Inline issue edits are coalesced                                       | Accepted                                  |
 | [0035](0035-cors-for-allowed-origins.md)                 | CORS with credentials for the allowed origins                          | Accepted                                  |
+| [0036](0036-per-project-issue-types.md)                  | Issues have per-project types                                          | Accepted                                  |
