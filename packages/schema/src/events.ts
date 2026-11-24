@@ -6,6 +6,7 @@ import {
   CommentSchema,
   IssueRefSchema,
   IssueSchema,
+  IssueTypeSchema,
   LabelSchema,
   ProjectGroupGrantSchema,
   ProjectMemberSchema,
@@ -44,6 +45,9 @@ export const EVENT_TYPES = [
   'status.created',
   'status.updated',
   'status.deleted',
+  'issue_type.created',
+  'issue_type.updated',
+  'issue_type.deleted',
   'label.created',
   'label.updated',
   'label.deleted',
@@ -111,6 +115,9 @@ export const ProjectGroupGrantEventDataSchema = z
 export const StatusEventDataSchema = z
   .object({ ...base, status: StatusSchema, changes: ChangesSchema.optional() })
   .meta({ id: 'StatusEventData' });
+export const IssueTypeEventDataSchema = z
+  .object({ ...base, issueType: IssueTypeSchema, changes: ChangesSchema.optional() })
+  .meta({ id: 'IssueTypeEventData' });
 export const LabelEventDataSchema = z
   .object({ ...base, label: LabelSchema, changes: ChangesSchema.optional() })
   .meta({ id: 'LabelEventData' });
@@ -147,6 +154,9 @@ export const EVENT_DATA_SCHEMAS = {
   'status.created': StatusEventDataSchema,
   'status.updated': StatusEventDataSchema,
   'status.deleted': StatusEventDataSchema,
+  'issue_type.created': IssueTypeEventDataSchema,
+  'issue_type.updated': IssueTypeEventDataSchema,
+  'issue_type.deleted': IssueTypeEventDataSchema,
   'label.created': LabelEventDataSchema,
   'label.updated': LabelEventDataSchema,
   'label.deleted': LabelEventDataSchema,

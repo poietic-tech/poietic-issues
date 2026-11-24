@@ -18,7 +18,7 @@ export { inputSchema };
 
 /**
  * JSON Schema (draft 2020-12) for creating and updating issues in a project, with the project's live values
- * filled in as enums: status names, label names, linked repos, assignable user handles and custom field
+ * filled in as enums: status names, issue type names, label names, linked repos, assignable user handles and custom field
  * definitions. Designed for agents: one call tells them every valid value.
  *
  * Assignable users are those who can write the project (its editors and managers, plus admins); `me` is offered
@@ -33,10 +33,16 @@ export async function issueInputJsonSchema(
   const project = await getProjectRow(ctx, db, projectRef, 'read');
   const anonymous = isAnonymous(ctx);
   const callerCanWrite = !anonymous && atLeast(await projectLevel(ctx, db, project), 'write');
-  const [statuses, labels, users, fields, options, repos] = await Promise.all([
+  const [statuses, types, labels, users, fields, options, repos] = await Promise.all([
     db
       .selectFrom('statuses')
       .select(['name', 'category'])
+      .where('project_id', '=', project.id)
+      .orderBy('position')
+      .execute(),
+    db
+      .selectFrom('issue_types')
+      .select('name')
       .where('project_id', '=', project.id)
       .orderBy('position')
       .execute(),
@@ -129,6 +135,8 @@ export async function issueInputJsonSchema(
   const enrich = (schema: JsonSchema): JsonSchema => {
     const props = schema.properties ?? {};
     if (props.status) props.status = { ...props.status, enum: statuses.map((s) => s.name) };
+    if (props.type)
+      props.type = { ...props.type, anyOf: [{ enum: types.map((t) => t.name) }, { type: 'null' }] };
     const labelEnum = { type: 'string', enum: labels.map((l) => l.name) };
     for (const key of ['labels', 'addLabels', 'removeLabels']) {
       if (props[key]) props[key] = { ...props[key], items: labelEnum };

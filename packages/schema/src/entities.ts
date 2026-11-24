@@ -284,6 +284,44 @@ export const UpdateStatusInputSchema = z
   .meta({ id: 'UpdateStatusInput' });
 export type UpdateStatusInput = z.input<typeof UpdateStatusInputSchema>;
 
+export const IssueTypeSchema = z
+  .object({
+    id: z.string(),
+    projectId: z.string(),
+    name: z.string().meta({ example: 'Bug' }),
+    color: ColorSchema,
+    position: z.number().int(),
+    createdAt: TimestampSchema,
+    updatedAt: TimestampSchema,
+  })
+  .meta({
+    id: 'IssueType',
+    description: 'A kind of issue (feature, bug, task, …). Each project keeps its own list.',
+  });
+export type IssueType = z.infer<typeof IssueTypeSchema>;
+
+export const IssueTypeSummarySchema = IssueTypeSchema.pick({
+  id: true,
+  name: true,
+  color: true,
+}).meta({ id: 'IssueTypeSummary' });
+export type IssueTypeSummary = z.infer<typeof IssueTypeSummarySchema>;
+
+export const CreateIssueTypeInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(50),
+    color: ColorSchema.default('#8a8f98'),
+    position: z.number().int().min(0).optional().meta({ description: 'Defaults to last.' }),
+  })
+  .meta({ id: 'CreateIssueTypeInput' });
+export type CreateIssueTypeInput = z.input<typeof CreateIssueTypeInputSchema>;
+
+export const UpdateIssueTypeInputSchema = z
+  .object({ name: z.string().trim().min(1).max(50), color: ColorSchema })
+  .partial()
+  .meta({ id: 'UpdateIssueTypeInput' });
+export type UpdateIssueTypeInput = z.input<typeof UpdateIssueTypeInputSchema>;
+
 export const LabelSchema = z
   .object({
     id: z.string(),
@@ -355,6 +393,8 @@ export const IssueSchema = z
     description: z.string().meta({ description: 'Markdown.' }),
     statusId: z.string(),
     status: StatusSummarySchema,
+    typeId: z.string().nullable(),
+    type: nullableRef(IssueTypeSummarySchema),
     priority: PrioritySchema,
     assigneeId: z.string().nullable(),
     assignee: nullableRef(UserSummarySchema),
@@ -399,6 +439,11 @@ const issueWritable = {
     description: 'Status id or name (case-insensitive) within the project.',
     example: 'In Progress',
   }),
+  type: z.string().nullable().meta({
+    description:
+      "One of the project's issue types (id or name, case-insensitive), or null for none.",
+    example: 'Bug',
+  }),
   priority: PrioritySchema,
   assignee: z.string().nullable().meta({
     description: 'User id, handle (with or without @), `me`, or null to unassign.',
@@ -429,6 +474,7 @@ export const CreateIssueInputSchema = z
     status: issueWritable.status
       .optional()
       .meta({ description: 'Defaults to the first backlog/unstarted status.' }),
+    type: issueWritable.type.optional().meta({ description: 'Defaults to no type.' }),
     assignee: issueWritable.assignee.optional(),
     parent: issueWritable.parent.optional(),
     repo: issueWritable.repo.optional(),

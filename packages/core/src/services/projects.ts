@@ -23,6 +23,7 @@ import { diff, recordEvent } from '../events.ts';
 import { toProject, toStatus } from '../mappers.ts';
 import { requireAdmin } from '../permissions.ts';
 import { getProjectRow } from '../refs.ts';
+import { createDefaultIssueTypes } from './issue-types.ts';
 import { reposOf } from './repos.ts';
 
 /** Workflow every new project starts with. Statuses are fully editable afterwards. */
@@ -134,6 +135,7 @@ async function createDefaults(tx: Tx, ctx: ServiceContext, projectId: string): P
       .executeTakeFirstOrThrow();
     await recordEvent(tx, ctx, 'status.created', { projectId, data: { status: toStatus(row) } });
   }
+  await createDefaultIssueTypes(tx, ctx, projectId);
   const views = [
     { name: 'All issues', layout: 'list' as const },
     { name: 'Board', layout: 'board' as const },

@@ -1227,6 +1227,343 @@ export interface paths {
         };
         trace?: never;
     };
+    "/projects/{project}/issue-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the project's issue types in order */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Project key (e.g. `ENG`) or id. */
+                    project: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Issue types */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["IssueType"][];
+                        };
+                    };
+                };
+                /** @description Problem details. Codes: VALIDATION_FAILED. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Problem details. Codes: UNAUTHENTICATED. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Problem details. Codes: NOT_FOUND. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create an issue type */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Project key (e.g. `ENG`) or id. */
+                    project: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateIssueTypeInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IssueType"];
+                    };
+                };
+                /** @description Problem details. Codes: VALIDATION_FAILED. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Problem details. Codes: UNAUTHENTICATED. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Problem details. Codes: NOT_FOUND. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Problem details. Codes: CONFLICT. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/issue-types/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set the order of all issue types */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Project key (e.g. `ENG`) or id. */
+                    project: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReorderIssueTypesInput"];
+                };
+            };
+            responses: {
+                /** @description Reordered */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["IssueType"][];
+                        };
+                    };
+                };
+                /** @description Problem details. Codes: VALIDATION_FAILED. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Problem details. Codes: UNAUTHENTICATED. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Problem details. Codes: NOT_FOUND. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/issue-types/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an issue type
+         * @description Its issues are left with no type, or move to `moveIssuesTo` (another type id or name) when given.
+         */
+        delete: {
+            parameters: {
+                query?: {
+                    moveIssuesTo?: string;
+                };
+                header?: never;
+                path: {
+                    /** @description Resource id. */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IssueType"];
+                    };
+                };
+                /** @description Problem details. Codes: VALIDATION_FAILED. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Problem details. Codes: UNAUTHENTICATED. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Problem details. Codes: NOT_FOUND. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update an issue type */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Resource id. */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateIssueTypeInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IssueType"];
+                    };
+                };
+                /** @description Problem details. Codes: VALIDATION_FAILED. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Problem details. Codes: UNAUTHENTICATED. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Problem details. Codes: NOT_FOUND. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Problem details. Codes: CONFLICT. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/projects/{project}/labels": {
         parameters: {
             query?: never;
@@ -3957,7 +4294,7 @@ export interface paths {
                     project?: string;
                     /** @description Issue key or id. */
                     issue?: string;
-                    /** @description Comma-separated event types: issue.created, issue.updated, issue.deleted, issue.restored, comment.created, comment.updated, comment.deleted, link.created, link.deleted, project.created, project.updated, project.member_added, project.member_changed, project.member_removed, project.group_grant_added, project.group_grant_changed, project.group_grant_removed, project.repo_added, project.repo_removed, status.created, status.updated, status.deleted, label.created, label.updated, label.deleted, user.created, user.updated, field.created, field.updated, field.deleted, attachment.created, attachment.deleted. */
+                    /** @description Comma-separated event types: issue.created, issue.updated, issue.deleted, issue.restored, comment.created, comment.updated, comment.deleted, link.created, link.deleted, project.created, project.updated, project.member_added, project.member_changed, project.member_removed, project.group_grant_added, project.group_grant_changed, project.group_grant_removed, project.repo_added, project.repo_removed, status.created, status.updated, status.deleted, issue_type.created, issue_type.updated, issue_type.deleted, label.created, label.updated, label.deleted, user.created, user.updated, field.created, field.updated, field.deleted, attachment.created, attachment.deleted. */
                     types?: string;
                 };
                 header?: never;
@@ -5655,7 +5992,7 @@ export interface components {
             seq: number;
             id: string;
             /** @enum {string} */
-            type: "issue.created" | "issue.updated" | "issue.deleted" | "issue.restored" | "comment.created" | "comment.updated" | "comment.deleted" | "link.created" | "link.deleted" | "project.created" | "project.updated" | "project.member_added" | "project.member_changed" | "project.member_removed" | "project.group_grant_added" | "project.group_grant_changed" | "project.group_grant_removed" | "project.repo_added" | "project.repo_removed" | "status.created" | "status.updated" | "status.deleted" | "label.created" | "label.updated" | "label.deleted" | "user.created" | "user.updated" | "field.created" | "field.updated" | "field.deleted" | "attachment.created" | "attachment.deleted";
+            type: "issue.created" | "issue.updated" | "issue.deleted" | "issue.restored" | "comment.created" | "comment.updated" | "comment.deleted" | "link.created" | "link.deleted" | "project.created" | "project.updated" | "project.member_added" | "project.member_changed" | "project.member_removed" | "project.group_grant_added" | "project.group_grant_changed" | "project.group_grant_removed" | "project.repo_added" | "project.repo_removed" | "status.created" | "status.updated" | "status.deleted" | "issue_type.created" | "issue_type.updated" | "issue_type.deleted" | "label.created" | "label.updated" | "label.deleted" | "user.created" | "user.updated" | "field.created" | "field.updated" | "field.deleted" | "attachment.created" | "attachment.deleted";
             actorId: string | null;
             actor: components["schemas"]["UserSummary"] | null;
             projectId: string | null;
@@ -5964,6 +6301,54 @@ export interface components {
              */
             color?: string;
         };
+        /** @description A kind of issue (feature, bug, task, …). Each project keeps its own list. */
+        IssueType: {
+            id: string;
+            projectId: string;
+            /** @example Bug */
+            name: string;
+            /**
+             * @description Hex color.
+             * @example #5e6ad2
+             */
+            color: string;
+            position: number;
+            /**
+             * Format: date-time
+             * @description ISO-8601 UTC timestamp.
+             * @example 2026-09-26T13:49:00.123Z
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description ISO-8601 UTC timestamp.
+             * @example 2026-09-26T13:49:00.123Z
+             */
+            updatedAt: string;
+        };
+        CreateIssueTypeInput: {
+            name: string;
+            /**
+             * @description Hex color.
+             * @default #8a8f98
+             * @example #5e6ad2
+             */
+            color?: string;
+            /** @description Defaults to last. */
+            position?: number;
+        };
+        ReorderIssueTypesInput: {
+            /** @description Every issue type id, in the new order. */
+            ids: string[];
+        };
+        UpdateIssueTypeInput: {
+            name?: string;
+            /**
+             * @description Hex color.
+             * @example #5e6ad2
+             */
+            color?: string;
+        };
         Label: {
             id: string;
             projectId: string;
@@ -6091,6 +6476,8 @@ export interface components {
             description: string;
             statusId: string;
             status: components["schemas"]["StatusSummary"];
+            typeId: string | null;
+            type: components["schemas"]["IssueTypeSummary"] | null;
             /**
              * @description 0 = none, 1 = urgent, 2 = high, 3 = medium, 4 = low.
              * @example 2
@@ -6187,6 +6574,16 @@ export interface components {
              */
             color: string;
         };
+        IssueTypeSummary: {
+            id: string;
+            /** @example Bug */
+            name: string;
+            /**
+             * @description Hex color.
+             * @example #5e6ad2
+             */
+            color: string;
+        };
         IssueRef: {
             id: string;
             /** @example ENG-7 */
@@ -6267,6 +6664,11 @@ export interface components {
              */
             status?: string;
             /**
+             * @description Defaults to no type.
+             * @example Bug
+             */
+            type?: string | null;
+            /**
              * @description 0 = none, 1 = urgent, 2 = high, 3 = medium, 4 = low.
              * @default 0
              * @example 2
@@ -6322,6 +6724,11 @@ export interface components {
              * @example In Progress
              */
             status?: string;
+            /**
+             * @description One of the project's issue types (id or name, case-insensitive), or null for none.
+             * @example Bug
+             */
+            type?: string | null;
             /**
              * @description 0 = none, 1 = urgent, 2 = high, 3 = medium, 4 = low.
              * @example 2
@@ -6393,6 +6800,11 @@ export interface components {
                  * @example In Progress
                  */
                 status?: string;
+                /**
+                 * @description One of the project's issue types (id or name, case-insensitive), or null for none.
+                 * @example Bug
+                 */
+                type?: string | null;
                 /**
                  * @description 0 = none, 1 = urgent, 2 = high, 3 = medium, 4 = low.
                  * @example 2
@@ -7023,6 +7435,10 @@ export type Status = components['schemas']['Status'];
 export type CreateStatusInput = components['schemas']['CreateStatusInput'];
 export type ReorderStatusesInput = components['schemas']['ReorderStatusesInput'];
 export type UpdateStatusInput = components['schemas']['UpdateStatusInput'];
+export type IssueType = components['schemas']['IssueType'];
+export type CreateIssueTypeInput = components['schemas']['CreateIssueTypeInput'];
+export type ReorderIssueTypesInput = components['schemas']['ReorderIssueTypesInput'];
+export type UpdateIssueTypeInput = components['schemas']['UpdateIssueTypeInput'];
 export type Label = components['schemas']['Label'];
 export type CreateLabelInput = components['schemas']['CreateLabelInput'];
 export type UpdateLabelInput = components['schemas']['UpdateLabelInput'];
@@ -7037,6 +7453,7 @@ export type AddProjectRepoInput = components['schemas']['AddProjectRepoInput'];
 export type IssuePage = components['schemas']['IssuePage'];
 export type Issue = components['schemas']['Issue'];
 export type StatusSummary = components['schemas']['StatusSummary'];
+export type IssueTypeSummary = components['schemas']['IssueTypeSummary'];
 export type IssueRef = components['schemas']['IssueRef'];
 export type LabelSummary = components['schemas']['LabelSummary'];
 export type CustomFieldValue = components['schemas']['CustomFieldValue'];

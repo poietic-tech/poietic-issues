@@ -32,6 +32,7 @@ export type FieldType =
   | 'url'
   | 'status'
   | 'statusCategory'
+  | 'issueType'
   | 'priority'
   | 'user'
   | 'labels'
@@ -97,6 +98,16 @@ export const CORE_FIELDS: readonly FieldDescriptor[] = [
     filterOps: EQUALITY,
     displayable: true,
     get: (i) => i.statusId,
+  }),
+  field({
+    key: 'type',
+    label: 'Type',
+    type: 'issueType',
+    sortable: false,
+    groupable: true,
+    filterOps: NULLABLE_EQUALITY,
+    displayable: true,
+    get: (i) => i.typeId,
   }),
   field({
     key: 'statusCategory',

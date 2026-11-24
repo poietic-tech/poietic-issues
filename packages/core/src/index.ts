@@ -28,6 +28,7 @@ export * from './services/seed.ts';
 export * from './services/directory.ts';
 export * from './services/sso.ts';
 export * from './services/statuses.ts';
+export * from './services/issue-types.ts';
 export * from './services/users.ts';
 export * from './services/views.ts';
 export * from './services/schema.ts';
