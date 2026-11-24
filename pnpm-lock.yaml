@@ -271,6 +271,12 @@ importers:
       '@poietic-tech/access':
         specifier: ^0.1.0
         version: 0.1.0
+      '@poietic-tech/artifacts':
+        specifier: ^0.1.1
+        version: 0.1.1
+      '@poietic-tech/auth':
+        specifier: ^0.5.0
+        version: 0.5.0
       '@poietic-tech/issues-db':
         specifier: workspace:*
         version: link:../db
@@ -877,6 +883,15 @@ packages:
   '@poietic-tech/access@0.1.0':
     resolution: {integrity: sha512-ddLBETCs6busNpgovdFmGl5oDWrtuk/Kc1coZwM/fIvszsYrKutlCJbDL2Nggp0XYIYKXuinO4CdAdbxx4YXMw==}
     engines: {node: '>=20'}
+
+  '@poietic-tech/artifacts@0.1.1':
+    resolution: {integrity: sha512-KNVm9fTiCNh1YoXfW+PXcIASTM+91XpJw9gkV6AsvGmcj00ne51AtGft+fDlN6k8XnkG3rjafJKf3dPb/TV5lQ==}
+    engines: {node: '>=22.12'}
+    peerDependencies:
+      '@poietic-tech/cli': ^0.3.0
+    peerDependenciesMeta:
+      '@poietic-tech/cli':
+        optional: true
 
   '@poietic-tech/auth@0.4.2':
     resolution: {integrity: sha512-C+ZkKaI4O/FDBCbNADvyGNVOVsX9kwKkb1yjZ6tSEshg8yNz4A8QtO0sE4Y/vM3pMFp46kHUWCTX/oAGjumxBw==}
@@ -3562,6 +3577,8 @@ snapshots:
       playwright: 1.63.0
 
   '@poietic-tech/access@0.1.0': {}
+
+  '@poietic-tech/artifacts@0.1.1': {}
 
   '@poietic-tech/auth@0.4.2': {}
 

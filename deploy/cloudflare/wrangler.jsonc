@@ -37,5 +37,6 @@
     "EXTRA_ALLOWED_ORIGINS": "https://newsroom.poietic.tech,https://newsroom-staging.poietic.tech",
   },
   // R2_ENDPOINT is passed at deploy time (--var), built from CLOUDFLARE_ACCOUNT_ID.
-  // Secrets (set by .github/workflows/deploy.yml): R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, SSO_DIRECTORY_KEY.
+  // Secrets (set by .github/workflows/deploy.yml): R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, SSO_DIRECTORY_KEY, and
+  // optionally ARTIFACTS_AGENT_TOKEN (ADR 0037).
 }

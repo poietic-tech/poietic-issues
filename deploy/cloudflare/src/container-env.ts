@@ -22,6 +22,11 @@ export interface WorkerEnv {
    * which files feedback as the signed-in person. Added to PUBLIC_ORIGIN in POIETIC_ISSUES_ALLOWED_ORIGINS.
    */
   EXTRA_ALLOWED_ORIGINS?: string;
+  /**
+   * The tracker's own agent token at auth.poietic.tech (ADR 0037). Set: attachments are stored in the artifacts
+   * collection, reading the R2 bucket as a read-only fallback until `blobs copy` has moved the older files.
+   */
+  ARTIFACTS_AGENT_TOKEN?: string;
 }
 
 /** PUBLIC_ORIGIN, then each extra origin once (trimmed, empty entries dropped). */
@@ -61,6 +66,11 @@ export function containerEnv(env: WorkerEnv): Record<string, string> {
     POIETIC_ISSUES_S3_REGION: 'auto',
     POIETIC_ISSUES_S3_ACCESS_KEY_ID: env.R2_ACCESS_KEY_ID,
     POIETIC_ISSUES_S3_SECRET_ACCESS_KEY: env.R2_SECRET_ACCESS_KEY,
+    ...(env.ARTIFACTS_AGENT_TOKEN && {
+      POIETIC_ISSUES_BLOB_STORE: 'artifacts',
+      POIETIC_ISSUES_BLOB_FALLBACK: 's3',
+      POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN: env.ARTIFACTS_AGENT_TOKEN,
+    }),
     POIETIC_ISSUES_SSO_NAME: env.SSO_NAME,
     POIETIC_ISSUES_SSO_COOKIE: env.SSO_COOKIE,
     POIETIC_ISSUES_SSO_ISSUER: env.SSO_ISSUER,

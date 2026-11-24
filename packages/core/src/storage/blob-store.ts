@@ -1,15 +1,18 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
+import { ArtifactsClient } from '@poietic-tech/artifacts';
+import { agentFromEnv } from '@poietic-tech/auth';
 import { AwsClient } from 'aws4fetch';
+import { ArtifactsBlobStore, FallbackBlobStore } from './artifacts-blob-store.ts';
 
 /**
  * Where attachment bytes live. Metadata is in the `attachments` table; bytes are stored under random keys
  * (never user-supplied names). Implementations: local disk (development, single node) and S3-compatible
- * object storage (production: AWS S3, R2, SeaweedFS, MinIO, …).
+ * object storage (AWS S3, R2, SeaweedFS, MinIO, …), and an artifacts.poietic.tech collection (ADR 0037).
  */
 export interface BlobStore {
-  readonly kind: 'local' | 's3';
+  readonly kind: 'local' | 's3' | 'artifacts';
   put(key: string, data: Uint8Array, contentType: string): Promise<void>;
   get(key: string): Promise<Uint8Array | null>;
   delete(key: string): Promise<void>;
@@ -152,6 +155,26 @@ export class S3BlobStore implements BlobStore {
     if (res.status !== 404) await this.#check(res, 'DELETE');
   }
 
+  /** Every key under `prefix` (ListObjectsV2, a page at a time). Used to copy a bucket to another store. */
+  async *keys(prefix = ''): AsyncGenerator<string, void, undefined> {
+    let token: string | undefined;
+    do {
+      const url = new URL(this.#url('').replace(/\/$/, ''));
+      url.searchParams.set('list-type', '2');
+      if (prefix) url.searchParams.set('prefix', prefix);
+      if (token) url.searchParams.set('continuation-token', token);
+      const xml = await (
+        await this.#check(await this.#client.fetch(url.toString()), 'LIST')
+      ).text();
+      for (const [, key] of xml.matchAll(/<Key>([^<]*)<\/Key>/g)) yield unescapeXml(key!);
+      token = /<IsTruncated>true<\/IsTruncated>/.test(xml)
+        ? unescapeXml(
+            /<NextContinuationToken>([^<]*)<\/NextContinuationToken>/.exec(xml)?.[1] ?? '',
+          )
+        : undefined;
+    } while (token);
+  }
+
   /** Present unless presigning is turned off (then the server streams downloads itself). */
   readonly presignedGetUrl?: (
     key: string,
@@ -174,29 +197,73 @@ export class S3BlobStore implements BlobStore {
   }
 }
 
+function unescapeXml(s: string): string {
+  return s
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&');
+}
+
+const need = (env: Record<string, string | undefined>, name: string, why: string) => {
+  const value = env[name];
+  if (!value) throw new Error(`${name} is required when ${why}`);
+  return value;
+};
+
+export function s3FromEnv(env: Record<string, string | undefined>, why: string): S3BlobStore {
+  return new S3BlobStore({
+    endpoint: need(env, 'POIETIC_ISSUES_S3_ENDPOINT', why),
+    bucket: need(env, 'POIETIC_ISSUES_S3_BUCKET', why),
+    region: env.POIETIC_ISSUES_S3_REGION ?? 'us-east-1',
+    accessKeyId: need(env, 'POIETIC_ISSUES_S3_ACCESS_KEY_ID', why),
+    secretAccessKey: need(env, 'POIETIC_ISSUES_S3_SECRET_ACCESS_KEY', why),
+    forcePathStyle: env.POIETIC_ISSUES_S3_FORCE_PATH_STYLE !== 'false',
+    presign: !['0', 'false'].includes(env.POIETIC_ISSUES_S3_PRESIGN ?? ''),
+    ...(env.POIETIC_ISSUES_S3_PUBLIC_ENDPOINT && {
+      publicEndpoint: env.POIETIC_ISSUES_S3_PUBLIC_ENDPOINT,
+    }),
+  });
+}
+
+export const DEFAULT_ARTIFACTS_COLLECTION = 'issues-attachments';
+
+/** The artifacts store, acting as the agent whose token is POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN. */
+export function artifactsFromEnv(
+  env: Record<string, string | undefined>,
+  why = 'POIETIC_ISSUES_BLOB_STORE=artifacts',
+): ArtifactsBlobStore {
+  const token = need(env, 'POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN', why);
+  const agent = agentFromEnv({ POIETIC_AGENT_TOKEN: token })!;
+  const client = new ArtifactsClient({
+    fetch: (input, init) => agent.fetch(input, init),
+    ...(env.POIETIC_ISSUES_ARTIFACTS_ORIGIN && { origin: env.POIETIC_ISSUES_ARTIFACTS_ORIGIN }),
+  });
+  return new ArtifactsBlobStore(
+    client,
+    env.POIETIC_ISSUES_ARTIFACTS_COLLECTION ?? DEFAULT_ARTIFACTS_COLLECTION,
+  );
+}
+
 /** Builds the configured blob store from environment-style settings. */
 export function blobStoreFromEnv(
   env: Record<string, string | undefined>,
   defaultDir = './data/blobs',
 ): BlobStore {
-  if ((env.POIETIC_ISSUES_BLOB_STORE ?? 'local') === 's3') {
-    const need = (name: string) => {
-      const value = env[name];
-      if (!value) throw new Error(`${name} is required when POIETIC_ISSUES_BLOB_STORE=s3`);
-      return value;
-    };
-    return new S3BlobStore({
-      endpoint: need('POIETIC_ISSUES_S3_ENDPOINT'),
-      bucket: need('POIETIC_ISSUES_S3_BUCKET'),
-      region: env.POIETIC_ISSUES_S3_REGION ?? 'us-east-1',
-      accessKeyId: need('POIETIC_ISSUES_S3_ACCESS_KEY_ID'),
-      secretAccessKey: need('POIETIC_ISSUES_S3_SECRET_ACCESS_KEY'),
-      forcePathStyle: env.POIETIC_ISSUES_S3_FORCE_PATH_STYLE !== 'false',
-      presign: !['0', 'false'].includes(env.POIETIC_ISSUES_S3_PRESIGN ?? ''),
-      ...(env.POIETIC_ISSUES_S3_PUBLIC_ENDPOINT && {
-        publicEndpoint: env.POIETIC_ISSUES_S3_PUBLIC_ENDPOINT,
-      }),
-    });
+  const kind = env.POIETIC_ISSUES_BLOB_STORE ?? 'local';
+  if (kind === 's3') return s3FromEnv(env, 'POIETIC_ISSUES_BLOB_STORE=s3');
+  if (kind === 'artifacts') {
+    const store = artifactsFromEnv(env);
+    const fallback = env.POIETIC_ISSUES_BLOB_FALLBACK;
+    if (!fallback) return store;
+    if (fallback !== 's3')
+      throw new Error(`POIETIC_ISSUES_BLOB_FALLBACK must be s3, not ${JSON.stringify(fallback)}`);
+    return new FallbackBlobStore(store, s3FromEnv(env, 'POIETIC_ISSUES_BLOB_FALLBACK=s3'));
   }
+  if (kind !== 'local')
+    throw new Error(
+      `POIETIC_ISSUES_BLOB_STORE must be local, s3 or artifacts, not ${JSON.stringify(kind)}`,
+    );
   return new LocalDiskBlobStore(env.POIETIC_ISSUES_BLOB_DIR ?? defaultDir);
 }

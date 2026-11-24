@@ -25,7 +25,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     POIETIC_ISSUES_SEED: bool(!production),
     POIETIC_ISSUES_WEB_DIR: z.string().optional(),
     POIETIC_ISSUES_SECURE_COOKIES: bool(production),
-    POIETIC_ISSUES_BLOB_STORE: z.enum(['local', 's3']).default('local'),
+    POIETIC_ISSUES_BLOB_STORE: z.enum(['local', 's3', 'artifacts']).default('local'),
     POIETIC_ISSUES_BLOB_DIR: z.string().default('./data/blobs'),
     POIETIC_ISSUES_S3_ENDPOINT: z.string().optional(),
     POIETIC_ISSUES_S3_BUCKET: z.string().optional(),
@@ -35,6 +35,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     POIETIC_ISSUES_S3_FORCE_PATH_STYLE: z.string().optional(),
     POIETIC_ISSUES_S3_PRESIGN: z.string().optional(),
     POIETIC_ISSUES_S3_PUBLIC_ENDPOINT: z.string().optional(),
+    /** With the artifacts store: also read from S3 (read-only) while files are copied across (ADR 0037). */
+    POIETIC_ISSUES_BLOB_FALLBACK: z.enum(['s3']).optional(),
+    /** The tracker's own agent token at auth.poietic.tech, holding `editor` on the attachments collection. */
+    POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN: z.string().min(1).optional(),
+    POIETIC_ISSUES_ARTIFACTS_COLLECTION: z.string().optional(),
+    POIETIC_ISSUES_ARTIFACTS_ORIGIN: z.url().optional(),
     /** Run the background webhook worker in this process (turn off on replicas that should only serve API). */
     POIETIC_ISSUES_WEBHOOKS: bool(true),
     /** Let webhooks use http and reach private/loopback addresses. Never enable in production. */
@@ -85,7 +91,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     throw new Error('POIETIC_ISSUES_AUTH_MODE=dev is not allowed when NODE_ENV=production');
   if (production && parsed.data.POIETIC_ISSUES_WEBHOOK_ALLOW_PRIVATE)
     throw new Error('POIETIC_ISSUES_WEBHOOK_ALLOW_PRIVATE is not allowed when NODE_ENV=production');
-  if (parsed.data.POIETIC_ISSUES_BLOB_STORE === 's3')
+  const store = parsed.data.POIETIC_ISSUES_BLOB_STORE;
+  const fallback = parsed.data.POIETIC_ISSUES_BLOB_FALLBACK;
+  if (fallback && store !== 'artifacts')
+    throw new Error('POIETIC_ISSUES_BLOB_FALLBACK needs POIETIC_ISSUES_BLOB_STORE=artifacts');
+  if (store === 's3' || fallback === 's3')
     for (const name of [
       'POIETIC_ISSUES_S3_ENDPOINT',
       'POIETIC_ISSUES_S3_BUCKET',
@@ -93,7 +103,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
       'POIETIC_ISSUES_S3_SECRET_ACCESS_KEY',
     ] as const)
       if (!parsed.data[name])
-        throw new Error(`${name} is required when POIETIC_ISSUES_BLOB_STORE=s3`);
+        throw new Error(
+          `${name} is required when ${store === 's3' ? 'POIETIC_ISSUES_BLOB_STORE' : 'POIETIC_ISSUES_BLOB_FALLBACK'}=s3`,
+        );
+  if (store === 'artifacts' && !parsed.data.POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN)
+    throw new Error(
+      'POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN is required when POIETIC_ISSUES_BLOB_STORE=artifacts',
+    );
   if (parsed.data.POIETIC_ISSUES_SSO_ISSUER) {
     const missing = (
       [

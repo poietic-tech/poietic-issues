@@ -1,7 +1,7 @@
 import { Command, CommanderError, Option } from 'commander';
 import { toCliError } from './errors.ts';
 import type { CliIO } from './io.ts';
-import { dbCommand, serveCommand } from './local/commands.ts';
+import { blobsCommand, dbCommand, serveCommand } from './local/commands.ts';
 import { adminTree } from './runtime.ts';
 import { registerTree } from './tree/index.ts';
 
@@ -75,6 +75,7 @@ export function buildProgram(io: CliIO): Command {
   ]);
   registerTree(program, tree, ['whoami', 'init']);
   program.addCommand(dbCommand(io));
+  program.addCommand(blobsCommand(io));
   program.addCommand(serveCommand(io));
   registerTree(program, tree, ['schema', 'api']);
   for (const cmd of program.commands) configureRecursively(cmd, io);
