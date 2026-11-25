@@ -3,7 +3,6 @@ export interface WorkerEnv {
   PUBLIC_ORIGIN: string;
   R2_ENDPOINT: string;
   DB_BUCKET: string;
-  ATTACHMENTS_BUCKET: string;
   SSO_NAME: string;
   SSO_COOKIE: string;
   SSO_ISSUER: string;
@@ -23,10 +22,10 @@ export interface WorkerEnv {
    */
   EXTRA_ALLOWED_ORIGINS?: string;
   /**
-   * The tracker's own agent token at auth.poietic.tech (ADR 0037). Set: attachments are stored in the artifacts
-   * collection. The older files were copied in from the R2 bucket on 2026-11-24, so there is no fallback to it.
+   * The tracker's own agent token at auth.poietic.tech (ADR 0037). Attachments are stored in its artifacts
+   * collection; the old R2 attachments bucket was copied in and retired on 2026-11-24.
    */
-  ARTIFACTS_AGENT_TOKEN?: string;
+  ARTIFACTS_AGENT_TOKEN: string;
 }
 
 /** PUBLIC_ORIGIN, then each extra origin once (trimmed, empty entries dropped). */
@@ -44,6 +43,7 @@ const REQUIRED = [
   'R2_ACCESS_KEY_ID',
   'R2_SECRET_ACCESS_KEY',
   'SSO_DIRECTORY_KEY',
+  'ARTIFACTS_AGENT_TOKEN',
 ] as const;
 
 /**
@@ -60,16 +60,8 @@ export function containerEnv(env: WorkerEnv): Record<string, string> {
     POIETIC_ISSUES_SECURE_COOKIES: '1',
     POIETIC_ISSUES_ALLOWED_ORIGINS: allowedOrigins(env),
     POIETIC_ISSUES_LOG_FORMAT: 'json',
-    POIETIC_ISSUES_BLOB_STORE: 's3',
-    POIETIC_ISSUES_S3_ENDPOINT: env.R2_ENDPOINT,
-    POIETIC_ISSUES_S3_BUCKET: env.ATTACHMENTS_BUCKET,
-    POIETIC_ISSUES_S3_REGION: 'auto',
-    POIETIC_ISSUES_S3_ACCESS_KEY_ID: env.R2_ACCESS_KEY_ID,
-    POIETIC_ISSUES_S3_SECRET_ACCESS_KEY: env.R2_SECRET_ACCESS_KEY,
-    ...(env.ARTIFACTS_AGENT_TOKEN && {
-      POIETIC_ISSUES_BLOB_STORE: 'artifacts',
-      POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN: env.ARTIFACTS_AGENT_TOKEN,
-    }),
+    POIETIC_ISSUES_BLOB_STORE: 'artifacts',
+    POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN: env.ARTIFACTS_AGENT_TOKEN,
     POIETIC_ISSUES_SSO_NAME: env.SSO_NAME,
     POIETIC_ISSUES_SSO_COOKIE: env.SSO_COOKIE,
     POIETIC_ISSUES_SSO_ISSUER: env.SSO_ISSUER,

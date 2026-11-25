@@ -43,16 +43,15 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           POIETIC_AUTH_SERVICE_KEY: ${{ secrets.POIETIC_AUTH_SERVICE_KEY }}
-          # Optional (ADR 0037): set, attachments move to artifacts.poietic.tech. Unset leaves the Worker secret as it is.
+          # The tracker's agent token for its attachments in artifacts.poietic.tech (ADR 0037).
           POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN: ${{ secrets.POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN }}
         run: |
-          for s in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY POIETIC_AUTH_SERVICE_KEY; do
+          for s in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY POIETIC_AUTH_SERVICE_KEY POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN; do
             [ -n "${!s}" ] || { echo "::error::secret $s is empty"; exit 1; }
           done
           jq -n --arg id "$R2_ACCESS_KEY_ID" --arg secret "$R2_SECRET_ACCESS_KEY" --arg dir "$POIETIC_AUTH_SERVICE_KEY" \
             --arg art "$POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN" \
-            '{R2_ACCESS_KEY_ID: $id, R2_SECRET_ACCESS_KEY: $secret, SSO_DIRECTORY_KEY: $dir}
-              + (if $art == "" then {} else {ARTIFACTS_AGENT_TOKEN: $art} end)' |
+            '{R2_ACCESS_KEY_ID: $id, R2_SECRET_ACCESS_KEY: $secret, SSO_DIRECTORY_KEY: $dir, ARTIFACTS_AGENT_TOKEN: $art}' |
             pnpm exec wrangler secret bulk
       - name: Deploy
         working-directory: deploy/cloudflare

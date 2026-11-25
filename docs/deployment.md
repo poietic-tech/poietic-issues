@@ -238,7 +238,7 @@ The production instance runs on Cloudflare Containers. See [ADR 0019](adr/0019-c
 
 **Layout:** `deploy/cloudflare/` holds the Worker (`src/worker.ts`), container configuration (`src/container-env.ts`, `wrangler.jsonc`, `Dockerfile`), and Litestream setup (`litestream.yml`, `entrypoint.sh`). Requests flow: browser → Worker (`poietic-issues`) at https://issues.poietic.tech → container on `:3000`. The route is owned by OpenTofu in poietic-tech/poietic-dot-tech.
 
-**Data:** The database is SQLite at `/data/tracker.db` inside the container, replicated by Litestream 0.5 to the R2 bucket `poietic-issues-db`. Attachments are stored in R2 bucket `poietic-issues-attachments` via the S3 API. The container sleeps after 30 minutes without requests (`sleepAfter = '30m'`; an open live-update stream counts as activity, including an anonymous one on a public project, so a browser tab or script left on `/api/v1/events/stream` keeps the container awake), and Litestream syncs on the way down.
+**Data:** The database is SQLite at `/data/tracker.db` inside the container, replicated by Litestream 0.5 to the R2 bucket `poietic-issues-db`. Attachments are stored in the restricted artifacts.poietic.tech collection `issues-attachments` ([ADR 0037](adr/0037-attachments-in-artifacts.md)), through the tracker's own agent `issues-tracker`. The container sleeps after 30 minutes without requests (`sleepAfter = '30m'`; an open live-update stream counts as activity, including an anonymous one on a public project, so a browser tab or script left on `/api/v1/events/stream` keeps the container awake), and Litestream syncs on the way down.
 
 **Moving attachments to artifacts.poietic.tech** ([ADR 0037](adr/0037-attachments-in-artifacts.md)), once, in order:
 
@@ -268,12 +268,13 @@ The production instance runs on Cloudflare Containers. See [ADR 0019](adr/0019-c
    `_SECRET_ACCESS_KEY` and `POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN`.
 
 6. Later, in a change of its own: drop `POIETIC_ISSUES_BLOB_FALLBACK` from `src/container-env.ts`, then retire the
-   bucket. Done for issues.poietic.tech: the copy finished on 2026-11-24 (5 files, a re-run copied nothing) and the
-   fallback was dropped; the bucket `poietic-issues-attachments` is no longer read and can be retired.
+   bucket. Done for issues.poietic.tech on 2026-11-24: the copy finished (5 files, a re-run copied nothing), the
+   fallback was dropped, and the bucket `poietic-issues-attachments` was deleted (OpenTofu in poietic-dot-tech) after
+   a local backup. The Worker now requires `ARTIFACTS_AGENT_TOKEN`, and its R2 credentials cover `poietic-issues-db`
+   only.
 
-To go back, delete the Worker secret `ARTIFACTS_AGENT_TOKEN` and the GitHub secret, then redeploy. Files uploaded
-in the meantime are only in artifacts, and `blobs copy` only copies into artifacts, so those would have to be
-copied back by hand.
+There is no R2 store to go back to. Moving attachments elsewhere would mean a new bucket, a copy out of artifacts
+and a change to `src/container-env.ts`.
 
 **Restore:** The entrypoint restores only when `/data/tracker.db` is absent, which means a fresh container disk (every cold start, since Containers have no persistent disk). On the very first boot, when the bucket holds no replica, it starts a new, empty database and the tracker migrates it. Restore fails closed: if the replica cannot be read (wrong credentials, R2 unreachable, missing bucket), Litestream exits non-zero before the tracker starts, so the container never serves an empty database in place of the real one. `deploy/cloudflare/test/restore.sh` covers both. To recover, fix the cause and let the next start restore; delete nothing.
 
