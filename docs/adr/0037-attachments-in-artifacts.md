@@ -33,7 +33,8 @@ work as they do on any other collection.
   nothing and fails nothing, the fallback can be removed and the bucket retired.
 - **issues.poietic.tech** switches when the GitHub `production` secret `POIETIC_ISSUES_ARTIFACTS_AGENT_TOKEN` is set:
   the deploy passes it to the Worker as `ARTIFACTS_AGENT_TOKEN`, and the container then uses artifacts. It ran with the
-  R2 fallback until the copy finished on 2026-11-24, and without it since.
+  R2 fallback until the copy finished on 2026-11-24; the fallback and then the R2 bucket itself were retired the same
+  day, and the token is now required by the Worker.
 
 ## Consequences
 
