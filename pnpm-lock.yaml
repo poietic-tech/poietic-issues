@@ -272,8 +272,8 @@ importers:
         specifier: ^0.1.0
         version: 0.1.0
       '@poietic-tech/artifacts':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.3.0
+        version: 0.3.0
       '@poietic-tech/auth':
         specifier: ^0.5.0
         version: 0.5.0
@@ -884,8 +884,8 @@ packages:
     resolution: {integrity: sha512-ddLBETCs6busNpgovdFmGl5oDWrtuk/Kc1coZwM/fIvszsYrKutlCJbDL2Nggp0XYIYKXuinO4CdAdbxx4YXMw==}
     engines: {node: '>=20'}
 
-  '@poietic-tech/artifacts@0.2.0':
-    resolution: {integrity: sha512-0uu8IdKSgxBd+BKAciFL5PudmExpj/cUwa5Q8gqvT+xci2CEpYpfpMC2BNeEWAlCmmE4+aI6LzbTVRW7V/fhbA==}
+  '@poietic-tech/artifacts@0.3.0':
+    resolution: {integrity: sha512-rB2Wvc1sXpKiWxn28kV1LXX5RsEwS2ZAb9zPzR5Pmt267kmZcf8ASyjQBXaH9SYRsNccsIWfDByvhz1jMqb/Gw==}
     engines: {node: '>=22.12'}
     peerDependencies:
       '@poietic-tech/cli': ^0.3.0
@@ -3578,7 +3578,7 @@ snapshots:
 
   '@poietic-tech/access@0.1.0': {}
 
-  '@poietic-tech/artifacts@0.2.0': {}
+  '@poietic-tech/artifacts@0.3.0': {}
 
   '@poietic-tech/auth@0.4.2': {}
 
