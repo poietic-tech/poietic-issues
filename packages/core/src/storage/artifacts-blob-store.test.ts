@@ -41,11 +41,27 @@ function fakeArtifacts() {
       for (const [k, f] of files) if (f.id === del[1]) files.delete(k);
       return new Response(null, { status: 204 });
     }
-    const f = files.get(decodeURIComponent(url.pathname.slice(1)));
-    return f ? new Response(f.data as Uint8Array<ArrayBuffer>) : problem(404);
+    const byId = /^\/v1\/artifacts\/(art_\w+)\/content$/.exec(url.pathname);
+    if (byId) {
+      const f = [...files.values()].find((x) => x.id === byId[1]);
+      if (!f) return problem(404);
+      return new Response(
+        (corrupt ? enc.encode('<!doctype html>') : f.data) as Uint8Array<ArrayBuffer>,
+      );
+    }
+    // The site's by-name path moved without a redirect: like production, the old one serves the app's page.
+    return new Response('<!doctype html><html></html>', {
+      headers: { 'content-type': 'text/html' },
+    });
   };
+  let corrupt = false;
   const client = new ArtifactsClient({ fetch, origin: 'https://artifacts.test' });
-  return { files, calls, store: new ArtifactsBlobStore(client, 'issues-attachments') };
+  return {
+    files,
+    calls,
+    store: new ArtifactsBlobStore(client, 'issues-attachments'),
+    corruptContent: () => void (corrupt = true),
+  };
 }
 
 describe('ArtifactsBlobStore', () => {
@@ -59,6 +75,24 @@ describe('ArtifactsBlobStore', () => {
     await store.delete('att/ab/abc');
     expect(await store.get('att/ab/abc')).toBeNull();
     expect(await store.sha256('att/ab/abc')).toBeNull();
+  });
+
+  it('reads bytes by artifact id through the versioned API, not the by-name site path', async () => {
+    const { calls, store } = fakeArtifacts();
+    await store.put('att/ab/abc', enc.encode('hello'), 'text/plain');
+    calls.length = 0;
+    expect(await store.get('att/ab/abc')).toEqual(enc.encode('hello'));
+    expect(calls).toEqual([
+      'GET /v1/collections/issues-attachments/files/att/ab/abc',
+      'GET /v1/artifacts/art_0000000000000000000000000001/content',
+    ]);
+  });
+
+  it('refuses bytes that do not match the stored SHA-256', async () => {
+    const { store, corruptContent } = fakeArtifacts();
+    await store.put('att/ab/abc', enc.encode('hello'), 'text/plain');
+    corruptContent();
+    await expect(store.get('att/ab/abc')).rejects.toThrow(/wrong bytes.*SHA-256/);
   });
 
   it('treats a missing blob as null, and deleting it as done', async () => {

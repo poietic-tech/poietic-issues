@@ -1,5 +1,5 @@
 import { type ArtifactsClient, ArtifactsError } from '@poietic-tech/artifacts';
-import type { BlobStore } from './blob-store.ts';
+import { type BlobStore, sha256Hex } from './blob-store.ts';
 
 /** The part of `ArtifactsClient` the store uses (a fake in tests). */
 export type ArtifactsApi = Pick<ArtifactsClient, 'put' | 'get' | 'content' | 'delete'>;
@@ -30,14 +30,27 @@ export class ArtifactsBlobStore implements BlobStore {
     await this.#api.put(this.#collection, key, data, { contentType, meta: { kind: 'attachment' } });
   }
 
+  /**
+   * Reads by artifact id through the versioned API (`/v1/artifacts/<id>/content`), never by name: the by-name path is
+   * the site's, and moved once without a redirect, which served the app's HTML page in place of the file. The bytes
+   * are checked against the stored SHA-256, so a wrong body is an error, never a corrupted download.
+   */
   async get(key: string): Promise<Uint8Array | null> {
+    let artifact: { id: string; sha256: string };
     try {
-      const res = await this.#api.content(this.#ref(key));
-      return new Uint8Array(await res.arrayBuffer());
+      artifact = await this.#api.get(this.#ref(key));
     } catch (error) {
       if (isNotFound(error)) return null;
       throw error;
     }
+    const res = await this.#api.content(artifact.id);
+    const data = new Uint8Array(await res.arrayBuffer());
+    const sha = sha256Hex(data);
+    if (sha !== artifact.sha256)
+      throw new Error(
+        `artifacts returned the wrong bytes for ${this.#ref(key)}: SHA-256 ${sha} ≠ ${artifact.sha256}`,
+      );
+    return data;
   }
 
   /** The stored file's SHA-256 (of the original bytes), or null when there is none. */
